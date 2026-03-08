@@ -57,3 +57,6 @@ Desktop.ini
 .cache/
 .temp/
 tmp/
+
+# Tools
+.entire/
