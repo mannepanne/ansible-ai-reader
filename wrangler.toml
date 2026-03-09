@@ -14,10 +14,11 @@ binding = "ASSETS"
 queue = "ansible-processing-queue"
 binding = "PROCESSING_QUEUE"
 
-[[queues.consumers]]
-queue = "ansible-processing-queue"
-max_batch_size = 10
-max_batch_timeout = 30
+# Consumer configuration deferred to Phase 3/4 (requires queue handler implementation)
+# [[queues.consumers]]
+# queue = "ansible-processing-queue"
+# max_batch_size = 10
+# max_batch_timeout = 30
 
 # Environment Variables
 # All environment variables are set as secrets via wrangler CLI to avoid committing values to git.
