@@ -14,6 +14,14 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
+      exclude: [
+        'node_modules/**',
+        '**/*.config.ts',
+        '**/*.config.js',
+        '.next/**',
+        '.open-next/**',
+        'coverage/**',
+      ],
       thresholds: {
         lines: 95,
         functions: 95,
