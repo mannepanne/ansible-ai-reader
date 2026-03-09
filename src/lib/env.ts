@@ -16,6 +16,16 @@ const envSchema = z.object({
 export type Env = z.infer<typeof envSchema>;
 
 export function validateEnv(): Env {
+  // Skip validation during build - Cloudflare secrets only available at runtime
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return {
+      NEXT_PUBLIC_SUPABASE_URL: '',
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: '',
+      SUPABASE_SECRET_KEY: '',
+      RESEND_API_KEY: '',
+    } as Env;
+  }
+
   const input = {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:

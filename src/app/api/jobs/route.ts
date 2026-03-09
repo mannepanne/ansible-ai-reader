@@ -29,19 +29,13 @@ interface QueueMessage {
   payload: JobInput['payload'];
 }
 
-interface CloudflareEnv {
-  PROCESSING_QUEUE: {
-    send: (message: QueueMessage) => Promise<void>;
-  };
-}
-
-export async function POST(
-  request: NextRequest,
-  env?: CloudflareEnv
-): Promise<NextResponse> {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    // Access Cloudflare env via process.env in @opennextjs/cloudflare
+    const PROCESSING_QUEUE = process.env.PROCESSING_QUEUE;
+
     // Check if queue binding is available (Cloudflare Workers environment)
-    if (!env?.PROCESSING_QUEUE) {
+    if (!PROCESSING_QUEUE) {
       return NextResponse.json(
         {
           error:
@@ -87,7 +81,8 @@ export async function POST(
     };
 
     try {
-      await env.PROCESSING_QUEUE.send(queueMessage);
+      // @ts-expect-error - PROCESSING_QUEUE is a Cloudflare binding
+      await PROCESSING_QUEUE.send(queueMessage);
     } catch (queueError) {
       console.error('Queue error:', queueError);
 
@@ -120,7 +115,7 @@ export async function POST(
       return NextResponse.json(
         {
           error: 'Invalid request data',
-          details: error.errors,
+          details: error.issues,
         },
         { status: 400 }
       );

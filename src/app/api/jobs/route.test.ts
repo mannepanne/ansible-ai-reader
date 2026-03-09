@@ -31,10 +31,8 @@ describe('POST /api/jobs', () => {
   const TEST_USER_ID = '550e8400-e29b-41d4-a716-446655440000';
   const TEST_ITEM_ID = '550e8400-e29b-41d4-a716-446655440001';
 
-  const mockEnv = {
-    PROCESSING_QUEUE: {
-      send: vi.fn(),
-    },
+  const mockQueue = {
+    send: vi.fn(),
   };
 
   beforeEach(() => {
@@ -46,6 +44,8 @@ describe('POST /api/jobs', () => {
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'test-key',
       SUPABASE_SECRET_KEY: 'test-secret',
       RESEND_API_KEY: 're_test',
+      // @ts-expect-error - PROCESSING_QUEUE is a Cloudflare binding
+      PROCESSING_QUEUE: mockQueue,
     };
   });
 
@@ -54,6 +54,9 @@ describe('POST /api/jobs', () => {
   });
 
   it('returns 405 when called without Cloudflare env (local development)', async () => {
+    // Remove the queue binding to simulate local development
+    delete process.env.PROCESSING_QUEUE;
+
     const { POST } = await import('./route');
 
     const request = new Request('http://localhost:3000/api/jobs', {
@@ -86,8 +89,7 @@ describe('POST /api/jobs', () => {
       }),
     });
 
-    // @ts-expect-error - Testing with Cloudflare env
-    const response = await POST(request, mockEnv);
+    const response = await POST(request);
     expect(response.status).toBe(400);
 
     const data = await response.json();
@@ -108,8 +110,7 @@ describe('POST /api/jobs', () => {
       }),
     });
 
-    // @ts-expect-error - Testing with Cloudflare env
-    const response = await POST(request, mockEnv);
+    const response = await POST(request);
     expect(response.status).toBe(400);
 
     const data = await response.json();
@@ -134,8 +135,7 @@ describe('POST /api/jobs', () => {
       }),
     });
 
-    // @ts-expect-error - Testing with Cloudflare env
-    const response = await POST(request, mockEnv);
+    const response = await POST(request);
     expect(response.status).toBe(201);
 
     const data = await response.json();
@@ -143,7 +143,7 @@ describe('POST /api/jobs', () => {
     expect(data.status).toBe('pending');
 
     // Verify queue message was sent
-    expect(mockEnv.PROCESSING_QUEUE.send).toHaveBeenCalledWith(
+    expect(mockQueue.send).toHaveBeenCalledWith(
       expect.objectContaining({
         jobId: data.jobId,
         userId: TEST_USER_ID,
@@ -157,13 +157,14 @@ describe('POST /api/jobs', () => {
   });
 
   it('handles queue send errors gracefully', async () => {
-    const { POST } = await import('./route');
-
-    const failingEnv = {
-      PROCESSING_QUEUE: {
-        send: vi.fn().mockRejectedValue(new Error('Queue unavailable')),
-      },
+    // Replace the queue mock with one that rejects
+    const failingQueue = {
+      send: vi.fn().mockRejectedValue(new Error('Queue unavailable')),
     };
+    // @ts-expect-error - PROCESSING_QUEUE is a Cloudflare binding
+    process.env.PROCESSING_QUEUE = failingQueue;
+
+    const { POST } = await import('./route');
 
     const request = new Request('http://localhost:3000/api/jobs', {
       method: 'POST',
@@ -176,8 +177,7 @@ describe('POST /api/jobs', () => {
       }),
     });
 
-    // @ts-expect-error - Testing with Cloudflare env
-    const response = await POST(request, failingEnv);
+    const response = await POST(request);
     expect(response.status).toBe(500);
 
     const data = await response.json();
