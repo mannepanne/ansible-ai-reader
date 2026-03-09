@@ -2,7 +2,11 @@
 
 **When to read this:** Understanding Cloudflare Workers deployment, environment variable configuration, or production setup.
 
-**Status:** ✅ Complete (PR pending)
+**Status:** ✅ Complete - Deployed to Cloudflare Workers
+
+**Deployment URLs:**
+- Production: https://ansible.hultberg.org (custom domain)
+- Workers: https://ansible-ai-reader.[subdomain].workers.dev
 
 **Related Documents:**
 - [CLAUDE.md](./../CLAUDE.md) - Project navigation index
@@ -354,17 +358,16 @@ npm run build:worker
    npx wrangler login
    ```
 
-3. **Set up secrets (first time only):**
-
-   **Option A - Individual secrets:**
+3. **Initial deploy (creates the worker):**
    ```bash
-   npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL
-   npx wrangler secret put NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-   npx wrangler secret put SUPABASE_SECRET_KEY
-   npx wrangler secret put RESEND_API_KEY
+   npx wrangler deploy
    ```
 
-   **Option B - Bulk upload (faster):**
+   **Note:** This creates the worker in Cloudflare. The worker will exist but may error when accessed because environment variables are missing. This is expected.
+
+4. **Set up secrets:**
+
+   **Option A - Bulk upload (faster, recommended):**
    ```bash
    cp .secrets.example .secrets
    # Edit .secrets with your actual values
@@ -372,20 +375,30 @@ npm run build:worker
    rm .secrets  # Delete after upload
    ```
 
-4. **Deploy:**
+   **Option B - Individual secrets:**
+   ```bash
+   npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL
+   npx wrangler secret put NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+   npx wrangler secret put SUPABASE_SECRET_KEY
+   npx wrangler secret put RESEND_API_KEY
+   ```
+
+5. **Deploy again (with secrets):**
    ```bash
    npx wrangler deploy
    ```
 
-5. **Verify:**
+6. **Verify:**
    - Open deployment URL
    - Check page loads
    - Verify no console errors
 
-6. **Monitor (optional):**
+7. **Monitor (optional):**
    ```bash
    npx wrangler tail  # Stream real-time logs
    ```
+
+**Why deploy twice?** Cloudflare Workers must exist before secrets can be added to them. First deploy creates the worker, then we add secrets, then redeploy with secrets available.
 
 ---
 
