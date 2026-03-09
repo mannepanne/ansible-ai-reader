@@ -26,6 +26,7 @@ wrangler.toml.local
 .env.test.local
 .env.production.local
 .dev.vars
+.secrets
 *.local
 
 # Debug

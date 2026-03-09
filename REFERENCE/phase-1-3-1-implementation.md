@@ -63,35 +63,69 @@ All environment variables are set as Cloudflare secrets using the Wrangler CLI.
 
 ### Setting Secrets
 
+**Two methods available:**
+
+#### Method 1: Individual Secrets (Interactive)
+
 **Command:**
 ```bash
-wrangler secret put <KEY_NAME>
+npx wrangler secret put <KEY_NAME>
 ```
 
 **Example session:**
 ```bash
 # Set Supabase URL
-wrangler secret put NEXT_PUBLIC_SUPABASE_URL
+npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL
 # Paste: https://your-project-id.supabase.co
 
 # Set Supabase publishable key
-wrangler secret put NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+npx wrangler secret put NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 # Paste: eyJhbGc... (from Supabase Dashboard)
 
 # Set Supabase secret key
-wrangler secret put SUPABASE_SECRET_KEY
+npx wrangler secret put SUPABASE_SECRET_KEY
 # Paste: eyJhbGc... (service role key from Supabase Dashboard)
 
 # Set Resend API key (for Phase 2)
-wrangler secret put RESEND_API_KEY
+npx wrangler secret put RESEND_API_KEY
 # Paste: re_... (from resend.com)
 ```
+
+**Note:** Use `npx wrangler` (not just `wrangler`) to ensure you're using the project's Wrangler version (4.71.0).
+
+#### Method 2: Bulk Upload from File (Faster)
+
+**Steps:**
+1. Copy the example file:
+   ```bash
+   cp .secrets.example .secrets
+   ```
+
+2. Edit `.secrets` and fill in your actual values:
+   ```bash
+   NEXT_PUBLIC_SUPABASE_URL=https://spqenzpdmatmuvrllskf.supabase.co
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJhbGc...
+   SUPABASE_SECRET_KEY=eyJhbGc...
+   RESEND_API_KEY=re_...
+   ```
+
+3. Upload all secrets at once:
+   ```bash
+   npx wrangler secret bulk .secrets
+   ```
+
+4. Delete the file (security):
+   ```bash
+   rm .secrets
+   ```
+
+**Benefit:** Upload all 4 secrets with one command instead of 4 interactive prompts.
 
 ### Verifying Secrets
 
 **List configured secrets:**
 ```bash
-wrangler secret list
+npx wrangler secret list
 ```
 
 **Output:**
@@ -252,9 +286,20 @@ Phase 1.3.1 is **basic deployment only**. Still needed:
 
 **Fix:**
 ```bash
-wrangler login
+npx wrangler login
 # Follow browser authentication flow
 ```
+
+### Issue: "wrangler: command not found" or "unknown command"
+
+**Cause:** Using global `wrangler` instead of project version
+
+**Fix:** Always use `npx wrangler` (not just `wrangler`):
+```bash
+npx wrangler secret put <KEY_NAME>
+```
+
+**Why:** `npx` uses the project's Wrangler version (4.71.0) instead of a potentially older global install.
 
 ### Issue: "Missing environment variable" in production
 
@@ -263,10 +308,10 @@ wrangler login
 **Fix:**
 ```bash
 # List secrets to verify
-wrangler secret list
+npx wrangler secret list
 
 # Set missing secret
-wrangler secret put <KEY_NAME>
+npx wrangler secret put <KEY_NAME>
 ```
 
 ### Issue: Build fails with "Cannot find module"
@@ -289,7 +334,7 @@ npm run build:worker
 
 **Fix:**
 1. Check Cloudflare Workers dashboard → Logs
-2. Verify all required secrets are set
+2. Verify all required secrets are set: `npx wrangler secret list`
 3. Test locally: `npx wrangler dev`
 4. Check error message in logs for specific cause
 
@@ -306,15 +351,25 @@ npm run build:worker
 
 2. **Authenticate with Cloudflare:**
    ```bash
-   wrangler login
+   npx wrangler login
    ```
 
 3. **Set up secrets (first time only):**
+
+   **Option A - Individual secrets:**
    ```bash
-   wrangler secret put NEXT_PUBLIC_SUPABASE_URL
-   wrangler secret put NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-   wrangler secret put SUPABASE_SECRET_KEY
-   wrangler secret put RESEND_API_KEY
+   npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL
+   npx wrangler secret put NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+   npx wrangler secret put SUPABASE_SECRET_KEY
+   npx wrangler secret put RESEND_API_KEY
+   ```
+
+   **Option B - Bulk upload (faster):**
+   ```bash
+   cp .secrets.example .secrets
+   # Edit .secrets with your actual values
+   npx wrangler secret bulk .secrets
+   rm .secrets  # Delete after upload
    ```
 
 4. **Deploy:**
@@ -329,7 +384,7 @@ npm run build:worker
 
 6. **Monitor (optional):**
    ```bash
-   wrangler tail  # Stream real-time logs
+   npx wrangler tail  # Stream real-time logs
    ```
 
 ---
@@ -376,24 +431,25 @@ npm run dev                       # Local development server
 
 **Deploy:**
 ```bash
-wrangler login                    # Authenticate with Cloudflare
-wrangler deploy                   # Deploy to Cloudflare Workers
-wrangler tail                     # Stream real-time logs
-wrangler dev                      # Test locally with Workers runtime
+npx wrangler login                    # Authenticate with Cloudflare
+npx wrangler deploy                   # Deploy to Cloudflare Workers
+npx wrangler tail                     # Stream real-time logs
+npx wrangler dev                      # Test locally with Workers runtime
 ```
 
 **Secrets:**
 ```bash
-wrangler secret list              # List configured secrets
-wrangler secret put <KEY>         # Set a secret
-wrangler secret delete <KEY>      # Delete a secret
+npx wrangler secret list              # List configured secrets
+npx wrangler secret put <KEY>         # Set a secret (interactive)
+npx wrangler secret bulk <FILE>       # Upload multiple secrets from file
+npx wrangler secret delete <KEY>      # Delete a secret
 ```
 
 **Debugging:**
 ```bash
-wrangler tail --format=pretty     # Pretty-printed logs
-wrangler tail --status=error      # Only error logs
-wrangler deploy --dry-run         # Test deployment without publishing
+npx wrangler tail --format=pretty     # Pretty-printed logs
+npx wrangler tail --status=error      # Only error logs
+npx wrangler deploy --dry-run         # Test deployment without publishing
 ```
 
 ---
