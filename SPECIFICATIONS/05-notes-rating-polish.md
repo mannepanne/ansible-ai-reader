@@ -16,10 +16,13 @@ Add document notes (synced to Reader), interest ratings, customizable summary pr
 ## Scope & Deliverables
 
 ### Core Tasks
+- [ ] Implement input validation with Zod and DOMPurify
 - [ ] Implement document notes UI (add/edit note field)
+- [ ] Validate and sanitize notes (XSS prevention, max 10k chars)
 - [ ] Sync notes to Reader API (PATCH `/api/v3/update/:id`)
-- [ ] Implement rating system (0-5 stars)
+- [ ] Implement rating system (0-5 stars with validation)
 - [ ] Create settings page (editable summary prompt)
+- [ ] Validate summary prompts (prevent injection, max 2k chars)
 - [ ] Add "Read in Reader" link (opens Reader URL)
 - [ ] Improve empty states (helpful guidance)
 - [ ] Polish error messages (user-friendly)
@@ -32,6 +35,112 @@ Add document notes (synced to Reader), interest ratings, customizable summary pr
 - Learning from ratings (future v2)
 - Tag filtering/search (future v1.1)
 - Automated background sync (future v2)
+
+---
+
+## Input Validation (User Input)
+
+**See Phase 3 for comprehensive validation strategy.** This phase adds user-generated content:
+
+### Document Notes Validation
+
+**Security**: Prevent XSS attacks via malicious notes
+
+**Validation rules**:
+```typescript
+import DOMPurify from 'isomorphic-dompurify';
+import { z } from 'zod';
+
+const DocumentNoteSchema = z.string()
+  .max(10000, 'Notes must be under 10,000 characters')
+  .transform(note => DOMPurify.sanitize(note, {
+    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'p', 'br', 'ul', 'ol', 'li'],
+    ALLOWED_ATTR: [],
+  }));
+
+// Usage
+function saveNote(rawNote: string) {
+  const sanitized = DocumentNoteSchema.parse(rawNote);
+  // Safe to store and display
+}
+```
+
+**What we allow**:
+- Basic formatting: bold, italic, lists
+- Max length: 10,000 characters
+- **What we block**: `<script>`, `<iframe>`, `onclick`, `onerror`, etc.
+
+**Display safety**:
+- React automatically escapes JSX content
+- Never use `dangerouslySetInnerHTML` for notes
+
+### Rating Validation
+
+**Validation rules**:
+```typescript
+const RatingSchema = z.number()
+  .int('Rating must be an integer')
+  .min(0, 'Rating must be at least 0')
+  .max(5, 'Rating must be at most 5');
+
+// Usage
+function saveRating(rating: unknown) {
+  const validated = RatingSchema.parse(rating);  // Throws if invalid
+  // Safe to store: validated is 0-5
+}
+```
+
+**Client-side enforcement**:
+- Radio buttons / star widget only allows 0-5
+- Server-side validation catches tampering
+
+### Summary Prompt Validation
+
+**Security**: Prevent prompt injection attacks
+
+**Validation rules**:
+```typescript
+const SummaryPromptSchema = z.string()
+  .min(10, 'Prompt must be at least 10 characters')
+  .max(2000, 'Prompt must be under 2000 characters')
+  .transform(prompt => {
+    // Strip HTML tags
+    return prompt.replace(/<[^>]*>/g, '');
+  })
+  .refine(prompt => {
+    // Prevent obvious injection attempts
+    const dangerous = ['ignore previous', 'ignore all', 'system:', 'assistant:'];
+    const lower = prompt.toLowerCase();
+    return !dangerous.some(phrase => lower.includes(phrase));
+  }, {
+    message: 'Prompt contains potentially dangerous instructions'
+  });
+```
+
+**What we allow**:
+- Plain text only (HTML stripped)
+- 10-2000 characters
+- No prompt injection keywords
+
+**What happens on violation**:
+- Show user-friendly error: "Prompt contains invalid characters"
+- Don't save invalid prompt
+- Keep previous valid prompt
+
+### API Input Validation (Reader Notes Sync)
+
+**When syncing notes to Reader API**:
+```typescript
+// Before sending to Reader
+const noteForReader = DocumentNoteSchema.parse(userNote);
+
+await fetch(`https://readwise.io/api/v3/update/${readerId}`, {
+  method: 'PATCH',
+  body: JSON.stringify({
+    notes: noteForReader,  // Already sanitized
+  }),
+});
+```
 
 ---
 
@@ -141,26 +250,42 @@ No schema changes needed - just implement the features!
 
 ### Required Tests
 
-**1. Document Notes Tests**
-- [ ] Add note to item (stored locally)
-- [ ] Add note syncs to Reader API
+**1. Input Validation Tests**
+- [ ] Note XSS prevention: `<script>alert('xss')</script>` sanitized
+- [ ] Note length limit enforced (max 10k chars)
+- [ ] Allowed HTML tags preserved (b, i, em, strong, lists)
+- [ ] Disallowed HTML tags stripped (script, iframe, onclick)
+- [ ] Rating accepts only 0-5 integers
+- [ ] Rating rejects negative numbers
+- [ ] Rating rejects numbers > 5
+- [ ] Rating rejects non-integers (3.5)
+- [ ] Summary prompt XSS prevention (HTML stripped)
+- [ ] Summary prompt length limit enforced (max 2k chars)
+- [ ] Summary prompt injection keywords detected
+- [ ] Validation errors show user-friendly messages
+
+**2. Document Notes Tests**
+- [ ] Add note to item (stored locally, sanitized)
+- [ ] Add note syncs to Reader API (sanitized version)
 - [ ] Edit note updates local + Reader
 - [ ] Delete note removes from local + Reader
 - [ ] Handle API failures gracefully
 - [ ] Note persists across page reloads
+- [ ] Long notes (>10k chars) rejected with error
 
-**2. Rating System Tests**
+**3. Rating System Tests**
 - [ ] Rating saved to database
 - [ ] Rating displayed correctly (0-5 stars)
 - [ ] Rating can be changed
 - [ ] Unrated items show empty stars
-- [ ] Rating validation (0-5 only)
+- [ ] Invalid ratings (6, -1, 3.5) rejected
 
-**3. Settings Tests**
-- [ ] Summary prompt saved to users table
+**4. Settings Tests**
+- [ ] Summary prompt saved to users table (sanitized)
 - [ ] Default prompt provided for new users
 - [ ] Custom prompt used in future summaries
 - [ ] Empty prompt falls back to default
+- [ ] Prompt with injection keywords rejected
 - [ ] Settings page only accessible when authenticated
 
 **4. UI Polish Tests**
