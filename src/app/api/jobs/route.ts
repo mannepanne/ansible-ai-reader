@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { supabaseAdmin } from '@/lib/supabase';
 
 // Queue message schema
@@ -31,8 +32,9 @@ interface QueueMessage {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Access Cloudflare env via process.env in @opennextjs/cloudflare
-    const PROCESSING_QUEUE = process.env.PROCESSING_QUEUE;
+    // Access Cloudflare bindings via getCloudflareContext
+    const { env } = getCloudflareContext();
+    const PROCESSING_QUEUE = env.PROCESSING_QUEUE;
 
     // Check if queue binding is available (Cloudflare Workers environment)
     if (!PROCESSING_QUEUE) {
@@ -81,7 +83,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     };
 
     try {
-      // @ts-expect-error - PROCESSING_QUEUE is a Cloudflare binding
       await PROCESSING_QUEUE.send(queueMessage);
     } catch (queueError) {
       console.error('Queue error:', queueError);

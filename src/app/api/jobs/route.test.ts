@@ -26,6 +26,12 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
+// Mock getCloudflareContext
+const mockGetCloudflareContext = vi.fn();
+vi.mock('@opennextjs/cloudflare', () => ({
+  getCloudflareContext: mockGetCloudflareContext,
+}));
+
 describe('POST /api/jobs', () => {
   const originalEnv = process.env;
   const TEST_USER_ID = '550e8400-e29b-41d4-a716-446655440000';
@@ -44,9 +50,14 @@ describe('POST /api/jobs', () => {
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'test-key',
       SUPABASE_SECRET_KEY: 'test-secret',
       RESEND_API_KEY: 're_test',
-      // @ts-expect-error - PROCESSING_QUEUE is a Cloudflare binding
-      PROCESSING_QUEUE: mockQueue,
     };
+
+    // Mock getCloudflareContext to return queue binding
+    mockGetCloudflareContext.mockReturnValue({
+      env: {
+        PROCESSING_QUEUE: mockQueue,
+      },
+    });
   });
 
   afterEach(() => {
@@ -54,8 +65,10 @@ describe('POST /api/jobs', () => {
   });
 
   it('returns 405 when called without Cloudflare env (local development)', async () => {
-    // Remove the queue binding to simulate local development
-    delete process.env.PROCESSING_QUEUE;
+    // Mock getCloudflareContext to return env without queue binding
+    mockGetCloudflareContext.mockReturnValue({
+      env: {},
+    });
 
     const { POST } = await import('./route');
 
@@ -157,12 +170,15 @@ describe('POST /api/jobs', () => {
   });
 
   it('handles queue send errors gracefully', async () => {
-    // Replace the queue mock with one that rejects
+    // Mock getCloudflareContext to return a failing queue
     const failingQueue = {
       send: vi.fn().mockRejectedValue(new Error('Queue unavailable')),
     };
-    // @ts-expect-error - PROCESSING_QUEUE is a Cloudflare binding
-    process.env.PROCESSING_QUEUE = failingQueue;
+    mockGetCloudflareContext.mockReturnValue({
+      env: {
+        PROCESSING_QUEUE: failingQueue,
+      },
+    });
 
     const { POST } = await import('./route');
 
