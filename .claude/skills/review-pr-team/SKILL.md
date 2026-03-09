@@ -1,7 +1,7 @@
 ---
 name: review-pr-team
 description: Comprehensive PR review using agent teams - security, product, and architecture specialists who debate and challenge each other's findings. Use for critical changes requiring thorough multi-perspective analysis.
-disable-model-invocation: true
+disable-model-invocation: false
 user-invocable: true
 argument-hint:
   - PR-number
@@ -34,82 +34,9 @@ This is fundamentally different from independent reviews - the **discussion phas
 
 When this skill is invoked with a PR number (e.g., `/review-pr-team 1`):
 
-### Step 1: Fetch PR Context
+### Step 1: Create Agent Team - Let Them Gather Their Own Context
 
-Use GitHub CLI to gather PR information:
-
-```bash
-gh pr view $ARGUMENTS
-gh pr diff $ARGUMENTS
-gh pr view $ARGUMENTS --comments
-```
-
-Review the files changed, commit messages, and any existing comments.
-
----
-
-### Step 2: Intelligently Gather Relevant Context
-
-Use this systematic approach to gather just enough context for a thorough review:
-
-**A. Always Read Foundation (MANDATORY):**
-
-1. Read `CLAUDE.md` in repository root for:
-   - Project architecture and structure
-   - Development workflow and conventions
-   - Key patterns and technology stack
-   - Testing philosophy
-
-**B. Extract PR Keywords:**
-
-From PR title, description, and changed file paths, extract relevant keywords:
-- Feature names (blog, auth, admin, api, etc.)
-- Component types (routes, utils, components, etc.)
-- Phase numbers (phase-1, phase-2, etc.)
-- Technical areas (security, testing, deployment, etc.)
-
-Examples:
-- PR title "Phase 2: Public pages" → keywords: "public", "pages", "phase", "2"
-- Changed files include `src/routes/updatesList.ts` → keywords: "updates", "routes", "list"
-- PR mentions "authentication" → keywords: "auth", "login", "security"
-
-**C. Discover Relevant Specifications:**
-
-1. List files in `SPECIFICATIONS/` directory using Bash or Glob
-2. Match spec filenames against PR keywords
-3. Read specifications that match, prioritizing:
-   - Files matching feature names (e.g., `*blog*.md` if PR involves blog)
-   - `*-implementation.md` if PR implements a feature
-   - `*-security.md` if security-related changes detected
-   - `testing-*.md` if tests are included or test files changed
-   - `*-mvp.md` or `*-plan.md` for main feature specs
-
-**D. Follow Relevant Links (Selective):**
-
-- In each spec read, check "Related Documents" sections
-- Follow links to specs that match PR keywords
-- Don't read every linked doc - be selective based on relevance
-- Example: If spec links to testing strategy and PR includes tests, read it
-
-**E. Create Context Summary:**
-
-Synthesize gathered information into a structured summary including:
-- Project architecture and conventions (from CLAUDE.md)
-- What this PR should achieve (from specs and PR description)
-- Key requirements and success criteria
-- Security requirements (if applicable)
-- Testing expectations (if applicable)
-- Architectural decisions made
-
-This context will be provided to the agent team so all reviewers start with the same foundational knowledge.
-
-**If no specifications found:** Note this and reviewers will evaluate based on project architecture (from CLAUDE.md) and general best practices.
-
-**Note:** This approach is future-proof - it discovers relevant context for any PR without hard-coding specific files.
-
----
-
-### Step 3: Create Agent Team for Collaborative Review
+**IMPORTANT:** The agent team has access to all the same tools you do (Bash, Read, Grep, Glob, etc.). Don't pre-gather context for them - this can create stale context if files have been updated since you last read them. Let the team fetch what they need directly.
 
 **CRITICAL:** You must create an **agent team**, not spawn sequential subagents. The reviewers need to discuss findings with each other, not just report back to you.
 
@@ -119,8 +46,33 @@ Create an agent team for reviewing PR #$ARGUMENTS with the following instruction
 
 "Create an agent team to conduct a comprehensive, collaborative review of PR #$ARGUMENTS.
 
-**Project Context:**
-[Paste the context summary from Step 2]
+**IMPORTANT - Gather Your Own Context:**
+
+The team has full access to all tools. Before starting your review, gather the context you need:
+
+1. **Fetch PR details:**
+   ```bash
+   gh pr view $ARGUMENTS
+   gh pr diff $ARGUMENTS
+   gh pr view $ARGUMENTS --comments
+   ```
+
+2. **Read project foundation:**
+   - Read `CLAUDE.md` in repository root for architecture, conventions, and testing philosophy
+   - Read any other CLAUDE.md files in subdirectories if relevant to the PR
+
+3. **Discover relevant specifications:**
+   - Extract keywords from PR title, description, and changed files
+   - Use Bash/Glob to list files in `SPECIFICATIONS/` directory
+   - Read specifications that match the PR's scope
+   - Follow links to related specs as needed
+
+4. **Review changed files:**
+   - Use the PR diff to understand what changed
+   - Read full file context where needed using the Read tool
+   - Check for related files that might be affected
+
+**Why gather your own context?** This ensures you see the LATEST committed state of all files, avoiding stale context if files were updated after the main session read them.
 
 **Team Structure:**
 
@@ -205,7 +157,7 @@ Start the review process now."
 
 ---
 
-### Step 4: Monitor Team Progress
+### Step 2: Monitor Team Progress
 
 While the team works:
 
@@ -217,7 +169,7 @@ While the team works:
 
 ---
 
-### Step 5: Synthesize Collaborative Findings
+### Step 3: Synthesize Collaborative Findings
 
 After all teammates complete the discussion phase:
 
@@ -317,7 +269,7 @@ gh pr comment $ARGUMENTS --body "[markdown content from above]"
 
 ---
 
-### Step 6: Clean Up Team
+### Step 4: Clean Up Team
 
 After posting the review:
 
@@ -339,8 +291,8 @@ Clean up the team
 ```
 
 This will:
-1. Fetch PR #1 details and relevant project context
-2. Create agent team with security, product, and architect reviewers
+1. Create agent team with security, product, and architect reviewers
+2. Team gathers their own context (PR details, CLAUDE.md, specs, changed files)
 3. Reviewers independently analyze the PR
 4. Reviewers discuss findings, debate severity, and reach consensus
 5. Lead synthesizes collaborative findings

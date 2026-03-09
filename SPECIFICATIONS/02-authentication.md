@@ -233,6 +233,8 @@ Before creating a PR for this phase:
 - [ ] Expired session redirect tested
 - [ ] Cookie attributes verified (httpOnly, secure, sameSite)
 - [ ] Resend API key documented in [environment-setup.md](../REFERENCE/environment-setup.md)
+- [ ] SPF/DKIM records configured for ansible@hultberg.org sender address
+- [ ] Email deliverability tested (inbox, not spam)
 - [ ] Supabase JWT expiry documented
 - [ ] No secrets committed to repository
 - [ ] Session management tested across page reloads

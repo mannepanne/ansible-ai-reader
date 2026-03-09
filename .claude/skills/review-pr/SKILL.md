@@ -1,7 +1,7 @@
 ---
 name: review-pr
-description: Full-Stack Developer PR Review
-disable-model-invocation: true
+description: Full-Stack Developer PR Review - use for reviewing changes of a non critical or non architectural nature, for large changes with potential security and architecture impact use the skill /review-pr-team instead.
+disable-model-invocation: false
 user-invocable: true
 argument-hint:
   - PR-number
@@ -20,82 +20,11 @@ A single expert full-stack developer reviews the PR and provides actionable feed
 
 When this skill is invoked with a PR number (e.g., `/review-pr 2`):
 
-### Step 1: Fetch PR Context
+### Step 1: Spawn Independent Reviewer - Let Them Gather Their Own Context
 
-Use GitHub CLI to gather PR information:
+**IMPORTANT:** The reviewer agent has access to all the same tools you do (Bash, Read, Grep, Glob, etc.). Don't pre-gather context for them - this can create stale context if files have been updated since you last read them. Let the reviewer fetch what they need directly.
 
-```bash
-gh pr view $ARGUMENTS
-gh pr diff $ARGUMENTS
-gh pr view $ARGUMENTS --comments
-```
-
-Review the files changed, commit messages, and any existing comments.
-
----
-
-### Step 2: Intelligently Gather Relevant Context
-
-Use this systematic approach to gather just enough context for a thorough review:
-
-**A. Always Read Foundation (MANDATORY):**
-
-1. Read `CLAUDE.md` in repository root for:
-   - Project architecture and structure
-   - Development workflow and conventions
-   - Key patterns and technology stack
-   - Testing philosophy
-
-**B. Extract PR Keywords:**
-
-From PR title, description, and changed file paths, extract relevant keywords:
-- Feature names (blog, auth, admin, api, etc.)
-- Component types (routes, utils, components, etc.)
-- Phase numbers (phase-1, phase-2, etc.)
-- Technical areas (security, testing, deployment, etc.)
-
-Examples:
-- PR title "Phase 2: Public pages" → keywords: "public", "pages", "phase", "2"
-- Changed files include `src/routes/updatesList.ts` → keywords: "updates", "routes", "list"
-- PR mentions "authentication" → keywords: "auth", "login", "security"
-
-**C. Discover Relevant Specifications:**
-
-1. List files in `SPECIFICATIONS/` directory using Bash or Glob
-2. Match spec filenames against PR keywords
-3. Read specifications that match, prioritizing:
-   - Files matching feature names (e.g., `*blog*.md` if PR involves blog)
-   - `*-implementation.md` if PR implements a feature
-   - `*-security.md` if security-related changes detected
-   - `testing-*.md` if tests are included or test files changed
-   - `*-mvp.md` or `*-plan.md` for main feature specs
-
-**D. Follow Relevant Links (Selective):**
-
-- In each spec read, check "Related Documents" sections
-- Follow links to specs that match PR keywords
-- Don't read every linked doc - be selective based on relevance
-- Example: If spec links to testing strategy and PR includes tests, read it
-
-**E. Create Context Summary:**
-
-Synthesize gathered information into a structured summary including:
-- Project architecture and conventions (from CLAUDE.md)
-- What this PR should achieve (from specs and PR description)
-- Key requirements and success criteria
-- Security requirements (if applicable)
-- Testing expectations (if applicable)
-- Architectural decisions made
-
-**If no specifications found:** Reviewer will evaluate based on project architecture (from CLAUDE.md) and general best practices.
-
-**Note:** This approach is future-proof - it discovers relevant context for any PR without hard-coding specific files.
-
----
-
-### Step 3: Full-Stack Developer Review
-
-IMPORTANT: You must spawn an independent subagent for this review. DO NOT review the PR yourself in this session. The reviewer needs fresh, unbiased context.
+**CRITICAL:** You must spawn an independent subagent for this review. DO NOT review the PR yourself in this session. The reviewer needs fresh, unbiased context.
 
 Spawn a **general-purpose** subagent with this task:
 
@@ -103,8 +32,33 @@ Spawn a **general-purpose** subagent with this task:
 
 CRITICAL: This is a fresh review. You have NOT been involved in writing this code. Review it objectively as if you're seeing it for the first time.
 
-**Project Context:**
-[Paste the context summary from Step 2, including project architecture from CLAUDE.md, requirements, and architectural decisions]
+**IMPORTANT - Gather Your Own Context:**
+
+You have full access to all tools. Before starting your review, gather the context you need:
+
+1. **Fetch PR details:**
+   ```bash
+   gh pr view $ARGUMENTS
+   gh pr diff $ARGUMENTS
+   gh pr view $ARGUMENTS --comments
+   ```
+
+2. **Read project foundation:**
+   - Read `CLAUDE.md` in repository root for architecture, conventions, and testing philosophy
+   - Read any other CLAUDE.md files in subdirectories if relevant to the PR
+
+3. **Discover relevant specifications:**
+   - Extract keywords from PR title, description, and changed files
+   - Use Bash/Glob to list files in `SPECIFICATIONS/` directory (if it exists)
+   - Read specifications that match the PR's scope
+   - Follow links to related specs as needed
+
+4. **Review changed files:**
+   - Use the PR diff to understand what changed
+   - Read full file context where needed using the Read tool
+   - Check for related files that might be affected
+
+**Why gather your own context?** This ensures you see the LATEST committed state of all files, avoiding stale context if files were updated after the main session read them.
 
 **Your Mission:**
 Conduct a comprehensive, unbiased review across all dimensions:
@@ -168,7 +122,7 @@ Wait for the review to complete.
 
 ---
 
-### Step 4: Post Results
+### Step 2: Post Results
 
 After the review is complete:
 
@@ -193,9 +147,10 @@ Provide user summary:
 ```
 
 This will:
-1. Fetch PR #2 details
-2. Run full-stack developer review
-3. Post comprehensive review to PR #2
+1. Spawn independent full-stack developer reviewer
+2. Reviewer gathers their own context (PR details, CLAUDE.md, specs, changed files)
+3. Reviewer conducts comprehensive review
+4. Post review to PR #2
 
 ---
 

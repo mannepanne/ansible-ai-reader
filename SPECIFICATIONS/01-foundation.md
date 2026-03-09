@@ -58,6 +58,7 @@ CREATE TABLE reader_items (
   author text,
   source text,
   content_type text,
+  content text,
 
   short_summary text,
   long_summary text,
@@ -89,6 +90,8 @@ CREATE TABLE sync_log (
   items_created integer,
   items_failed integer DEFAULT 0,
   errors jsonb,
+  token_usage jsonb,
+  estimated_cost decimal(10, 4),
   created_at timestamp with time zone DEFAULT now()
 );
 ```
@@ -129,6 +132,10 @@ CREATE POLICY "Users can insert own items"
 
 CREATE POLICY "Users can update own items"
   ON reader_items FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own items"
+  ON reader_items FOR DELETE
   USING (auth.uid() = user_id);
 ```
 
