@@ -201,6 +201,57 @@ curl -X POST https://ansible.hultberg.org/api/jobs \
 
 ---
 
+## Implementation Notes
+
+### Accessing Cloudflare Bindings in Next.js Routes
+
+**Key Learning:** Cloudflare bindings (like queues) are NOT accessible via `process.env` in Next.js API routes when using `@opennextjs/cloudflare`.
+
+**Correct approach:**
+```typescript
+import { getCloudflareContext } from '@opennextjs/cloudflare';
+
+export async function POST(request: NextRequest) {
+  const { env } = getCloudflareContext();
+  const PROCESSING_QUEUE = env.PROCESSING_QUEUE;
+  // ...
+}
+```
+
+**Generate types:**
+```bash
+npx wrangler types --env-interface CloudflareEnv
+```
+
+This creates `worker-configuration.d.ts` with proper TypeScript types for your bindings.
+
+### Build-Time vs Runtime Environment
+
+**Issue:** Next.js build process tries to analyze routes at build time, but Cloudflare secrets are only available at runtime.
+
+**Solution:** Skip env validation during build phase:
+```typescript
+// In lib/env.ts
+if (process.env.NEXT_PHASE === 'phase-production-build') {
+  return { /* empty values */ } as Env;
+}
+```
+
+**Also make Supabase clients lazy-load** to avoid instantiation at module load time:
+```typescript
+// In lib/supabase.ts
+export const supabaseAdmin = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    if (!_supabaseAdmin) {
+      _supabaseAdmin = createClient(/* ... */);
+    }
+    return (_supabaseAdmin as any)[prop];
+  },
+});
+```
+
+---
+
 ## Next Steps
 
 **Phase 1.3.3:** Domain configuration & production polish (already done - ansible.hultberg.org responding)
