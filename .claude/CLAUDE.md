@@ -3,7 +3,7 @@
 
 - This file provides collaboration principles and ways of working guidance to Claude Code (claude.ai/code) when working with in this repository.
 - The purpose is to help the Claude to better collaborate on this project.
-- Last updated: 21st February 2026
+- Last updated: 9th March 2026
 
 **Credits and inspiration:**
 - https://github.com/obra
@@ -76,6 +76,27 @@ You'll still maintain all core collaboration principles (Swedish directness, no 
 - **Document issues as tasks** - If you notice something that should be fixed but is unrelated to your current task, document it as a new task to potentially do later instead of fixing it immediately.
 - **Keep documentation current** - When making significant changes to architecture, APIs, or core functionality, proactively update project documentation to reflect the new reality. Use the designated documentation folders for implementation details.
 - **Don't waste tokens** - Be succinct and concise.
+
+### Definition of Done
+
+Work is NOT complete until ALL of these are true:
+
+1. **Tests exist and pass** (95%+ coverage)
+   - Tests written FIRST (TDD - no exceptions)
+   - All tests passing
+   - Type checking passes (`npx tsc --noEmit`)
+
+2. **Documentation updated**
+   - REFERENCE/ docs updated for any implementation work
+   - CLAUDE.md current status reflects reality
+   - No temporal statements (no "ready to begin", "planning complete")
+
+3. **Code quality verified**
+   - Follows project conventions (ABOUT comments, etc.)
+   - No secrets or debug code committed
+   - Git history is clean and meaningful
+
+**These are NOT optional. PR reviewers MUST verify all three before approval.**
 
 ### Decision Making Process
 1. **Evidence-Based Pushback**: Cite specific reasons when disagreeing
