@@ -1,10 +1,6 @@
-// ABOUT: OpenNext configuration for Cloudflare Workers deployment
-// ABOUT: Configures adapter and bundling for Cloudflare platform
+// ABOUT: OpenNext Cloudflare adapter configuration
+// ABOUT: Minimal config for Cloudflare Workers deployment
 
-export default {
-  default: {
-    override: {
-      wrapper: 'cloudflare-node',
-    },
-  },
-};
+import { defineCloudflareConfig } from '@opennextjs/cloudflare';
+
+export default defineCloudflareConfig({});
