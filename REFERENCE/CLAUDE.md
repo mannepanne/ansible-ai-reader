@@ -14,10 +14,13 @@ Complete documentation of Phase 1.1 implementation: Next.js 15 scaffolding, Clou
 
 Complete documentation of Phase 1.2 implementation: Database schema (4 tables), Row-Level Security policies, environment variable validation with Zod, and Supabase client setup.
 
-### Phase 1.3 implementation docs (coming soon)
-Phase 1.3 is split into 3 mini-phases. Documentation will be created as each completes:
-- **phase-1-3-1-implementation.md** - Cloudflare deployment (in progress)
-- **phase-1-3-2-implementation.md** - Cloudflare Queues infrastructure
+### [phase-1-3-1-implementation.md](./phase-1-3-1-implementation.md)
+**When to read:** Understanding Cloudflare Workers deployment, environment variable configuration, or production setup.
+
+Complete documentation of Phase 1.3.1 implementation: Cloudflare Workers deployment configuration, environment variable management with Wrangler secrets, build process, and deployment workflow.
+
+### Phase 1.3 remaining docs (coming soon)
+- **phase-1-3-2-implementation.md** - Cloudflare Queues infrastructure (next)
 - **phase-1-3-3-implementation.md** - Domain configuration & production polish
 
 ### [testing-strategy.md](./testing-strategy.md)
