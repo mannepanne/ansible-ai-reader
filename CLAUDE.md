@@ -36,7 +36,7 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 - Perplexity API (generate summaries)
 - Supabase Auth (magic links via Resend)
 
-**Current Status:** Phase 1.2 complete (Database setup) - Ready for Phase 1.3 (Queues & Deployment)
+**Current Status:** Phase 1.2 complete (Database setup) - Starting Phase 1.3.1 (Cloudflare Deployment)
 
 ## Implementation Phases
 
@@ -56,12 +56,15 @@ Development is organized into 6 numbered phases with clear deliverables, testing
 - PR workflow and review requirements
 - Technical considerations and edge cases
 
-**Current phase:** Phase 1.2 complete - Phase 1.3 next
+**Current phase:** Phase 1.3.1 (Cloudflare Deployment) - Ready to start
 
 **Phase 1 Progress:**
 - ✅ **Phase 1.1** - Next.js scaffolding (PR #2, merged Mar 9)
-- ✅ **Phase 1.2** - Supabase database setup (PR pending)
-- 🔄 **Phase 1.3** - Cloudflare Queues and deployment (Issue #4, next)
+- ✅ **Phase 1.2** - Supabase database setup (PR #5, merged Mar 9)
+- 🔄 **Phase 1.3** - Cloudflare Queues and deployment (split into 3 mini-phases):
+  - ⏳ **Phase 1.3.1** - Basic Cloudflare deployment (Issue #4, starting now)
+  - ⏳ **Phase 1.3.2** - Cloudflare Queues infrastructure
+  - ⏳ **Phase 1.3.3** - Domain configuration & production polish
 
 ### SPECIFICATIONS/
 - **Implementation phases** (numbered files) - Active work-in-progress
