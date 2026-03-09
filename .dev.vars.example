@@ -1,0 +1,13 @@
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=https://spqenzpdmatmuvrllskf.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key-here
+SUPABASE_SECRET_KEY=your-secret-key-here
+
+# Readwise Reader API (Phase 3)
+READER_API_TOKEN=your-reader-api-token-here
+
+# Perplexity API (Phase 4)
+PERPLEXITY_API_KEY=your-perplexity-api-key-here
+
+# Resend Email (Phase 2)
+RESEND_API_KEY=your-resend-api-key-here
