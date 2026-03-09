@@ -5,6 +5,24 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ============================================================================
+-- ENUMS
+-- ============================================================================
+
+-- Job type enum for processing_jobs
+CREATE TYPE job_type_enum AS ENUM (
+  'summary_generation',
+  'archive_sync'
+);
+
+-- Job status enum for processing_jobs
+CREATE TYPE job_status_enum AS ENUM (
+  'pending',
+  'processing',
+  'completed',
+  'failed'
+);
+
+-- ============================================================================
 -- TABLES
 -- ============================================================================
 
@@ -63,8 +81,8 @@ CREATE TABLE processing_jobs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid REFERENCES users(id) ON DELETE CASCADE,
   reader_item_id uuid REFERENCES reader_items(id) ON DELETE CASCADE,
-  job_type text NOT NULL,
-  status text NOT NULL DEFAULT 'pending',
+  job_type job_type_enum NOT NULL,
+  status job_status_enum NOT NULL DEFAULT 'pending',
   attempts integer DEFAULT 0,
   max_attempts integer DEFAULT 3,
   error_message text,
@@ -96,6 +114,10 @@ ALTER TABLE processing_jobs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own profile"
   ON users FOR SELECT
   USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert own profile"
+  ON users FOR INSERT
+  WITH CHECK (auth.uid() = id);
 
 CREATE POLICY "Users can update own profile"
   ON users FOR UPDATE

@@ -50,6 +50,7 @@ All tables have RLS enabled with policies ensuring users can only access their o
 
 **users table:**
 - ✅ `SELECT` - Users can view own profile
+- ✅ `INSERT` - Users can insert own profile (self-registration)
 - ✅ `UPDATE` - Users can update own profile
 
 **reader_items table:**
@@ -139,10 +140,11 @@ ansible-ai-reader/
 
 **Contents:**
 1. Enable UUID extension
-2. Create 4 tables (users, reader_items, sync_log, processing_jobs)
-3. Create indexes for performance
-4. Enable RLS on all tables
-5. Create RLS policies for multi-tenant isolation
+2. Create ENUMs for job_type and job_status (type-safe status fields)
+3. Create 4 tables (users, reader_items, sync_log, processing_jobs)
+4. Create indexes for performance
+5. Enable RLS on all tables
+6. Create RLS policies for multi-tenant isolation
 
 **To apply migration:**
 1. Go to Supabase Dashboard → SQL Editor
@@ -241,14 +243,53 @@ CREATE INDEX idx_processing_jobs_user ON processing_jobs(user_id, status);
 
 ### 2. Lazy Environment Validation
 
-Environment validation runs on **first access** (via Proxy), not on import. This allows:
-- Tests to mock env vars before validation
-- Cleaner error messages
-- No side effects on import
+Environment validation runs on **first access** (via Proxy), not on import or app startup.
+
+**Implementation:**
+```typescript
+export const env = new Proxy({} as Env, {
+  get(_target, prop) {
+    if (!cachedEnv) {
+      cachedEnv = validateEnv();  // Validates on first property access
+    }
+    return cachedEnv[prop as keyof Env];
+  },
+});
+```
+
+**Benefits:**
+- **Test-friendly**: Tests can mock `process.env` before validation runs
+- **No import side effects**: Importing the module doesn't throw errors
+- **Cleaner error messages**: Validation happens when env is actually used
+- **Single validation**: Cached result reused for all subsequent accesses
+
+**Trade-off:** Validation doesn't happen at app startup, so errors appear during first use rather than immediately. This is acceptable because:
+1. Most Next.js apps access env vars during initial render/startup anyway
+2. The error messages clearly point to the missing variables
+3. The test-friendliness benefit outweighs the delayed error timing
+
+**Alternative considered:** Explicit `ensureEnvValidated()` call in app startup. Rejected because it adds boilerplate and doesn't provide significant benefit given typical Next.js usage patterns.
 
 ### 3. Single Migration File
 
 All schema changes in one migration file for atomic application. Future migrations will be numbered sequentially (20260309000002, etc.).
+
+### 4. PostgreSQL ENUMs for Status Fields
+
+Used PostgreSQL ENUM types for `job_type` and `job_status` columns instead of plain text:
+
+```sql
+CREATE TYPE job_type_enum AS ENUM ('summary_generation', 'archive_sync');
+CREATE TYPE job_status_enum AS ENUM ('pending', 'processing', 'completed', 'failed');
+```
+
+**Benefits:**
+- Database enforces valid values (prevents typos like `'complted'`)
+- Self-documenting schema
+- Better error messages at database level
+- Type safety without application-level validation
+
+**Trade-off:** Harder to add new enum values (requires `ALTER TYPE`), but acceptable since job types are relatively stable.
 
 ---
 
