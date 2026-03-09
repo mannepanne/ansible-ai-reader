@@ -4,6 +4,11 @@ Auto-loaded when working with files in this directory. How-it-works documentatio
 
 ## Files in This Directory
 
+### [phase-1-1-implementation.md](./phase-1-1-implementation.md)
+**When to read:** Understanding the current Next.js setup, build process, or testing infrastructure.
+
+Complete documentation of Phase 1.1 implementation: Next.js 15 scaffolding, Cloudflare Workers setup, testing infrastructure, and build commands.
+
 ### [testing-strategy.md](./testing-strategy.md)
 **When to read:** Writing tests, setting up test coverage, or implementing TDD workflow.
 

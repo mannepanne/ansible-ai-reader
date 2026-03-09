@@ -24,11 +24,11 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 ## Architecture Overview
 
 **Stack:**
-- **Framework**: Next.js 14+ (App Router)
-- **Styling**: Tailwind CSS
+- **Framework**: Next.js 15+ (App Router)
+- **Styling**: Tailwind CSS 4.0
 - **Database**: Supabase (Postgres + Auth)
 - **Email**: Resend (magic link authentication)
-- **Deployment**: Cloudflare Workers (via `@cloudflare/next-on-pages`)
+- **Deployment**: Cloudflare Workers (via `@opennextjs/cloudflare`)
 - **Domain**: ansible.hultberg.org
 
 **Key Integrations:**
@@ -36,7 +36,7 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 - Perplexity API (generate summaries)
 - Supabase Auth (magic links via Resend)
 
-**Current Status:** Planning complete - ready to begin Phase 1 (Foundation)
+**Current Status:** Phase 1.1 complete (Next.js scaffolding) - Ready for Phase 1.2 (Database setup)
 
 ## Implementation Phases
 
@@ -56,7 +56,12 @@ Development is organized into 6 numbered phases with clear deliverables, testing
 - PR workflow and review requirements
 - Technical considerations and edge cases
 
-**Current phase:** None started - ready to begin Phase 1
+**Current phase:** Phase 1.1 complete - Phase 1.2 in progress
+
+**Phase 1 Progress:**
+- ✅ **Phase 1.1** - Next.js scaffolding (PR #2, merged)
+- 🔄 **Phase 1.2** - Supabase database setup (Issue #3, next)
+- ⏳ **Phase 1.3** - Cloudflare Queues and deployment (Issue #4)
 
 ### SPECIFICATIONS/
 - **Implementation phases** (numbered files) - Active work-in-progress
@@ -65,12 +70,11 @@ Development is organized into 6 numbered phases with clear deliverables, testing
 
 ### REFERENCE/
 How-it-works documentation for implemented features:
+- [phase-1-1-implementation.md](./REFERENCE/phase-1-1-implementation.md) - **Current build setup** (Next.js, Cloudflare, tests)
 - [testing-strategy.md](./REFERENCE/testing-strategy.md) - Testing philosophy and approach
 - [technical-debt.md](./REFERENCE/technical-debt.md) - Known issues and accepted risks
-- [environment-setup.md](./REFERENCE/environment-setup.md) - API keys and environment configuration
+- [environment-setup.md](./REFERENCE/environment-setup.md) - API keys and environment configuration (for Phase 1.2+)
 - [troubleshooting.md](./REFERENCE/troubleshooting.md) - Common issues and solutions
-
-*Note: Reference docs are currently placeholders and will be populated as features are implemented.*
 
 Practice is to aim to not allow CLAUDE.md files to grow very large (300+ lines), but keep CLAUDE.md files short and snappy, with relevant details broken out in separate reference files clearly linked with succinct summaries as above. CLAUDE.md files work as "library index" to find the right context when it's needed, and in that way minimise use of tokens.
 
@@ -107,8 +111,8 @@ Practice is to aim to not allow CLAUDE.md files to grow very large (300+ lines),
 - Target: ESNext for Next.js/Cloudflare Workers runtime
 - Strict mode enabled
 - Path alias: `@/` maps to `./src/` (Next.js convention)
-- React and Next.js types included
-- Will be configured with `@cloudflare/next-on-pages` adapter types
+- React 19 and Next.js 15 types included
+- Configured with `@opennextjs/cloudflare` adapter
 
 ## Testing
 
