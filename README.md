@@ -18,9 +18,7 @@ Together: instant access to distilled knowledge from your reading list.
 - **Deployment**: Cloudflare Workers
 - **Integrations**: Readwise Reader API, Perplexity API (summaries), Resend (magic links)
 
-## Status
-
-Planning complete - ready to begin Phase 1 (Foundation).
+## Overview
 
 Full specification: [`SPECIFICATIONS/ORIGINAL_IDEA/ansible-outline.md`](./SPECIFICATIONS/ORIGINAL_IDEA/ansible-outline.md)
 
