@@ -7,3 +7,13 @@ compatibility_flags = ["nodejs_compat"]
 [assets]
 directory = ".open-next/assets"
 binding = "ASSETS"
+
+# Environment Variables
+# All environment variables are set as secrets via wrangler CLI to avoid committing values to git.
+# Required secrets (set via: wrangler secret put <KEY_NAME>):
+#   - NEXT_PUBLIC_SUPABASE_URL
+#   - NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+#   - SUPABASE_SECRET_KEY
+#   - RESEND_API_KEY
+#
+# See REFERENCE/environment-setup.md for values and configuration details.
