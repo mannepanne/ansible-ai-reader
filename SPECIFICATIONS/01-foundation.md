@@ -343,14 +343,18 @@ supabase db reset
 ```typescript
 const requiredEnvVars = [
   'NEXT_PUBLIC_SUPABASE_URL',
-  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-  'SUPABASE_SERVICE_ROLE_KEY',
+  'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY',  // Changed from ANON_KEY
+  'SUPABASE_SECRET_KEY',                   // Changed from SERVICE_ROLE_KEY
   'RESEND_API_KEY',
   'READER_API_TOKEN',      // Phase 3
   'PERPLEXITY_API_KEY',    // Phase 4
   'PROCESSING_QUEUE',      // Queue binding
 ] as const;
+```
 
+**Note on Supabase key naming:** Using `PUBLISHABLE_KEY` and `SECRET_KEY` instead of Supabase's older `ANON_KEY` and `SERVICE_ROLE_KEY` terminology to align with their 2025+ dashboard naming conventions. These are functionally equivalent - the publishable key is client-safe, while the secret key bypasses Row-Level Security and must be kept server-side only.
+
+```typescript
 function validateEnv() {
   const missing = requiredEnvVars.filter(key => !process.env[key]);
 
