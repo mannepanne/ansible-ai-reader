@@ -8,6 +8,17 @@ compatibility_flags = ["nodejs_compat"]
 directory = ".open-next/assets"
 binding = "ASSETS"
 
+# Cloudflare Queues Configuration
+# Queue must be created first via: npx wrangler queues create ansible-processing-queue
+[[queues.producers]]
+queue = "ansible-processing-queue"
+binding = "PROCESSING_QUEUE"
+
+[[queues.consumers]]
+queue = "ansible-processing-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+
 # Environment Variables
 # All environment variables are set as secrets via wrangler CLI to avoid committing values to git.
 # Required secrets (set via: wrangler secret put <KEY_NAME>):

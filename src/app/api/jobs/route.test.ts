@@ -1,0 +1,186 @@
+// ABOUT: Tests for queue producer API endpoint
+// ABOUT: Verifies job creation and queue message sending
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+// Mock Supabase client
+vi.mock('@/lib/supabase', () => ({
+  supabaseAdmin: {
+    from: vi.fn(() => ({
+      insert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn(() => ({
+            data: {
+              id: '550e8400-e29b-41d4-a716-446655440099',
+              status: 'pending',
+              created_at: new Date().toISOString(),
+            },
+            error: null,
+          })),
+        })),
+      })),
+      update: vi.fn(() => ({
+        eq: vi.fn(() => ({ data: null, error: null })),
+      })),
+    })),
+  },
+}));
+
+describe('POST /api/jobs', () => {
+  const originalEnv = process.env;
+  const TEST_USER_ID = '550e8400-e29b-41d4-a716-446655440000';
+  const TEST_ITEM_ID = '550e8400-e29b-41d4-a716-446655440001';
+
+  const mockEnv = {
+    PROCESSING_QUEUE: {
+      send: vi.fn(),
+    },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    process.env = {
+      NODE_ENV: 'test',
+      NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'test-key',
+      SUPABASE_SECRET_KEY: 'test-secret',
+      RESEND_API_KEY: 're_test',
+    };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  it('returns 405 when called without Cloudflare env (local development)', async () => {
+    const { POST } = await import('./route');
+
+    const request = new Request('http://localhost:3000/api/jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: TEST_USER_ID,
+        jobType: 'summary_generation',
+        readerItemId: TEST_ITEM_ID,
+        payload: { title: 'Test Article' },
+      }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(405);
+
+    const data = await response.json();
+    expect(data.error).toContain('Queue functionality not available');
+  });
+
+  it('validates required fields', async () => {
+    const { POST } = await import('./route');
+
+    const request = new Request('http://localhost:3000/api/jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        // Missing userId, jobType, readerItemId
+        payload: {},
+      }),
+    });
+
+    // @ts-expect-error - Testing with Cloudflare env
+    const response = await POST(request, mockEnv);
+    expect(response.status).toBe(400);
+
+    const data = await response.json();
+    expect(data.error).toBeDefined();
+  });
+
+  it('validates jobType is one of allowed types', async () => {
+    const { POST } = await import('./route');
+
+    const request = new Request('http://localhost:3000/api/jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: TEST_USER_ID,
+        jobType: 'invalid_type',
+        readerItemId: TEST_ITEM_ID,
+        payload: {},
+      }),
+    });
+
+    // @ts-expect-error - Testing with Cloudflare env
+    const response = await POST(request, mockEnv);
+    expect(response.status).toBe(400);
+
+    const data = await response.json();
+    expect(data.error).toBe('Invalid request data');
+    // Details will include Zod validation errors
+  });
+
+  it('creates job and sends message to queue', async () => {
+    const { POST } = await import('./route');
+
+    const request = new Request('http://localhost:3000/api/jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: TEST_USER_ID,
+        jobType: 'summary_generation',
+        readerItemId: TEST_ITEM_ID,
+        payload: {
+          title: 'Test Article',
+          content: 'Article content',
+        },
+      }),
+    });
+
+    // @ts-expect-error - Testing with Cloudflare env
+    const response = await POST(request, mockEnv);
+    expect(response.status).toBe(201);
+
+    const data = await response.json();
+    expect(data.jobId).toBeDefined();
+    expect(data.status).toBe('pending');
+
+    // Verify queue message was sent
+    expect(mockEnv.PROCESSING_QUEUE.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jobId: data.jobId,
+        userId: TEST_USER_ID,
+        jobType: 'summary_generation',
+        readerItemId: TEST_ITEM_ID,
+        payload: expect.objectContaining({
+          title: 'Test Article',
+        }),
+      })
+    );
+  });
+
+  it('handles queue send errors gracefully', async () => {
+    const { POST } = await import('./route');
+
+    const failingEnv = {
+      PROCESSING_QUEUE: {
+        send: vi.fn().mockRejectedValue(new Error('Queue unavailable')),
+      },
+    };
+
+    const request = new Request('http://localhost:3000/api/jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: TEST_USER_ID,
+        jobType: 'summary_generation',
+        readerItemId: TEST_ITEM_ID,
+        payload: { title: 'Test' },
+      }),
+    });
+
+    // @ts-expect-error - Testing with Cloudflare env
+    const response = await POST(request, failingEnv);
+    expect(response.status).toBe(500);
+
+    const data = await response.json();
+    expect(data.error).toContain('queue');
+  });
+});
