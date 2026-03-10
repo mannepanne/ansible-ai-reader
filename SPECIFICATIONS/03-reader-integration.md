@@ -381,7 +381,8 @@ async function syncReaderItems(userId: string) {
         status: 'pending',
       });
 
-      // 3. Enqueue message
+      // 3. Enqueue message (Phase 1 pattern: use getCloudflareContext)
+      const { env } = getCloudflareContext();
       await env.PROCESSING_QUEUE.send({
         jobId: job.id,
         userId: userId,
@@ -740,6 +741,36 @@ Phase 3 is complete when:
 ---
 
 ## Technical Considerations
+
+### Cloudflare Queues (Phase 1 Pattern)
+
+**Accessing queue binding** (established in Phase 1.3.2):
+```typescript
+import { getCloudflareContext } from '@opennextjs/cloudflare';
+
+// In API route or server component
+const { env } = getCloudflareContext();
+await env.PROCESSING_QUEUE.send(queueMessage);
+```
+
+**TypeScript types:**
+- Run `npx wrangler types --env-interface CloudflareEnv` to generate types
+- Adds `worker-configuration.d.ts` (already in .gitignore)
+- Provides type safety for `env.PROCESSING_QUEUE`
+
+**Testing pattern:**
+```typescript
+// Mock getCloudflareContext in tests
+vi.mock('@opennextjs/cloudflare', () => ({
+  getCloudflareContext: vi.fn(() => ({
+    env: {
+      PROCESSING_QUEUE: mockQueue,
+    },
+  })),
+}));
+```
+
+**Reference:** See [phase-1-3-2-implementation.md](../REFERENCE/phase-1-3-2-implementation.md) for complete queue producer patterns and testing examples.
 
 ### API Performance
 - **Pagination**: Handle potentially hundreds of items (tested with 50+)

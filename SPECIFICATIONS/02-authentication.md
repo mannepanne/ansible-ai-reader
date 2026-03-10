@@ -90,21 +90,56 @@ Create middleware to protect routes:
 - **Configurable in Supabase**: Settings → Auth → JWT Expiry
 - **Security consideration**: 7 days balances security vs. UX for single-user app
 
-**Session Refresh Strategy** (handled by Supabase):
+**Supabase Client Pattern for Auth**:
+
+**Important:** Phase 1 used a lazy-loading Proxy pattern for Supabase clients to avoid build-time errors. For authentication, we use `@supabase/ssr` helpers instead because they provide proper cookie management and SSR support needed for auth flows.
+
+**Client-side (for auth state):**
 ```typescript
-// Supabase client automatically handles refresh
 import { createBrowserClient } from '@supabase/ssr'
 
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-)
-
-// Automatic refresh happens when:
-// 1. Session is about to expire (within refresh token window)
-// 2. User interacts with the app
-// 3. getSession() is called
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+  )
+}
 ```
+
+**Server-side (for middleware/API routes):**
+```typescript
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+
+export function createClient() {
+  const cookieStore = cookies()
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          cookieStore.set({ name, value, ...options })
+        },
+        remove(name: string, options: CookieOptions) {
+          cookieStore.set({ name, value: '', ...options })
+        },
+      },
+    }
+  )
+}
+```
+
+**Session Refresh Strategy** (handled by Supabase):
+- Automatic refresh happens when:
+  1. Session is about to expire (within refresh token window)
+  2. User interacts with the app
+  3. getSession() is called
+- `@supabase/ssr` handles cookie updates automatically
 
 **Session Storage**:
 - **Access token**: Stored in httpOnly cookie (prevents XSS attacks)
@@ -116,21 +151,56 @@ const supabase = createBrowserClient(
 
 **Handling Expired Sessions**:
 ```typescript
-// Middleware checks session on protected routes
+// middleware.ts - Runs in Cloudflare Workers context
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
+
 export async function middleware(req: NextRequest) {
-  const supabase = createServerClient(/* ... */)
+  const res = NextResponse.next()
+
+  // Create Supabase client with cookie handling
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          res.cookies.set({ name, value, ...options })
+        },
+        remove(name: string, options: CookieOptions) {
+          res.cookies.set({ name, value: '', ...options })
+        },
+      },
+    }
+  )
+
   const { data: { session } } = await supabase.auth.getSession()
 
-  if (!session && req.nextUrl.pathname.startsWith('/summaries')) {
+  // Protect routes that start with /summaries or /settings
+  if (!session && (
+    req.nextUrl.pathname.startsWith('/summaries') ||
+    req.nextUrl.pathname.startsWith('/settings')
+  )) {
     // Redirect to login with return URL
     const loginUrl = new URL('/login', req.url)
     loginUrl.searchParams.set('returnTo', req.nextUrl.pathname)
     return NextResponse.redirect(loginUrl)
   }
 
-  return NextResponse.next()
+  return res
+}
+
+// Configure which routes use middleware
+export const config = {
+  matcher: ['/summaries/:path*', '/settings/:path*'],
 }
 ```
+
+**Note:** This middleware runs in Cloudflare Workers context (via `@opennextjs/cloudflare`). Supabase's `@supabase/ssr` package is compatible with edge runtimes.
 
 **Session Events** (Supabase provides):
 ```typescript
@@ -298,6 +368,19 @@ Phase 2 is complete when:
 ---
 
 ## Technical Considerations
+
+### Cloudflare Workers & Build-Time
+
+**Build-time considerations** (from Phase 1 learnings):
+- Auth code should not instantiate clients at module-load time
+- Use factory functions (`createClient()`) instead of module-level exports
+- The `@supabase/ssr` package handles this correctly by design
+- No need for lazy-loading Proxy pattern (that was for admin client in Phase 1)
+
+**Edge runtime compatibility**:
+- `@supabase/ssr` is designed for edge runtimes (Cloudflare Workers, Vercel Edge)
+- Middleware runs in Workers context without issues
+- Cookie handling works correctly with Workers Request/Response objects
 
 ### Security
 

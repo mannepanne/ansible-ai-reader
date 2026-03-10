@@ -369,7 +369,40 @@ function parseSummaryResponse(text: string) {
 
 ## Queue Consumer Implementation
 
-**Location**: `/src/queue-consumer.ts` (extended from Phase 1)
+**Location**: `/src/queue-consumer.ts` (deferred from Phase 1.3.2)
+
+**Context from Phase 1:**
+- Queue producer API implemented in Phase 1.3.2 (POST /api/jobs)
+- Queue consumer intentionally deferred until Phase 4 (no jobs to process yet)
+- See [phase-1-3-2-implementation.md](../REFERENCE/phase-1-3-2-implementation.md) for producer patterns and testing examples
+
+**Consumer Setup:**
+```typescript
+// src/queue-consumer.ts
+import { getCloudflareContext } from '@opennextjs/cloudflare';
+
+export default {
+  async queue(batch: MessageBatch<QueueMessage>, env: Env): Promise<void> {
+    for (const message of batch.messages) {
+      try {
+        await handleSummaryGeneration(message, env);
+      } catch (error) {
+        console.error('Queue consumer error:', error);
+        // Error handling in handleSummaryGeneration
+      }
+    }
+  }
+}
+```
+
+**Wrangler config:**
+Uncomment the consumer configuration in `wrangler.toml`:
+```toml
+[[queues.consumers]]
+queue = "ansible-processing-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+```
 
 **Summary Generation Handler**:
 ```typescript
@@ -732,11 +765,44 @@ Phase 4 is complete when:
 - **Fallback**: If content empty, try Jina AI Reader (from Phase 3)
 
 ### Queue Architecture
-- **Processing model**: Async queue consumer (not sync endpoint)
+
+**Consumer implementation** (deferred from Phase 1.3.2):
+- **Location**: `/src/queue-consumer.ts`
+- **Wrangler config**: Uncomment `[[queues.consumers]]` in wrangler.toml
+- **Handler function**: `export default { async queue(batch, env) { ... } }`
+- **Reference**: [phase-1-3-2-implementation.md](../REFERENCE/phase-1-3-2-implementation.md)
+
+**Processing model**:
+- **Async queue consumer**: Runs in background, not sync endpoint
 - **Batch processing**: Up to 10 messages per batch, 30s timeout
 - **Error recovery**: Failed jobs retry up to 3 times with exponential backoff
 - **Status tracking**: processing_jobs table tracks each item's state
 - **User polling**: Client polls /api/sync-status every 2s for progress
+
+**Accessing Cloudflare bindings in consumer**:
+```typescript
+// Queue consumer has direct access to env parameter
+export default {
+  async queue(batch: MessageBatch<QueueMessage>, env: Env): Promise<void> {
+    // env.PERPLEXITY_API_KEY is directly available
+    // env.PROCESSING_QUEUE also available for re-queuing
+    for (const message of batch.messages) {
+      // Process message...
+    }
+  }
+}
+```
+
+**Testing pattern**:
+```typescript
+// Test the consumer handler function directly
+const mockEnv = {
+  PERPLEXITY_API_KEY: 'test-key',
+  PROCESSING_QUEUE: mockQueue,
+};
+
+await queueHandler.queue(mockBatch, mockEnv);
+```
 
 ### Prompt Engineering
 - **Current prompt**: Generic summary + tags
