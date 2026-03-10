@@ -2,7 +2,9 @@
 
 **When to read this:** Understanding Cloudflare Queues setup, queue producer API, or async job processing.
 
-**Status:** ✅ Complete (Queue producer implemented, consumer deferred to Phase 3/4)
+**Status:** ✅ Implemented
+
+**Scope:** Queue producer API endpoint. Consumer implementation deferred to Phase 3/4.
 
 **Related Documents:**
 - [CLAUDE.md](./../CLAUDE.md) - Project navigation index
@@ -44,6 +46,8 @@ max_batch_timeout = 30
 ---
 
 ## API Endpoint: POST /api/jobs
+
+**Note:** Original spec specified `/api/queue/jobs`, but implementation uses `/api/jobs` (simpler, more RESTful).
 
 ### Purpose
 Creates a job in the database and sends a message to Cloudflare Queue for async processing.

@@ -2,6 +2,7 @@
 // ABOUT: Verifies job creation and queue message sending
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { NextRequest } from 'next/server';
 
 // Mock Supabase client
 vi.mock('@/lib/supabase', () => ({
@@ -50,6 +51,8 @@ describe('POST /api/jobs', () => {
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'test-key',
       SUPABASE_SECRET_KEY: 'test-secret',
       RESEND_API_KEY: 're_test',
+      READER_API_TOKEN: 'test-reader-token',
+      PERPLEXITY_API_KEY: 'test-perplexity-key',
     };
 
     // Mock getCloudflareContext to return queue binding
@@ -81,12 +84,12 @@ describe('POST /api/jobs', () => {
         readerItemId: TEST_ITEM_ID,
         payload: { title: 'Test Article' },
       }),
-    });
+    }) as NextRequest;
 
     const response = await POST(request);
     expect(response.status).toBe(405);
 
-    const data = await response.json();
+    const data = (await response.json()) as { error: string };
     expect(data.error).toContain('Queue functionality not available');
   });
 
@@ -100,12 +103,12 @@ describe('POST /api/jobs', () => {
         // Missing userId, jobType, readerItemId
         payload: {},
       }),
-    });
+    }) as NextRequest;
 
     const response = await POST(request);
     expect(response.status).toBe(400);
 
-    const data = await response.json();
+    const data = (await response.json()) as { error: string };
     expect(data.error).toBeDefined();
   });
 
@@ -121,14 +124,36 @@ describe('POST /api/jobs', () => {
         readerItemId: TEST_ITEM_ID,
         payload: {},
       }),
-    });
+    }) as NextRequest;
 
     const response = await POST(request);
     expect(response.status).toBe(400);
 
-    const data = await response.json();
+    const data = (await response.json()) as { error: string };
     expect(data.error).toBe('Invalid request data');
     // Details will include Zod validation errors
+  });
+
+  it('validates UUID formats for userId and readerItemId', async () => {
+    const { POST } = await import('./route');
+
+    const request = new Request('http://localhost:3000/api/jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: 'not-a-valid-uuid',
+        jobType: 'summary_generation',
+        readerItemId: 'also-not-a-uuid',
+        payload: { title: 'Test' },
+      }),
+    }) as NextRequest;
+
+    const response = await POST(request);
+    expect(response.status).toBe(400);
+
+    const data = (await response.json()) as { error: string; details: any };
+    expect(data.error).toBe('Invalid request data');
+    expect(data.details).toBeDefined();
   });
 
   it('creates job and sends message to queue', async () => {
@@ -146,12 +171,16 @@ describe('POST /api/jobs', () => {
           content: 'Article content',
         },
       }),
-    });
+    }) as NextRequest;
 
     const response = await POST(request);
     expect(response.status).toBe(201);
 
-    const data = await response.json();
+    const data = (await response.json()) as {
+      jobId: string;
+      status: string;
+      createdAt: string;
+    };
     expect(data.jobId).toBeDefined();
     expect(data.status).toBe('pending');
 
@@ -191,12 +220,12 @@ describe('POST /api/jobs', () => {
         readerItemId: TEST_ITEM_ID,
         payload: { title: 'Test' },
       }),
-    });
+    }) as NextRequest;
 
     const response = await POST(request);
     expect(response.status).toBe(500);
 
-    const data = await response.json();
+    const data = (await response.json()) as { error: string };
     expect(data.error).toContain('queue');
   });
 });
