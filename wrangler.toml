@@ -8,6 +8,22 @@ compatibility_flags = ["nodejs_compat"]
 directory = ".open-next/assets"
 binding = "ASSETS"
 
+# Cloudflare Queues Configuration
+# SETUP: Create queue with: npx wrangler queues create ansible-processing-queue
+# VERIFY: Check queue exists with: npx wrangler queues list
+
+[[queues.producers]]
+queue = "ansible-processing-queue"
+binding = "PROCESSING_QUEUE"
+
+# Consumer configuration deferred to Phase 3/4 (requires queue handler implementation)
+# The commented config below is SAFE - Cloudflare only requires a handler if [[queues.consumers]] is active.
+# Uncomment when implementing queue consumer in Phase 3/4:
+# [[queues.consumers]]
+# queue = "ansible-processing-queue"
+# max_batch_size = 10
+# max_batch_timeout = 30
+
 # Environment Variables
 # All environment variables are set as secrets via wrangler CLI to avoid committing values to git.
 # Required secrets (set via: wrangler secret put <KEY_NAME>):

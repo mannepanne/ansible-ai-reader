@@ -9,9 +9,13 @@ describe('Environment Validation', () => {
   beforeEach(() => {
     // Reset modules and clear ALL env vars before each test
     vi.resetModules();
+    // Cast to any to allow partial env for testing validation logic
     process.env = {
       NODE_ENV: 'test',
-    };
+      // Add Cloudflare-generated env vars (not part of our validation, but required by ProcessEnv type)
+      READER_API_TOKEN: '',
+      PERPLEXITY_API_KEY: '',
+    } as any;
   });
 
   afterEach(() => {
