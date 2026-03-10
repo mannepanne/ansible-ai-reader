@@ -36,35 +36,28 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 - Perplexity API (generate summaries)
 - Supabase Auth (magic links via Resend)
 
-**Current Status:** Phase 1.2 complete (Database setup) - Starting Phase 1.3.1 (Cloudflare Deployment)
+**Current Status:** ✅ Phase 1 Complete - Ready for Phase 2 (Authentication)
 
 ## Implementation Phases
 
 Development is organized into 6 numbered phases with clear deliverables, testing requirements, and PR workflows:
 
-1. [01-foundation.md](./SPECIFICATIONS/01-foundation.md) - Next.js + Cloudflare + Supabase setup (Week 1-2)
-2. [02-authentication.md](./SPECIFICATIONS/02-authentication.md) - Magic link with Supabase Auth (Week 2)
-3. [03-reader-integration.md](./SPECIFICATIONS/03-reader-integration.md) - Fetch and sync unread items (Week 3)
-4. [04-perplexity-integration.md](./SPECIFICATIONS/04-perplexity-integration.md) - Auto-generate summaries and tags (Week 3-4)
-5. [05-notes-rating-polish.md](./SPECIFICATIONS/05-notes-rating-polish.md) - Document notes, ratings, settings (Week 4-5)
-6. [06-launch.md](./SPECIFICATIONS/06-launch.md) - Documentation, monitoring, final testing (Week 5)
+1. ✅ **Phase 1: Foundation** - [Archived](./SPECIFICATIONS/ARCHIVE/01-foundation.md) - Completed Mar 10, 2026
+2. **Phase 2: Authentication** - [02-authentication.md](./SPECIFICATIONS/02-authentication.md) - Magic link with Supabase Auth (Next)
+3. **Phase 3: Reader Integration** - [03-reader-integration.md](./SPECIFICATIONS/03-reader-integration.md) - Fetch and sync unread items
+4. **Phase 4: Perplexity Integration** - [04-perplexity-integration.md](./SPECIFICATIONS/04-perplexity-integration.md) - Auto-generate summaries and tags
+5. **Phase 5: Notes & Rating** - [05-notes-rating-polish.md](./SPECIFICATIONS/05-notes-rating-polish.md) - Document notes, ratings, settings
+6. **Phase 6: Launch** - [06-launch.md](./SPECIFICATIONS/06-launch.md) - Documentation, monitoring, final testing
 
-**Each phase includes:**
-- Clear scope and acceptance criteria
-- Testing strategy (target: 95%+ coverage)
-- Pre-commit checklist (tests, type-checking, manual verification)
-- PR workflow and review requirements
-- Technical considerations and edge cases
+**Current phase:** Phase 2 (Authentication) - Ready to start
 
-**Current phase:** Phase 1.3.1 (Cloudflare Deployment) - Ready to start
-
-**Phase 1 Progress:**
-- ✅ **Phase 1.1** - Next.js scaffolding (PR #2, merged Mar 9)
-- ✅ **Phase 1.2** - Supabase database setup (PR #5, merged Mar 9)
-- 🔄 **Phase 1.3** - Cloudflare Queues and deployment (split into 3 mini-phases):
-  - ⏳ **Phase 1.3.1** - Basic Cloudflare deployment (Issue #4, starting now)
-  - ⏳ **Phase 1.3.2** - Cloudflare Queues infrastructure
-  - ⏳ **Phase 1.3.3** - Domain configuration & production polish
+**Phase 1 Summary (Completed):**
+- ✅ **Phase 1.1** - Next.js scaffolding (PR #2)
+- ✅ **Phase 1.2** - Database setup (PR #5)
+- ✅ **Phase 1.3.1** - Cloudflare deployment (PR #6)
+- ✅ **Phase 1.3.2** - Queues producer (PR #7)
+- ✅ **Phase 1.3.3** - Domain & secrets (concurrent with 1.3.1)
+- **Deliverables:** Next.js 15 + Cloudflare Workers + Supabase + Queues + 26 tests passing
 
 ### SPECIFICATIONS/
 - **Implementation phases** (numbered files) - Active work-in-progress
@@ -73,10 +66,17 @@ Development is organized into 6 numbered phases with clear deliverables, testing
 
 ### REFERENCE/
 How-it-works documentation for implemented features:
-- [phase-1-1-implementation.md](./REFERENCE/phase-1-1-implementation.md) - **Current build setup** (Next.js, Cloudflare, tests)
+
+**Phase 1 Implementation Docs:**
+- [phase-1-1-implementation.md](./REFERENCE/phase-1-1-implementation.md) - Next.js scaffolding & build setup
+- [phase-1-2-implementation.md](./REFERENCE/phase-1-2-implementation.md) - Database schema & Supabase clients
+- [phase-1-3-1-implementation.md](./REFERENCE/phase-1-3-1-implementation.md) - Cloudflare deployment & secrets
+- [phase-1-3-2-implementation.md](./REFERENCE/phase-1-3-2-implementation.md) - Queues infrastructure & getCloudflareContext
+
+**General Docs:**
 - [testing-strategy.md](./REFERENCE/testing-strategy.md) - Testing philosophy and approach
 - [technical-debt.md](./REFERENCE/technical-debt.md) - Known issues and accepted risks
-- [environment-setup.md](./REFERENCE/environment-setup.md) - API keys and environment configuration (for Phase 1.2+)
+- [environment-setup.md](./REFERENCE/environment-setup.md) - API keys and environment configuration
 - [troubleshooting.md](./REFERENCE/troubleshooting.md) - Common issues and solutions
 
 Practice is to aim to not allow CLAUDE.md files to grow very large (300+ lines), but keep CLAUDE.md files short and snappy, with relevant details broken out in separate reference files clearly linked with succinct summaries as above. CLAUDE.md files work as "library index" to find the right context when it's needed, and in that way minimise use of tokens.

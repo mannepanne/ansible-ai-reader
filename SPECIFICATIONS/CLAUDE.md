@@ -6,15 +6,13 @@ Auto-loaded when working with files in this directory. Forward-looking plans for
 
 Development is organized into 6 sequential phases. Each phase includes scope, acceptance criteria, testing strategy, and PR workflow.
 
-**Current phase:** Phase 1.3.1 (Cloudflare Deployment) - Ready to start
+**Current phase:** Phase 2 (Authentication) - Ready to start
 
-**Phase 1 breakdown:**
-- ✅ Phase 1.1 - Next.js scaffolding (PR #2, merged Mar 9 2026)
-- ✅ Phase 1.2 - Supabase database setup (PR #5, merged Mar 9 2026)
-- 🔄 Phase 1.3 - Cloudflare Queues and deployment (split into 3 mini-phases):
-  - ⏳ Phase 1.3.1 - Basic Cloudflare deployment (Issue #4, next)
-  - ⏳ Phase 1.3.2 - Cloudflare Queues infrastructure
-  - ⏳ Phase 1.3.3 - Domain configuration & production polish
+**Completed phases:**
+- ✅ **Phase 1: Foundation** - Moved to [ARCHIVE/](./ARCHIVE/) (Completed Mar 10, 2026)
+  - All sub-phases complete (1.1, 1.2, 1.3.1, 1.3.2, 1.3.3)
+  - 4 PRs merged (#2, #5, #6, #7)
+  - Production deployment live at ansible.hultberg.org
 
 ### Phase Files (Read in Order)
 
