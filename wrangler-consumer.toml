@@ -1,0 +1,18 @@
+# Cloudflare Queue Consumer configuration
+name = "ansible-queue-consumer"
+main = "workers/consumer.ts"
+compatibility_date = "2026-03-06"
+compatibility_flags = ["nodejs_compat"]
+
+[[queues.consumers]]
+queue = "ansible-processing-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "ansible-processing-dlq"
+
+# Environment variables (same as main worker)
+# Set via: wrangler secret put <KEY_NAME> --config wrangler-consumer.toml
+# Required:
+#   - NEXT_PUBLIC_SUPABASE_URL
+#   - SUPABASE_SECRET_KEY

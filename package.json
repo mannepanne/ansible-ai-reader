@@ -7,6 +7,8 @@
     "build": "next build",
     "build:worker": "npx opennextjs-cloudflare build",
     "deploy": "wrangler pages deploy .open-next/worker --project-name=ansible-ai-reader",
+    "deploy:consumer": "wrangler deploy --config wrangler-consumer.toml",
+    "dev:consumer": "wrangler dev --config wrangler-consumer.toml",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest",
