@@ -22,6 +22,21 @@ Auto-loaded when working with files in this directory. Completed implementation 
 - [phase-1-3-1-implementation.md](../../REFERENCE/phase-1-3-1-implementation.md) - Cloudflare deployment
 - [phase-1-3-2-implementation.md](../../REFERENCE/phase-1-3-2-implementation.md) - Queues infrastructure
 
+### Phase 2: Authentication
+**File:** [02-authentication.md](./02-authentication.md)
+**Completed:** March 12, 2026
+**PR:** #8
+
+**Scope:**
+- Magic link authentication via Supabase Auth + Resend SMTP
+- Three Supabase client implementations (@supabase/ssr pattern)
+- Protected route middleware with session refresh
+- Login/logout flows with return URL preservation
+- Testing: 22 new tests (64 total passing)
+
+**Implementation docs:**
+- [phase-2-implementation.md](../../REFERENCE/phase-2-implementation.md) - Authentication architecture, clients, middleware, session management
+
 ---
 
 **Note:** Archived specs are historical record. For current implementation details, see `REFERENCE/` documentation.

@@ -6,7 +6,7 @@ Auto-loaded when working with files in this directory. Forward-looking plans for
 
 Development is organized into 6 sequential phases. Each phase includes scope, acceptance criteria, testing strategy, and PR workflow.
 
-**Current phase:** Phase 2 (Authentication) - Ready to start
+**Current phase:** Phase 3 (Reader Integration) - Next
 
 **Completed phases:**
 - ✅ **Phase 1: Foundation** - Moved to [ARCHIVE/](./ARCHIVE/) (Completed Mar 10, 2026)
@@ -14,15 +14,20 @@ Development is organized into 6 sequential phases. Each phase includes scope, ac
   - 4 PRs merged (#2, #5, #6, #7)
   - Production deployment live at ansible.hultberg.org
 
+- ✅ **Phase 2: Authentication** - Moved to [ARCHIVE/](./ARCHIVE/) (Completed Mar 12, 2026)
+  - Magic link authentication with Supabase Auth + Resend SMTP
+  - PR #8 merged
+  - 22 new tests (64 total passing)
+
 ### Phase Files (Read in Order)
 
-1. **[01-foundation.md](./01-foundation.md)** - Week 1-2
+1. ✅ **[01-foundation.md](./ARCHIVE/01-foundation.md)** - Week 1-2 (Archived)
    Next.js + Cloudflare + Supabase setup, database schema, basic deployment
 
-2. **[02-authentication.md](./02-authentication.md)** - Week 2
+2. ✅ **[02-authentication.md](./ARCHIVE/02-authentication.md)** - Week 2 (Archived)
    Magic link authentication with Supabase Auth + Resend
 
-3. **[03-reader-integration.md](./03-reader-integration.md)** - Week 3
+3. **[03-reader-integration.md](./03-reader-integration.md)** - Week 3 (Next)
    Readwise Reader API integration, fetch and sync unread items
 
 4. **[04-perplexity-integration.md](./04-perplexity-integration.md)** - Week 3-4

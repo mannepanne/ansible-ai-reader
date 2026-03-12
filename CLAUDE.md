@@ -36,20 +36,20 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 - Perplexity API (generate summaries)
 - Supabase Auth (magic links via Resend)
 
-**Current Status:** ✅ Phase 1 Complete - Ready for Phase 2 (Authentication)
+**Current Status:** ✅ Phase 2 Complete - Ready for Phase 3 (Reader Integration)
 
 ## Implementation Phases
 
 Development is organized into 6 numbered phases with clear deliverables, testing requirements, and PR workflows:
 
 1. ✅ **Phase 1: Foundation** - [Archived](./SPECIFICATIONS/ARCHIVE/01-foundation.md) - Completed Mar 10, 2026
-2. **Phase 2: Authentication** - [02-authentication.md](./SPECIFICATIONS/02-authentication.md) - Magic link with Supabase Auth (Next)
-3. **Phase 3: Reader Integration** - [03-reader-integration.md](./SPECIFICATIONS/03-reader-integration.md) - Fetch and sync unread items
+2. ✅ **Phase 2: Authentication** - [Archived](./SPECIFICATIONS/ARCHIVE/02-authentication.md) - Completed Mar 12, 2026
+3. **Phase 3: Reader Integration** - [03-reader-integration.md](./SPECIFICATIONS/03-reader-integration.md) - Fetch and sync unread items (Next)
 4. **Phase 4: Perplexity Integration** - [04-perplexity-integration.md](./SPECIFICATIONS/04-perplexity-integration.md) - Auto-generate summaries and tags
 5. **Phase 5: Notes & Rating** - [05-notes-rating-polish.md](./SPECIFICATIONS/05-notes-rating-polish.md) - Document notes, ratings, settings
 6. **Phase 6: Launch** - [06-launch.md](./SPECIFICATIONS/06-launch.md) - Documentation, monitoring, final testing
 
-**Current phase:** Phase 2 (Authentication) - Ready to start
+**Current phase:** Phase 3 (Reader Integration) - Next
 
 **Phase 1 Summary (Completed):**
 - ✅ **Phase 1.1** - Next.js scaffolding (PR #2)
@@ -58,6 +58,10 @@ Development is organized into 6 numbered phases with clear deliverables, testing
 - ✅ **Phase 1.3.2** - Queues producer (PR #7)
 - ✅ **Phase 1.3.3** - Domain & secrets (concurrent with 1.3.1)
 - **Deliverables:** Next.js 15 + Cloudflare Workers + Supabase + Queues + 26 tests passing
+
+**Phase 2 Summary (Completed):**
+- ✅ **Phase 2** - Magic link authentication (PR #8)
+- **Deliverables:** Supabase Auth + Resend SMTP + Protected routes + Session management + 22 new tests (48 total passing)
 
 ### SPECIFICATIONS/
 - **Implementation phases** (numbered files) - Active work-in-progress
@@ -72,6 +76,9 @@ How-it-works documentation for implemented features:
 - [phase-1-2-implementation.md](./REFERENCE/phase-1-2-implementation.md) - Database schema & Supabase clients
 - [phase-1-3-1-implementation.md](./REFERENCE/phase-1-3-1-implementation.md) - Cloudflare deployment & secrets
 - [phase-1-3-2-implementation.md](./REFERENCE/phase-1-3-2-implementation.md) - Queues infrastructure & getCloudflareContext
+
+**Phase 2 Implementation Docs:**
+- [phase-2-implementation.md](./REFERENCE/phase-2-implementation.md) - Magic link auth, Supabase SSR clients, middleware, session management
 
 **General Docs:**
 - [testing-strategy.md](./REFERENCE/testing-strategy.md) - Testing philosophy and approach
