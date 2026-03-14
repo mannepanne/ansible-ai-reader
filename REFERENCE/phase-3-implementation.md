@@ -229,7 +229,7 @@ Authorization: Required (session cookie)
      const response = await fetchUnreadItems(readerApiToken, pageCursor);
 
      for (const item of response.results) {
-       // Upsert reader_item
+       // Upsert reader_item (metadata only - Reader API is source of truth for content)
        const { data: readerItem } = await supabase
          .from('reader_items')
          .upsert({
@@ -237,7 +237,11 @@ Authorization: Required (session cookie)
            reader_id: item.id,
            title: item.title,
            url: item.url,
-           // ...
+           author: item.author || null,
+           source: item.source || null,
+           word_count: item.word_count || null,
+           created_at: item.created_at,
+           // Note: content NOT stored - fetched from Reader API when needed
          }, {
            onConflict: 'user_id,reader_id',
            ignoreDuplicates: false,
@@ -259,18 +263,14 @@ Authorization: Required (session cookie)
          .single();
 
        // Enqueue message
+       // Phase 4 consumer will fetch content from Reader API using readerId
        const { env } = getCloudflareContext();
        await env.PROCESSING_QUEUE.send({
          jobId: job.id,
          userId: userId,
          readerItemId: readerItem.id,
+         readerId: item.id, // Reader's ID for fetching content in Phase 4
          jobType: 'summary_generation',
-         payload: {
-           title: item.title,
-           author: item.author,
-           content: item.content,
-           url: item.url,
-         },
        });
      }
 
@@ -450,10 +450,16 @@ export default {
 ```
 
 **Phase 4 (Future):**
-- Call Perplexity API to generate summary
+- Fetch article content from Reader API using `readerId`
+- Call Perplexity API to generate summary from content
 - Extract tags from summary
 - Update reader_items with summary and tags
 - Handle errors and retry logic
+
+**Why fetch content in Phase 4:**
+- Content not stored in DB (Reader API is source of truth)
+- Only fetch when actually generating summary
+- Saves storage costs and queue message size
 
 #### Deployment
 
@@ -791,27 +797,27 @@ export async function createClient() {
 
 ### 2. Queue Message Schema
 
-**Pattern from Phase 1.3.2:**
+**Lean queue messages - Reader API as source of truth:**
 
 ```typescript
 interface QueueMessage {
   jobId: string;
   userId: string;
-  readerItemId: string;
+  readerItemId: string; // Local DB ID
+  readerId: string;     // Reader API ID for fetching content
   jobType: 'summary_generation';
-  payload: {
-    title: string;
-    author?: string;
-    content?: string;
-    url: string;
-  };
 }
 ```
 
 **Why important:**
 - Consumer expects this exact format
 - TypeScript types provide compile-time safety
-- Payload contains data needed for Phase 4 summary generation
+- Phase 4 consumer will fetch content from Reader API using readerId
+- Avoids storing 100KB-1MB of content per article in queue messages
+
+**Storage savings:**
+- Before: ~100KB-1MB per article × thousands = GBs of queue bloat
+- After: Just IDs (~100 bytes per message)
 
 ### 3. Upsert Conflict Handling
 
