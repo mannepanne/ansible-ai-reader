@@ -2,7 +2,7 @@
 // ABOUT: Validates authenticated rendering, session display, logout
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { redirect } from 'next/navigation';
 import SummariesPage from './page';
 
@@ -22,9 +22,17 @@ vi.mock('@/utils/supabase/server', () => ({
   })),
 }));
 
+// Mock fetch for API calls
+global.fetch = vi.fn();
+
 describe('SummariesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default mock for items endpoint
+    (global.fetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({ items: [] }),
+    });
   });
 
   it('renders summaries page when user is authenticated', async () => {
@@ -43,12 +51,11 @@ describe('SummariesPage', () => {
     render(component as any);
 
     expect(screen.getByText('Summaries')).toBeInTheDocument();
-    expect(screen.getByText('✅ Authentication successful!')).toBeInTheDocument();
     expect(screen.getByText(/Logged in as:/)).toBeInTheDocument();
     expect(screen.getByText(/test@example.com/)).toBeInTheDocument();
   });
 
-  it('displays placeholder message', async () => {
+  it('displays sync reader button', async () => {
     mockGetSession.mockResolvedValue({
       data: {
         session: {
@@ -63,12 +70,12 @@ describe('SummariesPage', () => {
     const component = await SummariesPage();
     render(component as any);
 
-    expect(
-      screen.getByText(/This is a placeholder page. The actual summaries feature will be implemented in Phase 3/)
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /sync reader/i })).toBeInTheDocument();
+    });
   });
 
-  it('displays Phase 2 completion checklist', async () => {
+  it('displays empty state when no items', async () => {
     mockGetSession.mockResolvedValue({
       data: {
         session: {
@@ -83,11 +90,11 @@ describe('SummariesPage', () => {
     const component = await SummariesPage();
     render(component as any);
 
-    expect(screen.getByText('Phase 2 Complete ✅')).toBeInTheDocument();
-    expect(screen.getByText(/Magic link authentication working/)).toBeInTheDocument();
-    expect(screen.getByText(/Protected routes redirect to login/)).toBeInTheDocument();
-    expect(screen.getByText(/Session management active/)).toBeInTheDocument();
-    expect(screen.getByText(/Middleware protecting routes/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/No items yet. Click "Sync Reader" to fetch your unread items./)
+      ).toBeInTheDocument();
+    });
   });
 
   it('displays logout button', async () => {

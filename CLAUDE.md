@@ -36,7 +36,7 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 - Perplexity API (generate summaries)
 - Supabase Auth (magic links via Resend)
 
-**Current Status:** 🚧 Phase 3 In Progress - Reader Integration (Backend Complete, UI Pending)
+**Current Status:** ✅ Phase 3 Complete - Ready for Phase 4 (Perplexity Integration)
 
 ## Implementation Phases
 
@@ -44,12 +44,33 @@ Development is organized into 6 numbered phases with clear deliverables, testing
 
 1. ✅ **Phase 1: Foundation** - [Archived](./SPECIFICATIONS/ARCHIVE/01-foundation.md) - Completed Mar 10, 2026
 2. ✅ **Phase 2: Authentication** - [Archived](./SPECIFICATIONS/ARCHIVE/02-authentication.md) - Completed Mar 12, 2026
-3. **Phase 3: Reader Integration** - [03-reader-integration.md](./SPECIFICATIONS/03-reader-integration.md) - Fetch and sync unread items (Next)
+3. ✅ **Phase 3: Reader Integration** - [03-reader-integration.md](./SPECIFICATIONS/03-reader-integration.md) - Completed Mar 14, 2026 (120 tests)
 4. **Phase 4: Perplexity Integration** - [04-perplexity-integration.md](./SPECIFICATIONS/04-perplexity-integration.md) - Auto-generate summaries and tags
 5. **Phase 5: Notes & Rating** - [05-notes-rating-polish.md](./SPECIFICATIONS/05-notes-rating-polish.md) - Document notes, ratings, settings
 6. **Phase 6: Launch** - [06-launch.md](./SPECIFICATIONS/06-launch.md) - Documentation, monitoring, final testing
 
-**Current phase:** Phase 3 (Reader Integration) - In Progress
+**Current phase:** Phase 3 Complete - Ready for Phase 4
+
+### Phase 3 Summary (Completed)
+
+**Backend:**
+- ✅ Reader API client with rate limiting (20 req/min)
+- ✅ Sync endpoint with pagination support
+- ✅ Status polling endpoint for real-time progress
+- ✅ Archive endpoint with transaction-like rollback
+- ✅ Retry endpoint for failed job recovery
+- ✅ Queue consumer worker (ready for Phase 4)
+
+**UI:**
+- ✅ Sync Reader button with progress indicators
+- ✅ Items list view with archive buttons
+- ✅ Retry button for failed operations
+- ✅ Real-time status polling (2-second intervals)
+
+**Testing:**
+- ✅ 120 tests passing (56 new tests added)
+- ✅ 95%+ coverage maintained
+- ✅ TypeScript compilation with no errors
 
 **Phase 1 Summary (Completed Mar 10, 2026):**
 - ✅ **Phase 1.1** - Next.js scaffolding (PR #2)
