@@ -50,6 +50,7 @@ export const ReaderItemSchema = z.object({
     .optional()
     .transform((val) => (val ? sanitizeText(val) : undefined)),
   source: z.string().max(200).optional(),
+  word_count: z.number().int().nonnegative().optional(),
   content: z.string().optional(),
   created_at: z.string().datetime(),
   content_type: z.string().optional(),

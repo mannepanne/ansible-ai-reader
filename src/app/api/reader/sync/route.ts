@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
         for (const item of response.results) {
           try {
             // Upsert reader_item (prevents duplicates)
+            // Store only metadata - Reader API is source of truth for content
             const { data: readerItem, error: itemError } = await supabase
               .from('reader_items')
               .upsert(
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
                   url: item.url,
                   author: item.author || null,
                   source: item.source || null,
-                  content_type: item.content_type || null,
+                  word_count: item.word_count || null,
                   created_at: item.created_at,
                   // short_summary and tags will be added by queue consumer in Phase 4
                 },
@@ -140,18 +141,14 @@ export async function POST(request: NextRequest) {
             }
 
             // Enqueue message
+            // Phase 4 consumer will fetch content from Reader API when generating summary
             try {
               await env.PROCESSING_QUEUE.send({
                 jobId: job.id,
                 userId: userId,
                 readerItemId: readerItem.id,
+                readerId: item.id, // Reader's ID for fetching content in Phase 4
                 jobType: 'summary_generation',
-                payload: {
-                  title: item.title,
-                  author: item.author,
-                  content: item.content,
-                  url: item.url,
-                },
               });
 
               totalCreated++;

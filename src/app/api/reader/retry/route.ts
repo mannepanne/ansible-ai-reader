@@ -88,10 +88,10 @@ export async function POST(request: NextRequest) {
     // Retry each failed job
     for (const job of failedJobs) {
       try {
-        // Get reader item details
+        // Get reader_id for fetching content from Reader API in Phase 4
         const { data: readerItem } = await supabase
           .from('reader_items')
-          .select('title, author, content, url')
+          .select('reader_id')
           .eq('id', job.reader_item_id)
           .single();
 
@@ -115,17 +115,13 @@ export async function POST(request: NextRequest) {
         }
 
         // Re-enqueue to PROCESSING_QUEUE
+        // Phase 4 consumer will fetch content from Reader API when generating summary
         await env.PROCESSING_QUEUE.send({
           jobId: job.id,
           userId: userId,
           readerItemId: job.reader_item_id,
+          readerId: readerItem.reader_id,
           jobType: job.job_type,
-          payload: {
-            title: readerItem.title,
-            author: readerItem.author,
-            content: readerItem.content,
-            url: readerItem.url,
-          },
         });
 
         retriedCount++;

@@ -90,10 +90,7 @@ describe('POST /api/reader/retry', () => {
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
                 data: {
-                  title: 'Test Article',
-                  author: 'Author',
-                  content: 'Content',
-                  url: 'https://example.com',
+                  reader_id: 'reader-123',
                 },
                 error: null,
               }),
@@ -119,13 +116,8 @@ describe('POST /api/reader/retry', () => {
       jobId: 'job-1',
       userId: 'user-123',
       readerItemId: 'item-1',
+      readerId: 'reader-123',
       jobType: 'summary_generation',
-      payload: {
-        title: 'Test Article',
-        author: 'Author',
-        content: 'Content',
-        url: 'https://example.com',
-      },
     });
   });
 

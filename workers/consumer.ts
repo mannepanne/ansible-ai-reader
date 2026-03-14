@@ -9,18 +9,14 @@ interface Env {
   SUPABASE_SECRET_KEY: string;
 }
 
-// Queue message schema (matches producer from Phase 1)
+// Queue message schema
+// Phase 4: Consumer will fetch content from Reader API using readerId
 interface QueueMessage {
   jobId: string;
   userId: string;
-  readerItemId: string;
+  readerItemId: string; // Local DB ID
+  readerId: string; // Reader API ID for fetching content
   jobType: 'summary_generation';
-  payload: {
-    title: string;
-    author?: string;
-    content?: string;
-    url: string;
-  };
 }
 
 export default {
