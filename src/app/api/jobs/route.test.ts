@@ -82,7 +82,7 @@ describe('POST /api/jobs', () => {
         userId: TEST_USER_ID,
         jobType: 'summary_generation',
         readerItemId: TEST_ITEM_ID,
-        payload: { title: 'Test Article' },
+        readerId: 'reader-123',
       }),
     }) as NextRequest;
 
@@ -100,8 +100,7 @@ describe('POST /api/jobs', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        // Missing userId, jobType, readerItemId
-        payload: {},
+        // Missing userId, jobType, readerItemId, readerId
       }),
     }) as NextRequest;
 
@@ -122,7 +121,7 @@ describe('POST /api/jobs', () => {
         userId: TEST_USER_ID,
         jobType: 'invalid_type',
         readerItemId: TEST_ITEM_ID,
-        payload: {},
+        readerId: 'reader-123',
       }),
     }) as NextRequest;
 
@@ -144,7 +143,7 @@ describe('POST /api/jobs', () => {
         userId: 'not-a-valid-uuid',
         jobType: 'summary_generation',
         readerItemId: 'also-not-a-uuid',
-        payload: { title: 'Test' },
+        readerId: 'reader-123',
       }),
     }) as NextRequest;
 
@@ -166,10 +165,7 @@ describe('POST /api/jobs', () => {
         userId: TEST_USER_ID,
         jobType: 'summary_generation',
         readerItemId: TEST_ITEM_ID,
-        payload: {
-          title: 'Test Article',
-          content: 'Article content',
-        },
+        readerId: 'reader-123', // Reader API ID for fetching content
       }),
     }) as NextRequest;
 
@@ -184,16 +180,14 @@ describe('POST /api/jobs', () => {
     expect(data.jobId).toBeDefined();
     expect(data.status).toBe('pending');
 
-    // Verify queue message was sent
+    // Verify queue message was sent with new schema (no payload)
     expect(mockQueue.send).toHaveBeenCalledWith(
       expect.objectContaining({
         jobId: data.jobId,
         userId: TEST_USER_ID,
         jobType: 'summary_generation',
         readerItemId: TEST_ITEM_ID,
-        payload: expect.objectContaining({
-          title: 'Test Article',
-        }),
+        readerId: 'reader-123',
       })
     );
   });
@@ -218,7 +212,7 @@ describe('POST /api/jobs', () => {
         userId: TEST_USER_ID,
         jobType: 'summary_generation',
         readerItemId: TEST_ITEM_ID,
-        payload: { title: 'Test' },
+        readerId: 'reader-123',
       }),
     }) as NextRequest;
 

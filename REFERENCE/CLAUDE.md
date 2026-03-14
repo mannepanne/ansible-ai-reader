@@ -31,6 +31,22 @@ Complete documentation of Phase 1.3.1 implementation: Cloudflare Workers deploym
 
 Complete documentation of Phase 1.3.2 implementation: Cloudflare Queues producer infrastructure, getCloudflareContext usage, build-time vs runtime environment handling, and lazy-loading patterns.
 
+### Phase 2 Implementation Details
+
+#### [phase-2-implementation.md](./phase-2-implementation.md)
+**When to read:** Understanding authentication flow, Supabase SSR clients, middleware, or session management.
+
+Complete documentation of Phase 2 implementation: Magic link authentication with Supabase Auth + Resend SMTP, three Supabase client patterns (browser, server, middleware), protected route middleware, session refresh, and testing strategy.
+
+### Phase 3 Implementation Details
+
+#### [phase-3-implementation.md](./phase-3-implementation.md)
+**When to read:** Understanding Reader API integration, sync operations, queue consumer, or status polling. 🚧 In Progress
+
+Complete documentation of Phase 3 implementation (backend): Reader API client with Zod validation and rate limiting, sync endpoint with pagination support, status polling endpoint, queue consumer worker, database migration (sync_log_id), error handling, and testing strategy. UI implementation pending.
+
+### General Documentation
+
 ### [testing-strategy.md](./testing-strategy.md)
 **When to read:** Writing tests, setting up test coverage, or implementing TDD workflow.
 

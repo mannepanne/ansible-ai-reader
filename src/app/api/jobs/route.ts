@@ -7,17 +7,12 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { supabaseAdmin } from '@/lib/supabase';
 
 // Queue message schema
+// Phase 4: Consumer will fetch content from Reader API using readerId
 const jobSchema = z.object({
   userId: z.string().uuid(),
   jobType: z.enum(['summary_generation', 'archive_sync']),
   readerItemId: z.string().uuid(),
-  payload: z.object({
-    title: z.string().optional(),
-    author: z.string().optional(),
-    content: z.string().optional(),
-    url: z.string().optional(),
-    readerId: z.string().optional(),
-  }),
+  readerId: z.string(), // Reader API ID for fetching content
 });
 
 type JobInput = z.infer<typeof jobSchema>;
@@ -25,9 +20,9 @@ type JobInput = z.infer<typeof jobSchema>;
 interface QueueMessage {
   jobId: string;
   userId: string;
-  readerItemId: string;
+  readerItemId: string; // Local DB ID
+  readerId: string; // Reader API ID for fetching content
   jobType: 'summary_generation' | 'archive_sync';
-  payload: JobInput['payload'];
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -78,8 +73,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       jobId: job.id,
       userId: validatedInput.userId,
       readerItemId: validatedInput.readerItemId,
+      readerId: validatedInput.readerId,
       jobType: validatedInput.jobType,
-      payload: validatedInput.payload,
     };
 
     try {

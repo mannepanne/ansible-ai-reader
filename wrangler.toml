@@ -16,13 +16,8 @@ binding = "ASSETS"
 queue = "ansible-processing-queue"
 binding = "PROCESSING_QUEUE"
 
-# Consumer configuration deferred to Phase 3/4 (requires queue handler implementation)
-# The commented config below is SAFE - Cloudflare only requires a handler if [[queues.consumers]] is active.
-# Uncomment when implementing queue consumer in Phase 3/4:
-# [[queues.consumers]]
-# queue = "ansible-processing-queue"
-# max_batch_size = 10
-# max_batch_timeout = 30
+# Consumer configuration in separate worker (wrangler-consumer.toml)
+# This keeps the Next.js worker and queue consumer independent
 
 # Environment Variables
 # All environment variables are set as secrets via wrangler CLI to avoid committing values to git.
