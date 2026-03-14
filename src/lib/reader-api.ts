@@ -92,11 +92,14 @@ export class ReaderAPIError extends Error {
  * Rate limiter for Reader API
  * - 20 requests per minute (Reader API limit)
  * - Single concurrency to ensure ordering
+ * - 90s timeout per request (prevents memory leaks from hung requests)
  */
 const readerQueue = new PQueue({
   concurrency: 1,
   intervalCap: 20, // Max 20 requests
   interval: 60 * 1000, // Per minute
+  timeout: 90000, // 90s total timeout (30s per attempt × 3 retries)
+  throwOnTimeout: true,
 });
 
 // ====================
