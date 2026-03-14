@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { redirect } from 'next/navigation';
 import SummariesPage from './page';
+import { act } from 'react';
 
 // Mock Next.js navigation
 vi.mock('next/navigation', () => ({
@@ -48,7 +49,9 @@ describe('SummariesPage', () => {
     });
 
     const component = await SummariesPage();
-    render(component as any);
+    await act(async () => {
+      render(component as any);
+    });
 
     expect(screen.getByText('Summaries')).toBeInTheDocument();
     expect(screen.getByText(/Logged in as:/)).toBeInTheDocument();
@@ -68,7 +71,9 @@ describe('SummariesPage', () => {
     });
 
     const component = await SummariesPage();
-    render(component as any);
+    await act(async () => {
+      render(component as any);
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /sync reader/i })).toBeInTheDocument();
@@ -88,7 +93,9 @@ describe('SummariesPage', () => {
     });
 
     const component = await SummariesPage();
-    render(component as any);
+    await act(async () => {
+      render(component as any);
+    });
 
     await waitFor(() => {
       expect(
@@ -110,7 +117,9 @@ describe('SummariesPage', () => {
     });
 
     const component = await SummariesPage();
-    render(component as any);
+    await act(async () => {
+      render(component as any);
+    });
 
     const logoutButton = screen.getByRole('button', { name: /logout/i });
     expect(logoutButton).toBeInTheDocument();
@@ -143,7 +152,9 @@ describe('SummariesPage', () => {
     });
 
     const component = await SummariesPage();
-    render(component as any);
+    await act(async () => {
+      render(component as any);
+    });
 
     expect(screen.getByText(/another@example.com/)).toBeInTheDocument();
   });

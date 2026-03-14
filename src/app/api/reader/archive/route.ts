@@ -97,10 +97,18 @@ export async function POST(request: NextRequest) {
       .eq('id', itemId);
 
     if (updateError) {
-      console.error('[Archive] Failed to update local database:', updateError);
-      // Item is already archived in Reader, but DB update failed
-      // This is acceptable - item won't show in Reader anymore
-      // Could implement cleanup/retry logic here if needed
+      console.error(
+        '[Archive] Item archived in Reader but local DB update failed:',
+        updateError
+      );
+      return NextResponse.json(
+        {
+          error:
+            'Item archived in Reader but failed to update local database. Please refresh the page.',
+          requiresRefresh: true,
+        },
+        { status: 500 }
+      );
     }
 
     console.log('[Archive] Successfully archived item:', itemId);

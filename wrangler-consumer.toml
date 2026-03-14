@@ -16,3 +16,4 @@ dead_letter_queue = "ansible-processing-dlq"
 # Required:
 #   - NEXT_PUBLIC_SUPABASE_URL
 #   - SUPABASE_SECRET_KEY
+#   - READER_API_TOKEN (for Phase 4 - fetching article content)

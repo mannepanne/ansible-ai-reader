@@ -222,7 +222,7 @@ describe('POST /api/reader/archive', () => {
     expect(data.error).toBe('Reader API error');
   });
 
-  it('succeeds even when database update fails after Reader archive', async () => {
+  it('returns 500 when database update fails after Reader archive', async () => {
     mockGetSession.mockResolvedValue({
       data: { session: mockSession },
     });
@@ -264,8 +264,9 @@ describe('POST /api/reader/archive', () => {
     const response = await POST(request);
     const data = (await response.json()) as any;
 
-    // Should still succeed since Reader archive succeeded
-    expect(response.status).toBe(200);
-    expect(data.success).toBe(true);
+    // Should fail to maintain data consistency
+    expect(response.status).toBe(500);
+    expect(data.error).toContain('failed to update local database');
+    expect(data.requiresRefresh).toBe(true);
   });
 });
