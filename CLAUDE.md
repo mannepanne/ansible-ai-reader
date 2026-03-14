@@ -36,7 +36,7 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 - Perplexity API (generate summaries)
 - Supabase Auth (magic links via Resend)
 
-**Current Status:** ✅ Phase 2 Complete - Ready for Phase 3 (Reader Integration)
+**Current Status:** 🚧 Phase 3 In Progress - Reader Integration (Backend Complete, UI Pending)
 
 ## Implementation Phases
 
@@ -49,9 +49,9 @@ Development is organized into 6 numbered phases with clear deliverables, testing
 5. **Phase 5: Notes & Rating** - [05-notes-rating-polish.md](./SPECIFICATIONS/05-notes-rating-polish.md) - Document notes, ratings, settings
 6. **Phase 6: Launch** - [06-launch.md](./SPECIFICATIONS/06-launch.md) - Documentation, monitoring, final testing
 
-**Current phase:** Phase 3 (Reader Integration) - Next
+**Current phase:** Phase 3 (Reader Integration) - In Progress
 
-**Phase 1 Summary (Completed):**
+**Phase 1 Summary (Completed Mar 10, 2026):**
 - ✅ **Phase 1.1** - Next.js scaffolding (PR #2)
 - ✅ **Phase 1.2** - Database setup (PR #5)
 - ✅ **Phase 1.3.1** - Cloudflare deployment (PR #6)
@@ -59,9 +59,14 @@ Development is organized into 6 numbered phases with clear deliverables, testing
 - ✅ **Phase 1.3.3** - Domain & secrets (concurrent with 1.3.1)
 - **Deliverables:** Next.js 15 + Cloudflare Workers + Supabase + Queues + 26 tests passing
 
-**Phase 2 Summary (Completed):**
+**Phase 2 Summary (Completed Mar 12, 2026):**
 - ✅ **Phase 2** - Magic link authentication (PR #8)
-- **Deliverables:** Supabase Auth + Resend SMTP + Protected routes + Session management + 22 new tests (48 total passing)
+- **Deliverables:** Supabase Auth + Resend SMTP + Protected routes + Session management + 22 new tests (64 total passing)
+
+**Phase 3 Summary (In Progress - Started Mar 13, 2026):**
+- 🚧 **Phase 3** - Reader integration (branch: phase-3-reader-integration)
+- **Backend Complete:** Reader API client + Sync endpoint + Status polling + Queue consumer + 39 new tests (103 total passing)
+- **Remaining:** UI implementation (Sync button, list view, archive, retry)
 
 ### SPECIFICATIONS/
 - **Implementation phases** (numbered files) - Active work-in-progress
@@ -79,6 +84,9 @@ How-it-works documentation for implemented features:
 
 **Phase 2 Implementation Docs:**
 - [phase-2-implementation.md](./REFERENCE/phase-2-implementation.md) - Magic link auth, Supabase SSR clients, middleware, session management
+
+**Phase 3 Implementation Docs:**
+- [phase-3-implementation.md](./REFERENCE/phase-3-implementation.md) - Reader API client, sync operations, queue consumer, status polling (🚧 In Progress)
 
 **General Docs:**
 - [testing-strategy.md](./REFERENCE/testing-strategy.md) - Testing philosophy and approach
