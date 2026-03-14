@@ -99,7 +99,6 @@ const readerQueue = new PQueue({
   intervalCap: 20, // Max 20 requests
   interval: 60 * 1000, // Per minute
   timeout: 90000, // 90s total timeout (30s per attempt × 3 retries)
-  throwOnTimeout: true,
 });
 
 // ====================
