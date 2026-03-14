@@ -32,6 +32,7 @@ Migrations are named with format: `YYYYMMDD_description.sql`
 ### Available Migrations
 
 - **20260312_add_sync_log_id.sql** - Adds `sync_log_id` column to `processing_jobs` table for linking jobs to sync operations (Phase 3)
+- **20260314_add_word_count.sql** - Adds `word_count` column to `reader_items` table for displaying article length (Phase 3)
 
 ## Initial Schema
 
