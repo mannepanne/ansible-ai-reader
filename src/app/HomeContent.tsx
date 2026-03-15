@@ -237,8 +237,9 @@ export default function HomeContent({
               <strong>How it works:</strong>
             </p>
             <p style={{ margin: 0 }}>
-              Enter your email address and we'll send you a secure login link.
-              The link will expire in 15 minutes and can only be used once.
+              Enter your email address and we&apos;ll send you a secure login
+              link. The link will expire in 15 minutes and can only be used
+              once.
             </p>
           </div>
         </>

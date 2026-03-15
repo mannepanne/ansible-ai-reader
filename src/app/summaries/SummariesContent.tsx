@@ -462,8 +462,8 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
             }}
           >
             <p style={{ color: '#6c757d', margin: 0 }}>
-              No summaries yet. Click "Sync" in the header to fetch your unread
-              items from Readwise Reader.
+              No summaries yet. Click &quot;Sync&quot; in the header to fetch
+              your unread items from Readwise Reader.
             </p>
           </div>
         ) : (
