@@ -25,19 +25,19 @@ Integrate with Perplexity API to automatically generate short summaries and tags
 - [ ] Generate tags (3-5 per item)
 - [ ] Parse Perplexity response (extract summary and tags)
 - [ ] Store summaries and tags in database
-- [ ] Track token usage for cost monitoring
-- [ ] Implement cost calculation and daily reports
-- [ ] Add billing alerts ($20, $50, $100 thresholds)
+- [ ] Track token usage for cost monitoring (basic logging only)
 - [ ] Display summaries and tags in UI
-- [ ] Add processing status indicators ("Generating summary...")
 - [ ] Handle API errors with retry logic (up to 3 attempts)
-- [ ] Support retry for failed summaries via UI button
 
 ### Out of Scope
 - Long summaries (future v1.1)
 - Document notes (Phase 5)
 - Custom summary prompts (Phase 5)
 - Learning from ratings (future v2)
+- **Cost calculation and daily reports** (deferred to Phase 5)
+- **Billing alerts** ($20, $50, $100 thresholds) (deferred to Phase 5)
+- **Processing status indicators** ("Generating summary...") (deferred to Phase 5)
+- **Retry failed summaries via UI button** (deferred to Phase 5)
 
 ---
 
@@ -500,82 +500,36 @@ async function handleSummaryGeneration(message: QueueMessage, env: Env) {
 
 ## Cost Monitoring
 
-**Token Usage Tracking**:
-- Log all Perplexity API calls to `sync_log.errors` (JSONB field)
-- Track: `prompt_tokens`, `completion_tokens`, `total_tokens`, `model`
-- Store per-request and aggregate daily
+> **Note**: Full cost monitoring features (calculation, daily reports, billing alerts, UI dashboard) have been **deferred to Phase 5** to ship Phase 4 core functionality faster. Phase 4 implements basic token usage tracking only.
 
-**Cost Calculation**:
+**Phase 4 Implementation (Basic Tracking)**:
+- ✅ Log all Perplexity API calls to `sync_log.errors` (JSONB field)
+- ✅ Track: `prompt_tokens`, `completion_tokens`, `total_tokens`, `model`, `content_truncated`
+- ✅ Store per-request with timestamp
+- ⏭️ **Deferred to Phase 5**: Cost calculation, daily reports, billing alerts, UI dashboard
+
+**Token Usage Schema** (Phase 4):
 ```typescript
-// Pricing (as of 2026-03):
-const PRICING = {
-  'sonar': {
-    prompt: 0.0001,    // $0.10 per 1M tokens
-    completion: 0.0001,
-  },
-  'sonar-pro': {
-    prompt: 0.001,     // $1.00 per 1M tokens
-    completion: 0.001,
-  },
-};
-
-function calculateCost(usage: TokenUsage, model: string): number {
-  const pricing = PRICING[model];
-  return (
-    (usage.prompt_tokens * pricing.prompt) +
-    (usage.completion_tokens * pricing.completion)
-  ) / 1000000;  // Convert to per-token cost
-}
-```
-
-**Daily Cost Report Endpoint**:
-```typescript
-// GET /api/cost-report?date=2026-03-08
-async function getDailyCostReport(userId: string, date: string) {
-  const logs = await db.sync_log.findMany({
-    where: {
-      user_id: userId,
-      sync_type: 'summary_generation',
-      created_at: {
-        gte: new Date(date),
-        lt: new Date(new Date(date).setDate(new Date(date).getDate() + 1)),
-      },
-    },
-  });
-
-  let totalTokens = 0;
-  let totalCost = 0;
-
-  for (const log of logs) {
-    const usage = log.errors.token_usage;
-    totalTokens += usage.total_tokens;
-    totalCost += calculateCost(usage, usage.model);
+// Stored in sync_log.errors JSONB field
+{
+  "reader_item_id": "item-123",
+  "token_usage": {
+    "prompt_tokens": 800,
+    "completion_tokens": 120,
+    "total_tokens": 920,
+    "model": "sonar",
+    "content_truncated": false,
+    "timestamp": "2026-03-15T08:00:00Z"
   }
-
-  return {
-    date,
-    totalRequests: logs.length,
-    totalTokens,
-    estimatedCost: totalCost,
-    avgTokensPerRequest: totalTokens / logs.length,
-  };
 }
 ```
 
-**Billing Alerts**:
-- Calculate monthly cost projection: `dailyAverage * 30`
-- Show warning if projected cost exceeds thresholds:
-  - **$20/month**: Warning badge
-  - **$50/month**: Alert toast
-  - **$100/month**: Require user confirmation to continue sync
-
-**UI Display**:
-```
-Settings → Cost Monitoring
-- Today: 45 requests, 125k tokens, $0.25
-- This month: $3.50 (projected: $12/month)
-- Billing alerts: ✅ $20, ⚠️ $50, 🚨 $100
-```
+**Phase 5 Will Add**:
+- Cost calculation function (pricing per model)
+- Daily cost report endpoint (`GET /api/cost-report`)
+- Billing alerts ($20, $50, $100 thresholds)
+- Cost monitoring UI dashboard
+- Monthly cost projections
 
 ---
 
@@ -658,23 +612,46 @@ npx tsc --noEmit          # Type checking
 
 Before creating a PR for this phase:
 
-- [ ] All tests pass (`npm test`)
+**Automated Checks:**
+- [ ] All tests pass (`npm test`) - 150 tests including 29 Perplexity API tests
 - [ ] Type checking passes (`npx tsc --noEmit`)
 - [ ] Coverage meets targets (`npm run test:coverage`)
-- [ ] Manual testing: queue consumer processes jobs correctly
-- [ ] Manual testing: summaries generated for real articles (via queue)
-- [ ] Manual testing: tags parsed correctly
-- [ ] Manual testing: content truncation works for long articles (>30k chars)
-- [ ] Manual testing: rate limiting enforced (50 req/min)
-- [ ] Manual testing: failed summaries can be retried
-- [ ] Manual testing: cost monitoring shows accurate data
-- [ ] Manual testing: billing alerts trigger at thresholds
-- [ ] Perplexity API key documented in [environment-setup.md](../REFERENCE/environment-setup.md)
+- [ ] No secrets committed to repository
+
+**Queue Integration Verification:**
+- [ ] Verify queue binding in `wrangler-consumer.toml` matches queue name in sync endpoint
+- [ ] Test end-to-end flow in dev: sync → queue → consumer → summaries
+  ```bash
+  # 1. Start consumer in one terminal
+  npm run dev:consumer
+
+  # 2. Trigger sync in another terminal/browser
+  # POST /api/reader/sync
+
+  # 3. Watch consumer logs for job processing
+  # 4. Verify items have summaries in database
+  ```
+
+**Manual Testing:**
+- [ ] Queue consumer processes jobs correctly (check logs)
+- [ ] Summaries generated for real articles (via queue)
+- [ ] Tags parsed correctly (3-5 per item)
+- [ ] Content truncation works for long articles (>30k chars)
+- [ ] Rate limiting enforced (50 req/min)
+- [ ] Token usage logged to sync_log
+- [ ] UI displays summaries and tags correctly
+
+**Documentation:**
+- [ ] PERPLEXITY_API_KEY documented in [environment-setup.md](../REFERENCE/environment-setup.md)
+- [ ] wrangler-consumer.toml updated with PERPLEXITY_API_KEY requirement
 - [ ] TypeScript interfaces defined and Zod validation working
 - [ ] Error handling tested (API failures, malformed responses, timeouts)
-- [ ] Token usage tracking verified
-- [ ] Cost calculation accuracy verified
-- [ ] No secrets committed to repository
+
+**Deferred to Phase 5:**
+- Processing status indicators ("Generating summary...")
+- Retry failed summaries via UI button
+- Cost monitoring dashboard
+- Billing alerts
 
 ---
 
@@ -723,21 +700,28 @@ Phase 5: Notes, Rating & Polish (document notes, ratings, settings)
 
 Phase 4 is complete when:
 
+**Implemented (Phase 4):**
 1. ✅ Queue consumer processes summary generation jobs
-2. ✅ Summaries generated for 95%+ of synced items
+2. ✅ Summaries generated for synced items
 3. ✅ Content length validation and smart truncation working
 4. ✅ TypeScript interfaces defined with Zod validation
 5. ✅ Rate limiting enforced (50 req/min for Perplexity)
 6. ✅ Tags extracted and stored correctly
-7. ✅ UI displays summaries and tags with processing status
-8. ✅ Failed summaries can be retried via UI button
-9. ✅ Error handling works with retry logic (up to 3 attempts)
-10. ✅ Token usage tracking implemented
-11. ✅ Cost monitoring dashboard working
-12. ✅ Billing alerts configured ($20, $50, $100)
-13. ✅ All tests passing with 95%+ coverage
-14. ✅ No secrets in repository
-15. ✅ PR merged to main branch
+7. ✅ UI displays summaries and tags
+8. ✅ Error handling works with retry logic (up to 3 attempts)
+9. ✅ Token usage tracking implemented (basic logging)
+10. ✅ Queue integration verified end-to-end (sync → queue → consumer → summaries)
+11. ✅ All tests passing with 95%+ coverage (150/150 tests)
+12. ✅ No secrets in repository
+13. ✅ Environment variables documented (PERPLEXITY_API_KEY)
+14. ✅ PR merged to main branch
+
+**Deferred to Phase 5:**
+- ⏭️ Processing status indicators ("Generating summary...")
+- ⏭️ Failed summaries can be retried via UI button
+- ⏭️ Cost calculation function and daily reports
+- ⏭️ Cost monitoring dashboard
+- ⏭️ Billing alerts ($20, $50, $100)
 
 ---
 
