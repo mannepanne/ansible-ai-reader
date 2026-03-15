@@ -17,3 +17,4 @@ dead_letter_queue = "ansible-processing-dlq"
 #   - NEXT_PUBLIC_SUPABASE_URL
 #   - SUPABASE_SECRET_KEY
 #   - READER_API_TOKEN (for Phase 4 - fetching article content)
+#   - PERPLEXITY_API_KEY (for Phase 4 - AI summary generation)

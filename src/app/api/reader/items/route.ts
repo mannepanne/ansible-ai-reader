@@ -34,7 +34,9 @@ export async function GET() {
     // Fetch items for user
     const { data: items, error } = await supabase
       .from('reader_items')
-      .select('id, reader_id, title, author, source, url, word_count, created_at')
+      .select(
+        'id, reader_id, title, author, source, url, word_count, short_summary, tags, perplexity_model, created_at'
+      )
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 

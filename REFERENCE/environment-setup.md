@@ -77,20 +77,22 @@ npx wrangler secret put READER_API_TOKEN
 npx wrangler secret put READER_API_TOKEN --config wrangler-consumer.toml
 ```
 
-### Phase 4 Variables (Not Yet Implemented)
+### Phase 4 Variables (Perplexity Integration)
 
 #### PERPLEXITY_API_KEY
 Perplexity API key for generating AI summaries.
 
-**Where to find:** https://docs.perplexity.ai
+**Where to find:** https://www.perplexity.ai/settings/api
+
+**Required for:** Queue consumer worker (processes summary generation jobs)
 
 ```bash
-npx wrangler secret put PERPLEXITY_API_KEY
-# Enter: pplx-...
-
-# Queue consumer also needs this
+# Queue consumer needs this for AI summary generation
 npx wrangler secret put PERPLEXITY_API_KEY --config wrangler-consumer.toml
+# Enter: pplx-...
 ```
+
+**⚠️ Important:** The consumer worker will fail to process summaries without this key.
 
 ### Verifying Secrets
 
@@ -118,8 +120,8 @@ RESEND_API_KEY=re_xxxxxxxxx
 # Phase 3 (Reader Integration)
 READER_API_TOKEN=your_reader_token
 
-# Phase 4 (Perplexity Integration - Not Yet Implemented)
-# PERPLEXITY_API_KEY=pplx-xxxxx
+# Phase 4 (Perplexity Integration)
+PERPLEXITY_API_KEY=pplx-xxxxx
 ```
 
 **Usage:**
@@ -189,16 +191,25 @@ READER_API_TOKEN=your_reader_token
    - Update: 600 requests/hour
    - Rate limiting enforced via p-queue
 
-### Perplexity (Phase 4 - Not Yet Implemented)
+### Perplexity (Phase 4)
 
 1. **Get API Key:**
-   - Go to https://docs.perplexity.ai
-   - Sign up and get API key
+   - Go to https://www.perplexity.ai/settings/api
+   - Sign up and create API key (starts with `pplx-`)
 
 2. **Pricing:**
    - Pay-as-you-go
    - ~$3-15/month for personal use
-   - Model: `llama-3.1-sonar-small-128k-online`
+   - Model: `sonar` (default, cost-effective)
+   - Model: `sonar-pro` (optional, higher quality, 10x cost)
+
+3. **Rate Limits:**
+   - 50 requests/minute (enforced via p-queue)
+   - 90-second timeout per request
+
+4. **Token Limits:**
+   - Max input: ~4096 tokens (~30k characters)
+   - Smart truncation applied automatically
 
 ---
 
@@ -228,7 +239,7 @@ Missing required environment variables:
 See REFERENCE/environment-setup.md for configuration details.
 ```
 
-**Phase 3 & 4 Note:** Reader and Perplexity API keys are not yet added to validation. They're checked at runtime in the respective API routes.
+**Phase 3 & 4 Note:** Reader and Perplexity API keys are checked at runtime in the respective API routes and queue consumer.
 
 ---
 
@@ -238,12 +249,14 @@ Before deploying to production:
 
 - [ ] All Phase 1 & 2 secrets set via `wrangler secret put`
 - [ ] Phase 3 secrets set (READER_API_TOKEN) if deploying Reader integration
-- [ ] Consumer worker secrets set if using queue consumer
+- [ ] Phase 4 secrets set (PERPLEXITY_API_KEY) if deploying AI summaries
+- [ ] Consumer worker secrets set (READER_API_TOKEN, PERPLEXITY_API_KEY)
 - [ ] Supabase RLS policies verified
 - [ ] Resend SMTP configured in Supabase
 - [ ] Domain DNS configured for Resend
 - [ ] Database migrations run in Supabase
 - [ ] Verify secrets with `npx wrangler secret list`
+- [ ] Verify consumer secrets with `npx wrangler secret list --config wrangler-consumer.toml`
 
 ---
 

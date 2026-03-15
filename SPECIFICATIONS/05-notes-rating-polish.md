@@ -16,6 +16,16 @@ Add document notes (synced to Reader), interest ratings, customizable summary pr
 ## Scope & Deliverables
 
 ### Core Tasks
+
+**From Phase 4 (Deferred)**:
+- [ ] Implement cost calculation function (Perplexity pricing per model)
+- [ ] Create daily cost report endpoint (`GET /api/cost-report`)
+- [ ] Add billing alerts ($20, $50, $100 monthly thresholds)
+- [ ] Build cost monitoring UI dashboard
+- [ ] Add processing status indicators ("Generating summary...")
+- [ ] Support retry for failed summaries via UI button
+
+**Phase 5 Original Scope**:
 - [ ] Implement input validation with Zod and DOMPurify
 - [ ] Implement document notes UI (add/edit note field)
 - [ ] Validate and sanitize notes (XSS prevention, max 10k chars)
