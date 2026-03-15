@@ -47,6 +47,7 @@ describe('POST /api/jobs', () => {
     vi.resetModules();
     process.env = {
       NODE_ENV: 'test',
+      NEXT_PUBLIC_SITE_URL: 'http://localhost:3000',
       NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'test-key',
       SUPABASE_SECRET_KEY: 'test-secret',

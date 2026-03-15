@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { generateSummary } from '../src/lib/perplexity-api';
 import { fetchUnreadItems } from '../src/lib/reader-api';
 import { stripHtml } from '../src/lib/html-utils';
+import type { Message, MessageBatch } from '@cloudflare/workers-types';
 
 // Environment bindings provided by Cloudflare Workers
 interface Env {
