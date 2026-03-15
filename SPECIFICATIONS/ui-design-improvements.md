@@ -51,79 +51,92 @@ Apply the clean, minimal design system from hultberg.org to Ansible AI Reader, i
 
 ## Pages to Redesign
 
-### 1. Login Page (`/login`)
+### 1. Home/Landing Page (`/`)
 
-**Current state:** Bare bones, minimal styling
-**Target:** Match hultberg.org admin login aesthetics
+**Current state:** Minimal
+**Target:** Dual-purpose landing page with integrated login
 
-**Changes:**
-- Center the form (max-width: 500px, margin: 80px auto)
-- Clean heading: "Ansible Login" or "Login"
-- Styled email input with focus states
-- Bold blue "Send Login Link" button
-- Light gray "How it works" info box below form
-- Error/success messages with colored backgrounds
+**Behavior:**
+- **Not authenticated:** Show welcome message + login form
+- **Authenticated:** Show welcome message + "View Summaries" button
+
+**Design:**
+- Center the content (max-width: 500px, margin: 80px auto)
+- **Welcome section:**
+  - App name/logo: "Ansible AI Reader"
+  - Tagline: "AI-powered reading triage for your Readwise library"
+  - Brief description (2-3 sentences)
+- **Login form** (when not authenticated):
+  - Clean heading: "Login"
+  - Styled email input with focus states
+  - Bold blue "Send Login Link" button
+  - Light gray "How it works" info box below form
+  - Error/success messages with colored backgrounds
+- **Authenticated view:**
+  - Welcoming message with user email
+  - Prominent "View Summaries" button
+  - Optional: Quick stats (e.g., "You have 23 unread summaries")
 
 **Reference:** `/tmp/hultberg-org/src/routes/adminLogin.ts` lines 27-89 (styles)
 
 ---
 
-### 2. Home Page (`/`)
-
-**Current state:** Minimal, likely just a link to summaries
-**Target:** Simple welcome page or redirect to /summaries after login
-
-**Options:**
-1. Redirect authenticated users directly to `/summaries`
-2. Show a simple welcome message with link to summaries
-3. Make `/summaries` the default authenticated home page
-
-**Decision needed:** Which approach do you prefer?
-
----
-
-### 3. Summaries Page (`/summaries`)
+### 2. Summaries Page (`/summaries`)
 
 **Current state:** Basic table, functional but unstyled
-**Target:** Clean dashboard like hultberg.org admin
+**Target:** Clean dashboard with card-based layout
 
 **Changes:**
 
 #### Header Bar
 - Dark background (#212529)
-- "Ansible" or "Ansible AI Reader" branding on left
+- "Ansible AI Reader" branding on left (clickable, goes to `/`)
+- **"Sync" button** in header (blue, loading states)
 - User email displayed
 - "Logout" button on right
-- Optional: "Sync" button in header instead of in content area
 
 #### Content Area
 - Light gray background (#f8f9fa)
-- Centered content (max-width: 960px or 1200px for wider layout)
-- "Sync" button in top-right (or move to header)
+- Centered content (max-width: 1200px for comfortable card grid)
+- Responsive grid: 1 column (mobile) → 2 columns (tablet) → 3 columns (desktop)
 
-#### Summary Cards/Table
-**Two design options:**
+#### Summary Card Design
+Each card is a white container with shadow, containing:
 
-**Option A: Table (like hultberg.org)**
-- Clean table with columns: Title, Tags, Source, Word Count, Actions
-- White background, subtle shadow
-- Hover states on rows
-- Tag pills with colored backgrounds
+**Card structure:**
+```
+┌─────────────────────────────┐
+│ 📄 Title (bold, blue link)  │
+│                             │
+│ Summary text preview...     │
+│ [Expand] (if truncated)     │
+│                             │
+│ 🏷️ tag1  tag2  tag3         │
+│                             │
+│ ─────────────────────────   │
+│ Source · Author · 2,500w    │
+│ ⚠️ Truncated (if >30k)      │
+│                             │
+│ [Archive] [Open in Reader]  │
+└─────────────────────────────┘
+```
 
-**Option B: Card Layout**
-- Each summary as a card (more modern, mobile-friendly)
-- Shows: Title, summary excerpt, tags, metadata
-- Actions at bottom or on hover
+**Card details:**
+- **Title:** Bold (font-weight: 600), blue link (#0d6efd), wraps to 2 lines max with ellipsis
+- **Summary:** 3-4 lines preview, gray text (#495057), line-clamp
+- **Expand link:** Small blue text, shows full summary in modal or inline expansion
+- **Tags:** Pill-shaped badges, light colored backgrounds (different colors per tag)
+- **Metadata row:** Small gray text (#6c757d), centered dot separators
+- **Truncated badge:** Orange/warning color if content was truncated
+- **Actions:** Two buttons - Archive (subtle) and Open in Reader (blue)
 
-**Decision needed:** Table or cards?
-
-#### Summary Display
-- **Title:** Bold, blue link to article URL
-- **Summary:** Truncated preview (2-3 lines) with "Read more" expansion
-- **Tags:** Pill-shaped badges with light backgrounds
-- **Metadata:** Small gray text - source, author, word count, date
-- **Truncated indicator:** Visual badge if content was truncated (>30k chars)
-- **Actions:** Archive button (could be on hover or always visible)
+#### Card Styling
+- Background: white (#fff)
+- Border radius: 6px
+- Box shadow: `0 1px 3px rgba(0,0,0,.1)`
+- Padding: 16px
+- Hover: Subtle lift effect (shadow increases)
+- Gap between cards: 16px
 
 #### Empty State
 - "No summaries yet. Sync your items from Readwise Reader to get started."
@@ -215,13 +228,13 @@ src/app/
 
 ---
 
-## Questions for Magnus
+## Design Decisions ✅
 
-1. **Home page behavior:** Redirect to summaries, or show welcome page?
-2. **Summaries layout:** Table (like admin) or cards (more modern)?
-3. **Sync button location:** In header bar, or in content area?
-4. **Summary preview:** Show full summary expanded, or truncated with "Read more"?
-5. **Actions placement:** Always visible, or on hover?
+1. **Home page behavior:** Welcome page with login form (landing page style)
+2. **Summaries layout:** **Cards** (more modern, mobile-friendly)
+3. **Sync button location:** **In header bar** (always accessible)
+4. **Summary preview:** **Truncated with "Expand" link** (easier to scan)
+5. **Actions placement:** Always visible on cards
 
 ---
 
