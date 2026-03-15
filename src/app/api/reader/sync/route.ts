@@ -123,6 +123,14 @@ export async function POST(request: NextRequest) {
               continue;
             }
 
+            // Skip job creation if summary already exists
+            if (readerItem.short_summary) {
+              console.log(
+                `[Sync] Skipping job for item ${item.id} - summary already exists`
+              );
+              continue;
+            }
+
             // Create processing job
             const { data: job, error: jobError } = await supabase
               .from('processing_jobs')

@@ -241,6 +241,82 @@ describe('POST /api/reader/sync', () => {
     expect(fetchUnreadItems).toHaveBeenNthCalledWith(2, 'test-reader-token', 'cursor-abc');
   });
 
+  it('skips job creation for items that already have summaries', async () => {
+    mockGetSession.mockResolvedValue({
+      data: { session: mockSession },
+    });
+
+    const mockItem = {
+      id: 'reader-item-123',
+      title: 'Already Summarized Article',
+      url: 'https://example.com/summarized',
+      author: 'Test Author',
+      source: 'Test Source',
+      created_at: '2026-03-15T10:00:00Z',
+      word_count: 1000,
+    };
+
+    (fetchUnreadItems as any).mockResolvedValue({
+      results: [mockItem],
+      nextPageCursor: null,
+    });
+
+    // Mock sync_log insert
+    const mockInsert = vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: { id: 'sync-456' },
+          error: null,
+        }),
+      }),
+    });
+
+    // Mock upsert to return item with existing summary
+    const mockUpsert = vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: {
+            id: 'db-item-123',
+            reader_id: mockItem.id,
+            short_summary: 'This article has already been summarized',
+            tags: ['test'],
+          },
+          error: null,
+        }),
+      }),
+    });
+
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'sync_log') {
+        return { insert: mockInsert, update: mockUpdate };
+      }
+      if (table === 'reader_items') {
+        return { upsert: mockUpsert };
+      }
+      // processing_jobs should NOT be called
+      if (table === 'processing_jobs') {
+        return { insert: vi.fn() };
+      }
+      return {};
+    });
+
+    const request = new NextRequest('http://localhost:3000/api/reader/sync', {
+      method: 'POST',
+    });
+
+    const response = await POST(request);
+    const data = (await response.json()) as any;
+
+    expect(response.status).toBe(200);
+    expect(data.totalItems).toBe(0); // No jobs created
+    expect(data.totalFetched).toBe(1); // 1 item fetched
+    expect(fetchUnreadItems).toHaveBeenCalledWith('test-reader-token', undefined);
+  });
+
   it('returns 401 when not authenticated', async () => {
     mockGetSession.mockResolvedValue({
       data: { session: null },
