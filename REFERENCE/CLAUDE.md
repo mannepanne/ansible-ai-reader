@@ -47,6 +47,11 @@ Complete documentation of Phase 3 implementation (backend): Reader API client wi
 
 ### General Documentation
 
+### [deployment-guide.md](./deployment-guide.md)
+**When to read:** Deploying to production, setting up CI/CD, or troubleshooting deployment issues.
+
+Complete deployment guide for Cloudflare Workers (NOT Pages - important distinction), CI/CD setup with GitHub Actions, manual deployment process, required secrets, custom domain configuration, and deployment troubleshooting.
+
 ### [testing-strategy.md](./testing-strategy.md)
 **When to read:** Writing tests, setting up test coverage, or implementing TDD workflow.
 

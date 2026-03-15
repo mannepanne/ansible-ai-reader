@@ -110,6 +110,7 @@ How-it-works documentation for implemented features:
 - [phase-3-implementation.md](./REFERENCE/phase-3-implementation.md) - Reader API client, sync operations, queue consumer, status polling (🚧 In Progress)
 
 **General Docs:**
+- [deployment-guide.md](./REFERENCE/deployment-guide.md) - Production deployment, CI/CD setup, Cloudflare Workers vs Pages
 - [testing-strategy.md](./REFERENCE/testing-strategy.md) - Testing philosophy and approach
 - [technical-debt.md](./REFERENCE/technical-debt.md) - Known issues and accepted risks
 - [environment-setup.md](./REFERENCE/environment-setup.md) - API keys and environment configuration
@@ -179,6 +180,7 @@ npm run test:coverage     # Coverage report
 - **Completed specs** → [ARCHIVE/](./SPECIFICATIONS/ARCHIVE/)
 
 **Reference Docs:**
+- **Deploying to production?** → [deployment-guide.md](./REFERENCE/deployment-guide.md)
 - **Setting up environment?** → [environment-setup.md](./REFERENCE/environment-setup.md)
 - **Testing strategy?** → [testing-strategy.md](./REFERENCE/testing-strategy.md)
 - **Known issues?** → [technical-debt.md](./REFERENCE/technical-debt.md)
