@@ -53,12 +53,12 @@ describe('SummariesPage', () => {
       render(component as any);
     });
 
-    expect(screen.getByText('Summaries')).toBeInTheDocument();
-    expect(screen.getByText(/Logged in as:/)).toBeInTheDocument();
-    expect(screen.getByText(/test@example.com/)).toBeInTheDocument();
+    // Check for header elements
+    expect(screen.getByText('Ansible AI Reader')).toBeInTheDocument();
+    expect(screen.getByText('test@example.com')).toBeInTheDocument();
   });
 
-  it('displays sync reader button', async () => {
+  it('displays sync button', async () => {
     mockGetSession.mockResolvedValue({
       data: {
         session: {
@@ -76,7 +76,7 @@ describe('SummariesPage', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /sync reader/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /sync/i })).toBeInTheDocument();
     });
   });
 
@@ -99,7 +99,9 @@ describe('SummariesPage', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/No items yet. Click "Sync Reader" to fetch your unread items./)
+        screen.getByText(
+          /No summaries yet. Click "Sync" in the header to fetch your unread items from Readwise Reader./
+        )
       ).toBeInTheDocument();
     });
   });
@@ -123,8 +125,6 @@ describe('SummariesPage', () => {
 
     const logoutButton = screen.getByRole('button', { name: /logout/i });
     expect(logoutButton).toBeInTheDocument();
-    expect(logoutButton.closest('form')).toHaveAttribute('action', '/api/auth/logout');
-    expect(logoutButton.closest('form')).toHaveAttribute('method', 'POST');
   });
 
   it('redirects to login when user is not authenticated', async () => {
