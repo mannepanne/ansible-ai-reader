@@ -34,6 +34,7 @@ Migrations are named with format: `YYYYMMDD_description.sql`
 - **20260312_add_sync_log_id.sql** - Adds `sync_log_id` column to `processing_jobs` table for linking jobs to sync operations (Phase 3)
 - **20260314_add_word_count.sql** - Adds `word_count` column to `reader_items` table for displaying article length (Phase 3)
 - **20260315_add_summaries_tags.sql** - Adds `short_summary`, `tags`, and `perplexity_model` columns to `reader_items` table for AI-generated summaries (Phase 4)
+- **20260315_add_content_truncated.sql** - Adds `content_truncated` boolean column to track when summaries are based on truncated content (>30k chars) (Phase 4)
 
 ## Initial Schema
 

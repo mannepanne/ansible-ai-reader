@@ -213,6 +213,7 @@ async function processSummaryGeneration(
         short_summary: result.summary,
         tags: result.tags,
         perplexity_model: result.model,
+        content_truncated: result.contentTruncated,
         updated_at: new Date().toISOString(),
       })
       .eq('id', readerItemId);

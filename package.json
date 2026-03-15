@@ -13,7 +13,10 @@
     "lint": "next lint",
     "test": "vitest",
     "test:watch": "vitest --watch",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "test:apis": "tsx scripts/test-api-access.ts",
+    "list:reader": "tsx scripts/list-reader-items.ts",
+    "check:videos": "tsx scripts/check-video-content.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",
@@ -38,6 +41,7 @@
     "eslint-config-next": "^15.1.6",
     "jsdom": "^28.1.0",
     "tailwindcss": "^4.0.0",
+    "tsx": "^4.21.0",
     "typescript": "^5",
     "vitest": "^2.0.0",
     "wrangler": "^4.71.0"
