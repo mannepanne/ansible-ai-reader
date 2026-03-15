@@ -17,11 +17,14 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
+    // Use NEXT_PUBLIC_SITE_URL for local dev, fallback to request origin
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin;
+
     // Send magic link via Supabase Auth
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${request.nextUrl.origin}/api/auth/callback?returnTo=${encodeURIComponent(returnTo)}`,
+        emailRedirectTo: `${siteUrl}/api/auth/callback?returnTo=${encodeURIComponent(returnTo)}`,
       },
     });
 
