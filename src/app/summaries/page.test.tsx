@@ -127,7 +127,7 @@ describe('SummariesPage', () => {
     expect(logoutButton).toBeInTheDocument();
   });
 
-  it('redirects to login when user is not authenticated', async () => {
+  it('redirects to home page when user is not authenticated', async () => {
     mockGetSession.mockResolvedValue({
       data: {
         session: null,
@@ -136,7 +136,7 @@ describe('SummariesPage', () => {
 
     // Expect redirect to throw (Next.js redirect throws a special error)
     await expect(SummariesPage()).rejects.toThrow();
-    expect(redirect).toHaveBeenCalledWith('/login');
+    expect(redirect).toHaveBeenCalledWith('/');
   });
 
   it('handles different user emails', async () => {
