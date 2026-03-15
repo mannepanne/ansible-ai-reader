@@ -47,13 +47,14 @@ export const ReaderItemSchema = z.object({
   author: z
     .string()
     .max(500)
+    .nullable()
     .optional()
     .transform((val) => (val ? sanitizeText(val) : undefined)),
-  source: z.string().max(200).optional(),
-  word_count: z.number().int().nonnegative().optional(),
-  content: z.string().optional(),
-  created_at: z.string().datetime(),
-  content_type: z.string().optional(),
+  source: z.string().max(200).nullable().optional(),
+  word_count: z.number().int().nonnegative().nullable().optional(),
+  content: z.string().nullable().optional(),
+  created_at: z.string(), // Accept any string format - we'll use it as-is
+  content_type: z.string().nullable().optional(),
 });
 
 /**
