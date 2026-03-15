@@ -246,6 +246,77 @@ describe('Reader API Client', () => {
         'Invalid response format'
       );
     });
+
+    it('accepts null values for optional fields', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          results: [
+            {
+              id: 'reader-null-test',
+              url: 'https://example.com/article',
+              title: 'Test Article',
+              author: null, // Nullable field
+              source: null, // Nullable field
+              word_count: null, // Nullable field
+              content: null, // Nullable field
+              content_type: null, // Nullable field
+              created_at: '2026-03-12T10:00:00Z',
+            },
+          ],
+          nextPageCursor: null,
+        }),
+        headers: new Map(),
+      } as any);
+
+      const result = await fetchUnreadItems('test-token');
+
+      expect(result.results).toHaveLength(1);
+      expect(result.results[0]).toMatchObject({
+        id: 'reader-null-test',
+        url: 'https://example.com/article',
+        title: 'Test Article',
+      });
+      // Nullable fields should be undefined (transformed)
+      expect(result.results[0].author).toBeUndefined();
+    });
+
+    it('accepts flexible datetime formats', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          results: [
+            {
+              id: 'datetime-test-1',
+              url: 'https://example.com/article1',
+              title: 'ISO with timezone',
+              created_at: '2026-03-15T10:00:00+00:00', // With timezone
+            },
+            {
+              id: 'datetime-test-2',
+              url: 'https://example.com/article2',
+              title: 'ISO without milliseconds',
+              created_at: '2026-03-15T10:00:00Z', // Without milliseconds
+            },
+            {
+              id: 'datetime-test-3',
+              url: 'https://example.com/article3',
+              title: 'ISO with milliseconds',
+              created_at: '2026-03-15T10:00:00.123Z', // With milliseconds
+            },
+          ],
+          nextPageCursor: null,
+        }),
+        headers: new Map(),
+      } as any);
+
+      const result = await fetchUnreadItems('test-token');
+
+      expect(result.results).toHaveLength(3);
+      expect(result.results[0].created_at).toBe('2026-03-15T10:00:00+00:00');
+      expect(result.results[1].created_at).toBe('2026-03-15T10:00:00Z');
+      expect(result.results[2].created_at).toBe('2026-03-15T10:00:00.123Z');
+    });
   });
 
   describe('archiveItem', () => {

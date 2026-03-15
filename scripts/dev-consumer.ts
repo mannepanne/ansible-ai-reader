@@ -3,6 +3,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { generateSummary } from '../src/lib/perplexity-api';
+import { stripHtml } from '../src/lib/html-utils';
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -24,24 +25,6 @@ interface ProcessingJob {
     author: string | null;
     url: string;
   };
-}
-
-/**
- * Strip HTML tags from content
- */
-function stripHtml(html: string): string {
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\s+/g, ' ')
-    .trim();
 }
 
 /**

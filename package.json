@@ -22,7 +22,6 @@
   "dependencies": {
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.98.0",
-    "dotenv": "^16.6.1",
     "next": "^15.1.6",
     "p-queue": "^9.1.0",
     "react": "^19.0.0",
@@ -39,6 +38,7 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5.1.4",
     "@vitest/coverage-v8": "^2.0.0",
+    "dotenv": "^16.6.1",
     "eslint": "^9",
     "eslint-config-next": "^15.1.6",
     "jsdom": "^28.1.0",

@@ -4,6 +4,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { generateSummary } from '../src/lib/perplexity-api';
 import { fetchUnreadItems } from '../src/lib/reader-api';
+import { stripHtml } from '../src/lib/html-utils';
 
 // Environment bindings provided by Cloudflare Workers
 interface Env {
@@ -20,32 +21,6 @@ interface QueueMessage {
   readerItemId: string; // Local DB ID
   readerId: string; // Reader API ID for fetching content
   jobType: 'summary_generation';
-}
-
-/**
- * Fetch article content from Reader API
- *
- * @param readerId - Reader item ID
- * @param apiToken - Reader API token
- * @returns Article content or null if not found
- */
-/**
- * Strip HTML tags from content
- */
-function stripHtml(html: string): string {
-  // Remove HTML tags and decode entities
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '') // Remove styles
-    .replace(/<[^>]+>/g, '') // Remove all tags
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\s+/g, ' ') // Normalize whitespace
-    .trim();
 }
 
 async function fetchReaderContent(
