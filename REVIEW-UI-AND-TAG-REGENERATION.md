@@ -6,6 +6,40 @@
 
 ---
 
+## How to Review This PR
+
+This is a **retrospective PR for documentation purposes**. All changes are already merged and deployed.
+
+### Quick Review Options
+
+**Option 1: View Live Site**
+- Visit https://ansible.hultberg.org
+- Test the new UI and tag regeneration feature
+- Note: You'll need to log in to see the summaries page
+
+**Option 2: Review Code Changes**
+```bash
+# View all changes in this PR
+git diff c297537..0fbf9f4
+
+# View specific component changes
+git diff c297537..0fbf9f4 -- src/components/
+git diff c297537..0fbf9f4 -- src/app/summaries/
+```
+
+**Option 3: Check Specific Files**
+- **New Components:** `src/components/Header.tsx`, `src/components/SummaryCard.tsx`
+- **Redesigned Pages:** `src/app/HomeContent.tsx`, `src/app/summaries/SummariesContent.tsx`
+- **New API:** `src/app/api/reader/regenerate-tags/route.ts`
+
+### Review Focus Areas
+1. **Code Quality** - Is the code maintainable and well-structured?
+2. **Design Decisions** - Does the UI improvement match requirements?
+3. **Feature Completeness** - Does tag regeneration solve the problem?
+4. **Testing** - Are test updates comprehensive?
+
+---
+
 ## Summary
 
 Two major enhancements were implemented and deployed:
