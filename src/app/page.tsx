@@ -1,18 +1,19 @@
-// ABOUT: Home page - Hello world for Phase 1
-// ABOUT: Will be replaced with login redirect in Phase 2
+// ABOUT: Home/landing page with integrated login
+// ABOUT: Shows welcome + login form (not authenticated) or welcome + summaries link (authenticated)
 
-export default function Home() {
+import { createClient } from '@/utils/supabase/server';
+import HomeContent from './HomeContent';
+
+export default async function Home() {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Ansible</h1>
-        <p className="text-xl text-gray-600">
-          AI-Powered Reading Triage for Readwise Reader
-        </p>
-        <p className="mt-8 text-sm text-gray-500">
-          Phase 1: Foundation - Hello World ✓
-        </p>
-      </div>
-    </main>
+    <HomeContent
+      isAuthenticated={!!session}
+      userEmail={session?.user?.email}
+    />
   );
 }

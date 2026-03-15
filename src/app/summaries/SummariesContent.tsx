@@ -1,9 +1,11 @@
-// ABOUT: Client component for summaries page with sync and list functionality
-// ABOUT: Handles Reader sync, status polling, and items display
+// ABOUT: Client component for summaries page with card-based layout
+// ABOUT: Handles Reader sync, status polling, and items display with responsive grid
 
 'use client';
 
 import { useState, useEffect } from 'react';
+import Header from '@/components/Header';
+import SummaryCard from '@/components/SummaryCard';
 
 interface ReaderItem {
   id: string;
@@ -45,7 +47,6 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [archivingIds, setArchivingIds] = useState<Set<string>>(new Set());
 
   // Load items on mount
   useEffect(() => {
@@ -124,7 +125,10 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
         throw new Error(errorData.error || 'Sync failed');
       }
 
-      const data = (await response.json()) as { syncId: string; totalItems: number };
+      const data = (await response.json()) as {
+        syncId: string;
+        totalItems: number;
+      };
       setSyncStatus({
         syncId: data.syncId,
         totalJobs: data.totalItems,
@@ -142,8 +146,6 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
   }
 
   async function handleArchive(itemId: string) {
-    // Add to archiving set
-    setArchivingIds((prev) => new Set(prev).add(itemId));
     setError(null);
 
     try {
@@ -165,13 +167,6 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
     } catch (err) {
       console.error('Archive error:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      // Remove from archiving set
-      setArchivingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(itemId);
-        return next;
-      });
     }
   }
 
@@ -212,283 +207,214 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white shadow rounded-lg p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">Summaries</h1>
-            <form action="/api/auth/logout" method="POST">
-              <button
-                type="submit"
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Logout
-              </button>
-            </form>
-          </div>
+    <div style={{ minHeight: '100vh', background: '#f8f9fa' }}>
+      {/* Header */}
+      <Header
+        userEmail={userEmail}
+        showSync={true}
+        onSync={handleSync}
+        isSyncing={syncing}
+      />
 
-          {/* User info */}
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-md">
-            <p className="text-sm text-green-600">
-              Logged in as: <strong>{userEmail}</strong>
+      {/* Main content */}
+      <main style={{ maxWidth: '1200px', margin: '32px auto', padding: '0 24px' }}>
+        {/* Error display */}
+        {error && (
+          <div
+            style={{
+              padding: '12px',
+              borderRadius: '4px',
+              marginBottom: '20px',
+              background: '#f8d7da',
+              color: '#dc3545',
+            }}
+          >
+            Error: {error}
+          </div>
+        )}
+
+        {/* Sync progress */}
+        {syncStatus && syncing && (
+          <div
+            style={{
+              padding: '16px',
+              background: '#d1ecf1',
+              border: '1px solid #bee5eb',
+              borderRadius: '4px',
+              marginBottom: '20px',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginBottom: '8px',
+              }}
+            >
+              <span style={{ fontWeight: 600, color: '#0c5460' }}>
+                Sync Progress
+              </span>
+              <span style={{ color: '#0c5460' }}>
+                {syncStatus.completedJobs + syncStatus.failedJobs} /{' '}
+                {syncStatus.totalJobs}
+              </span>
+            </div>
+            <div
+              style={{
+                width: '100%',
+                background: '#bee5eb',
+                borderRadius: '4px',
+                height: '8px',
+              }}
+            >
+              <div
+                style={{
+                  width: `${
+                    syncStatus.totalJobs > 0
+                      ? ((syncStatus.completedJobs + syncStatus.failedJobs) /
+                          syncStatus.totalJobs) *
+                        100
+                      : 0
+                  }%`,
+                  background: '#17a2b8',
+                  height: '8px',
+                  borderRadius: '4px',
+                  transition: 'width 0.3s',
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Completion status */}
+        {syncStatus && !syncing && (
+          <div
+            style={{
+              padding: '16px',
+              borderRadius: '4px',
+              marginBottom: '20px',
+              background:
+                syncStatus.status === 'completed'
+                  ? '#d4edda'
+                  : syncStatus.status === 'partial_failure'
+                  ? '#fff3cd'
+                  : '#f8d7da',
+              color:
+                syncStatus.status === 'completed'
+                  ? '#155724'
+                  : syncStatus.status === 'partial_failure'
+                  ? '#856404'
+                  : '#721c24',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '16px',
+              }}
+            >
+              <p style={{ margin: 0, fontWeight: 600 }}>
+                {syncStatus.status === 'completed' &&
+                  `✅ Sync completed! ${syncStatus.completedJobs} items processed.`}
+                {syncStatus.status === 'partial_failure' &&
+                  `⚠️ Sync completed with ${syncStatus.failedJobs} failures. ${syncStatus.completedJobs} items processed successfully.`}
+                {syncStatus.status === 'failed' &&
+                  `❌ Sync failed. ${syncStatus.failedJobs} items failed to process.`}
+              </p>
+
+              {/* Retry button */}
+              {syncStatus.failedJobs > 0 && (
+                <button
+                  onClick={handleRetry}
+                  style={{
+                    background: '#ffc107',
+                    color: '#fff',
+                    padding: '6px 16px',
+                    borderRadius: '4px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '0.9em',
+                    fontWeight: 600,
+                    flexShrink: 0,
+                  }}
+                >
+                  Retry Failed ({syncStatus.failedJobs})
+                </button>
+              )}
+            </div>
+
+            {/* Failed items list */}
+            {syncStatus.failedItems && syncStatus.failedItems.length > 0 && (
+              <div style={{ marginTop: '12px' }}>
+                <p
+                  style={{
+                    margin: '0 0 8px 0',
+                    fontWeight: 600,
+                    fontSize: '0.9em',
+                  }}
+                >
+                  Failed items:
+                </p>
+                <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.9em' }}>
+                  {syncStatus.failedItems.map((item) => (
+                    <li key={item.itemId}>
+                      {item.title}: {item.error}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Items grid */}
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '48px 0' }}>
+            <p style={{ color: '#6c757d' }}>Loading summaries...</p>
+          </div>
+        ) : items.length === 0 ? (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '48px',
+              background: '#fff',
+              borderRadius: '6px',
+              boxShadow: '0 1px 3px rgba(0,0,0,.1)',
+            }}
+          >
+            <p style={{ color: '#6c757d', margin: 0 }}>
+              No summaries yet. Click "Sync" in the header to fetch your unread
+              items from Readwise Reader.
             </p>
           </div>
-
-          {/* Sync button and status */}
-          <div className="mb-6">
-            <button
-              onClick={handleSync}
-              disabled={syncing}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {syncing ? (
-                <>
-                  <svg
-                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Syncing...
-                </>
-              ) : (
-                'Sync Reader'
-              )}
-            </button>
-
-            {/* Progress indicator */}
-            {syncStatus && syncing && (
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-blue-900">
-                    Sync Progress
-                  </span>
-                  <span className="text-sm text-blue-600">
-                    {syncStatus.completedJobs + syncStatus.failedJobs} /{' '}
-                    {syncStatus.totalJobs}
-                  </span>
-                </div>
-                <div className="w-full bg-blue-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{
-                      width: `${
-                        syncStatus.totalJobs > 0
-                          ? ((syncStatus.completedJobs + syncStatus.failedJobs) /
-                              syncStatus.totalJobs) *
-                            100
-                          : 0
-                      }%`,
-                    }}
-                  ></div>
-                </div>
-                <div className="mt-2 text-sm text-blue-600">
-                  {syncStatus.status === 'pending' && 'Starting sync...'}
-                  {syncStatus.status === 'processing' && 'Processing items...'}
-                </div>
-              </div>
-            )}
-
-            {/* Completion status */}
-            {syncStatus && !syncing && (
-              <div
-                className={`mt-4 p-4 border rounded-md ${
-                  syncStatus.status === 'completed'
-                    ? 'bg-green-50 border-green-200'
-                    : syncStatus.status === 'partial_failure'
-                    ? 'bg-yellow-50 border-yellow-200'
-                    : 'bg-red-50 border-red-200'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <p
-                    className={`text-sm font-medium ${
-                      syncStatus.status === 'completed'
-                        ? 'text-green-900'
-                        : syncStatus.status === 'partial_failure'
-                        ? 'text-yellow-900'
-                        : 'text-red-900'
-                    }`}
-                  >
-                    {syncStatus.status === 'completed' &&
-                      `✅ Sync completed! ${syncStatus.completedJobs} items processed.`}
-                    {syncStatus.status === 'partial_failure' &&
-                      `⚠️ Sync completed with ${syncStatus.failedJobs} failures. ${syncStatus.completedJobs} items processed successfully.`}
-                    {syncStatus.status === 'failed' &&
-                      `❌ Sync failed. ${syncStatus.failedJobs} items failed to process.`}
-                  </p>
-
-                  {/* Retry button */}
-                  {syncStatus.failedJobs > 0 && (
-                    <button
-                      onClick={handleRetry}
-                      className="flex-shrink-0 inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
-                    >
-                      Retry Failed ({syncStatus.failedJobs})
-                    </button>
-                  )}
-                </div>
-
-                {/* Failed items list */}
-                {syncStatus.failedItems && syncStatus.failedItems.length > 0 && (
-                  <div className="mt-3">
-                    <p className="text-sm font-medium text-gray-900 mb-2">
-                      Failed items:
-                    </p>
-                    <ul className="text-sm text-gray-600 space-y-1">
-                      {syncStatus.failedItems.map((item) => (
-                        <li key={item.itemId}>
-                          • {item.title}: {item.error}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
+        ) : (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+              gap: '16px',
+            }}
+          >
+            {items.map((item) => (
+              <SummaryCard
+                key={item.id}
+                id={item.id}
+                title={item.title}
+                url={item.url}
+                summary={item.short_summary || 'No summary available'}
+                tags={item.tags || []}
+                source={item.source || undefined}
+                author={item.author || undefined}
+                wordCount={item.word_count || undefined}
+                contentTruncated={item.content_truncated}
+                onArchive={handleArchive}
+              />
+            ))}
           </div>
-
-          {/* Error display */}
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-800">Error: {error}</p>
-            </div>
-          )}
-
-          {/* Items list */}
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              <p className="mt-4 text-gray-600">Loading items...</p>
-            </div>
-          ) : items.length === 0 ? (
-            <div className="text-center py-12 bg-gray-50 rounded-lg">
-              <p className="text-gray-600">
-                No items yet. Click &quot;Sync Reader&quot; to fetch your unread
-                items.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Reader Items ({items.length})
-              </h2>
-              <div className="divide-y divide-gray-200">
-                {items.map((item) => (
-                  <div key={item.id} className="py-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-base font-medium text-gray-900 mb-1">
-                          <a
-                            href={item.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="hover:text-blue-600"
-                          >
-                            {item.title}
-                          </a>
-                        </h3>
-                        <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                          {item.author && <span>By {item.author}</span>}
-                          {item.source && <span>• {item.source}</span>}
-                          {item.word_count && (
-                            <span>• {item.word_count.toLocaleString()} words</span>
-                          )}
-                          {item.perplexity_model && (
-                            <span className="text-xs text-gray-500">
-                              • {item.perplexity_model}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* AI Summary */}
-                        {item.short_summary && (
-                          <div className="mt-2">
-                            {item.content_truncated && (
-                              <div className="mb-2 flex items-center gap-2">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
-                                  ⚠️ Summary based on truncated content (article &gt;30k chars)
-                                </span>
-                              </div>
-                            )}
-                            <div className="p-3 bg-blue-50 border border-blue-100 rounded-md">
-                              <p className="text-sm text-gray-700 whitespace-pre-line">
-                                {item.short_summary}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Tags */}
-                        {item.tags && item.tags.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {item.tags.map((tag, index) => (
-                              <span
-                                key={index}
-                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleArchive(item.id)}
-                        disabled={archivingIds.has(item.id)}
-                        className="flex-shrink-0 inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {archivingIds.has(item.id) ? (
-                          <>
-                            <svg
-                              className="animate-spin -ml-0.5 mr-2 h-4 w-4 text-gray-700"
-                              xmlns="http://www.w3.org/2000/svg"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                              ></circle>
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                              ></path>
-                            </svg>
-                            Archiving...
-                          </>
-                        ) : (
-                          'Archive'
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+        )}
+      </main>
     </div>
   );
 }
