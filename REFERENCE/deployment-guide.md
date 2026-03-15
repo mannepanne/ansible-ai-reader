@@ -62,18 +62,24 @@ https://github.com/mannepanne/ansible-ai-reader/settings/secrets/actions
 | Secret Name | Purpose | Where to get it |
 |-------------|---------|-----------------|
 | `CLOUDFLARE_API_TOKEN` | Authenticate deployments to Cloudflare | Cloudflare Dashboard → My Profile → API Tokens → Create Token (use "Edit Cloudflare Workers" template) |
-| `PERPLEXITY_API_KEY` | Consumer worker needs this for AI summaries | Perplexity AI dashboard (same value as in `.dev.vars`) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (both workers) | Your `.dev.vars` file |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase public API key (main app) | Your `.dev.vars` file |
+| `SUPABASE_SECRET_KEY` | Supabase service role key (both workers) | Your `.dev.vars` file |
+| `READER_API_TOKEN` | Readwise Reader API token (both workers) | Your `.dev.vars` file |
+| `PERPLEXITY_API_KEY` | Perplexity AI API key (consumer worker) | Your `.dev.vars` file |
+| `RESEND_API_KEY` | Resend email API key (main app) | Your `.dev.vars` file |
+
+**Note:** All secrets except `CLOUDFLARE_API_TOKEN` should match the values in your local `.dev.vars` file.
 
 ### Setting Up GitHub Secrets
 
 1. Go to repository Settings → Secrets and variables → Actions
 2. Click "New repository secret"
-3. Add `CLOUDFLARE_API_TOKEN`:
-   - Name: `CLOUDFLARE_API_TOKEN`
-   - Value: Your Cloudflare API token
-4. Add `PERPLEXITY_API_KEY`:
-   - Name: `PERPLEXITY_API_KEY`
-   - Value: Your Perplexity API key (from `.dev.vars`)
+3. Add each secret from the table above:
+   - Name: Exact name from table (case-sensitive)
+   - Value: Copy from `.dev.vars` or Cloudflare dashboard
+   - Click "Add secret"
+4. Repeat for all 7 secrets
 
 ### Testing the Workflow
 
@@ -109,21 +115,27 @@ This runs OpenNext to build the Next.js app for Cloudflare Workers.
 
 #### 2. Set Production Secrets (First-Time Only)
 
-**For consumer worker:**
+**For consumer worker (4 secrets):**
 
 ```bash
-# Set Perplexity API key
-echo "your-perplexity-api-key" | npx wrangler secret put PERPLEXITY_API_KEY --config wrangler-consumer.toml
+# Supabase configuration
+npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL --config wrangler-consumer.toml
+npx wrangler secret put SUPABASE_SECRET_KEY --config wrangler-consumer.toml
+
+# API tokens
+npx wrangler secret put READER_API_TOKEN --config wrangler-consumer.toml
+npx wrangler secret put PERPLEXITY_API_KEY --config wrangler-consumer.toml
 ```
 
-**For main app:**
-
-The main app reads secrets from `.dev.vars` during local development. For production, these should be set as Wrangler secrets:
+**For main app (5 secrets):**
 
 ```bash
+# Supabase configuration
 npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL
 npx wrangler secret put NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 npx wrangler secret put SUPABASE_SECRET_KEY
+
+# API tokens
 npx wrangler secret put RESEND_API_KEY
 npx wrangler secret put READER_API_TOKEN
 ```
