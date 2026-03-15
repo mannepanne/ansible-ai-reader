@@ -1,7 +1,7 @@
 // ABOUT: Local development consumer for processing summary generation jobs
 // ABOUT: Polls database for pending jobs instead of using Cloudflare Queue
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { generateSummary } from '../src/lib/perplexity-api';
 import { stripHtml } from '../src/lib/html-utils';
 import dotenv from 'dotenv';
@@ -90,7 +90,7 @@ async function fetchReaderContent(
 /**
  * Process a single summary generation job
  */
-async function processJob(job: ProcessingJob, supabase: any): Promise<void> {
+async function processJob(job: ProcessingJob, supabase: SupabaseClient): Promise<void> {
   const { id: jobId, user_id: userId, reader_item_id: readerItemId } = job;
   const readerId = job.reader_items.reader_id;
 
@@ -206,7 +206,7 @@ async function processJob(job: ProcessingJob, supabase: any): Promise<void> {
 /**
  * Poll for pending jobs and process them
  */
-async function pollAndProcess(supabase: any): Promise<void> {
+async function pollAndProcess(supabase: SupabaseClient): Promise<void> {
   try {
     // Fetch pending jobs with reader_item details
     const { data: jobs, error } = await supabase
@@ -244,7 +244,13 @@ async function pollAndProcess(supabase: any): Promise<void> {
 
     // Process jobs sequentially to avoid rate limiting
     for (const job of jobs) {
-      await processJob(job as ProcessingJob, supabase);
+      // Transform Supabase response (array) to ProcessingJob (single object)
+      const processableJob: ProcessingJob = {
+        ...job,
+        reader_items: Array.isArray(job.reader_items) ? job.reader_items[0] : job.reader_items,
+      };
+
+      await processJob(processableJob, supabase);
 
       // Small delay between jobs to avoid hitting rate limits
       await new Promise((resolve) => setTimeout(resolve, 1000));

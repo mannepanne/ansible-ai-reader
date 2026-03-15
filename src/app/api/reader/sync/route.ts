@@ -78,11 +78,6 @@ export async function POST(request: NextRequest) {
       cloudflareEnv = getCloudflareContext().env;
     } catch (error) {
       // Local dev mode - queue not available, consumer will poll database
-      if (process.env.NODE_ENV === 'development') {
-        console.log(
-          '[Sync] Running in local dev mode (no Cloudflare queue available)'
-        );
-      }
     }
 
     try {

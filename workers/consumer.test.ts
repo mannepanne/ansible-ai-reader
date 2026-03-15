@@ -39,7 +39,7 @@ describe('Queue Consumer', () => {
     const mockAck = vi.fn();
     const mockRetry = vi.fn();
 
-    // Mock Reader API response
+    // Mock Reader API response (with html_content field)
     (global.fetch as any).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -48,8 +48,8 @@ describe('Queue Consumer', () => {
             id: 'reader-123',
             title: 'AI in Software Development',
             author: 'John Doe',
-            content:
-              'A comprehensive article about AI applications in software development. This article explores how artificial intelligence is revolutionizing the way we write code, test applications, and deploy software at scale. From automated code reviews to intelligent debugging tools, AI is becoming an essential part of modern software engineering practices.',
+            html_content:
+              '<p>A comprehensive article about AI applications in software development. This article explores how artificial intelligence is revolutionizing the way we write code, test applications, and deploy software at scale. From automated code reviews to intelligent debugging tools, AI is becoming an essential part of modern software engineering practices.</p>',
             url: 'https://example.com/ai-software',
           },
         ],
@@ -155,8 +155,8 @@ describe('Queue Consumer', () => {
           {
             id: 'reader-123',
             title: 'Test Article',
-            content:
-              'Article content for testing token tracking. This is a longer piece of content that exceeds the minimum 100 character requirement for processing. We need to ensure that token usage is properly tracked in the sync_log table for cost monitoring and analysis purposes.',
+            html_content:
+              '<p>Article content for testing token tracking. This is a longer piece of content that exceeds the minimum 100 character requirement for processing. We need to ensure that token usage is properly tracked in the sync_log table for cost monitoring and analysis purposes.</p>',
             url: 'https://example.com',
           },
         ],
@@ -252,8 +252,8 @@ describe('Queue Consumer', () => {
           {
             id: 'reader-123',
             title: 'Test',
-            content:
-              'Content for testing error handling and retry logic. This needs to be longer than 100 characters to pass the content validation check in the consumer before we can test the error handling properly.',
+            html_content:
+              '<p>Content for testing error handling and retry logic. This needs to be longer than 100 characters to pass the content validation check in the consumer before we can test the error handling properly.</p>',
             url: 'https://example.com',
           },
         ],
@@ -319,8 +319,8 @@ describe('Queue Consumer', () => {
           {
             id: 'reader-123',
             title: 'Test',
-            content:
-              'Content for testing persistent failures and max retry logic. This article content needs to be sufficiently long to pass validation checks before we can properly test the retry and failure handling mechanisms.',
+            html_content:
+              '<p>Content for testing persistent failures and max retry logic. This article content needs to be sufficiently long to pass validation checks before we can properly test the retry and failure handling mechanisms.</p>',
             url: 'https://example.com',
           },
         ],
@@ -400,7 +400,7 @@ describe('Queue Consumer', () => {
           {
             id: 'reader-123',
             title: 'Test',
-            content: '', // Empty content
+            html_content: '', // Empty content
             url: 'https://example.com',
           },
         ],
@@ -460,8 +460,8 @@ describe('Queue Consumer', () => {
           {
             id: 'reader-123',
             title: 'Test Article',
-            content:
-              'Article content for summary generation and database storage testing. This content explores various aspects of the system including how summaries are generated, how tags are extracted, and how all this data is persisted to the database for later retrieval and display in the user interface.',
+            html_content:
+              '<p>Article content for summary generation and database storage testing. This content explores various aspects of the system including how summaries are generated, how tags are extracted, and how all this data is persisted to the database for later retrieval and display in the user interface.</p>',
             url: 'https://example.com',
           },
         ],

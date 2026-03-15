@@ -317,6 +317,25 @@ describe('Reader API Client', () => {
       expect(result.results[1].created_at).toBe('2026-03-15T10:00:00Z');
       expect(result.results[2].created_at).toBe('2026-03-15T10:00:00.123Z');
     });
+
+    it('does not include withHtmlContent parameter by default', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          results: [],
+          nextPageCursor: null,
+        }),
+        headers: new Map(),
+      } as any);
+
+      await fetchUnreadItems('test-token');
+
+      // Verify withHtmlContent is NOT in the default request
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.not.stringContaining('withHtmlContent'),
+        expect.any(Object)
+      );
+    });
   });
 
   describe('archiveItem', () => {
