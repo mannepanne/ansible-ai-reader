@@ -16,6 +16,7 @@ interface ReaderItem {
   short_summary: string | null;
   tags: string[];
   perplexity_model: string | null;
+  content_truncated: boolean;
   created_at: string;
 }
 
@@ -417,10 +418,19 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
 
                         {/* AI Summary */}
                         {item.short_summary && (
-                          <div className="mt-2 p-3 bg-blue-50 border border-blue-100 rounded-md">
-                            <p className="text-sm text-gray-700 whitespace-pre-line">
-                              {item.short_summary}
-                            </p>
+                          <div className="mt-2">
+                            {item.content_truncated && (
+                              <div className="mb-2 flex items-center gap-2">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+                                  ⚠️ Summary based on truncated content (article >30k chars)
+                                </span>
+                              </div>
+                            )}
+                            <div className="p-3 bg-blue-50 border border-blue-100 rounded-md">
+                              <p className="text-sm text-gray-700 whitespace-pre-line">
+                                {item.short_summary}
+                              </p>
+                            </div>
                           </div>
                         )}
 
