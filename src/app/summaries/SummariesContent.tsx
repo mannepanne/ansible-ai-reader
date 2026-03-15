@@ -405,7 +405,6 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
                 url={item.url}
                 summary={item.short_summary || 'No summary available'}
                 tags={item.tags || []}
-                source={item.source || undefined}
                 author={item.author || undefined}
                 wordCount={item.word_count || undefined}
                 contentTruncated={item.content_truncated}

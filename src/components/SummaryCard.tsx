@@ -11,7 +11,6 @@ interface SummaryCardProps {
   url: string;
   summary: string;
   tags: string[];
-  source?: string;
   author?: string;
   wordCount?: number;
   contentTruncated: boolean;
@@ -24,7 +23,6 @@ export default function SummaryCard({
   url,
   summary,
   tags,
-  source,
   author,
   wordCount,
   contentTruncated,
@@ -36,6 +34,9 @@ export default function SummaryCard({
   const shouldTruncate = summary.length > 200;
   const displaySummary =
     !isExpanded && shouldTruncate ? summary.slice(0, 200) + '...' : summary;
+
+  // Calculate reading time estimate (250 words per minute)
+  const readingTime = wordCount ? Math.ceil(wordCount / 250) : null;
 
   // Tag colors (cycle through a set of pleasant colors)
   const tagColors = [
@@ -149,22 +150,26 @@ export default function SummaryCard({
       )}
 
       {/* Metadata */}
-      <div
-        style={{
-          fontSize: '0.8em',
-          color: '#6c757d',
-          display: 'flex',
-          gap: '8px',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
-        {source && <span>{source}</span>}
-        {source && (author || wordCount) && <span>·</span>}
-        {author && <span>{author}</span>}
-        {author && wordCount && <span>·</span>}
-        {wordCount && <span>{wordCount.toLocaleString()}w</span>}
-      </div>
+      {(author || readingTime) && (
+        <div
+          style={{
+            fontSize: '0.8em',
+            color: '#6c757d',
+            display: 'flex',
+            gap: '8px',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
+          {author && <span>{author}</span>}
+          {author && readingTime && <span>·</span>}
+          {readingTime && (
+            <span>
+              {readingTime} min read
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Truncated warning */}
       {contentTruncated && (
