@@ -29,16 +29,34 @@ interface QueueMessage {
  * @param apiToken - Reader API token
  * @returns Article content or null if not found
  */
+/**
+ * Strip HTML tags from content
+ */
+function stripHtml(html: string): string {
+  // Remove HTML tags and decode entities
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '') // Remove styles
+    .replace(/<[^>]+>/g, '') // Remove all tags
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ') // Normalize whitespace
+    .trim();
+}
+
 async function fetchReaderContent(
   readerId: string,
   apiToken: string
 ): Promise<{ title: string; author?: string; content: string; url: string } | null> {
   try {
-    // Use Reader API to get item details
-    // For now, we'll use the list endpoint and filter by ID
-    // In production, you might want to use a dedicated endpoint if available
+    // Use Reader API to get item with full HTML content
+    // withHtmlContent=true returns the html_content field
     const response = await fetch(
-      `https://readwise.io/api/v3/list/?location=new`,
+      `https://readwise.io/api/v3/list/?id=${readerId}&withHtmlContent=true`,
       {
         method: 'GET',
         headers: {
@@ -60,21 +78,30 @@ async function fetchReaderContent(
         id: string;
         title: string;
         author?: string;
-        content?: string;
+        html_content?: string;
         url: string;
       }>;
     };
-    const item = data.results?.find((i) => i.id === readerId);
 
-    if (!item || !item.content) {
-      console.error('[Consumer] Item not found or has no content:', readerId);
+    if (!data.results || data.results.length === 0) {
+      console.error('[Consumer] Item not found:', readerId);
       return null;
     }
+
+    const item = data.results[0];
+
+    if (!item.html_content) {
+      console.error('[Consumer] Item has no content:', readerId);
+      return null;
+    }
+
+    // Strip HTML tags to get plain text for Perplexity
+    const plainText = stripHtml(item.html_content);
 
     return {
       title: item.title,
       author: item.author,
-      content: item.content,
+      content: plainText,
       url: item.url,
     };
   } catch (error) {
