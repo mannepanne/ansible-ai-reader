@@ -422,7 +422,7 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
                             {item.content_truncated && (
                               <div className="mb-2 flex items-center gap-2">
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
-                                  ⚠️ Summary based on truncated content (article >30k chars)
+                                  ⚠️ Summary based on truncated content (article &gt;30k chars)
                                 </span>
                               </div>
                             )}

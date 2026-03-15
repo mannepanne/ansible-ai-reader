@@ -72,9 +72,15 @@ export async function POST(request: NextRequest) {
     let totalCreated = 0;
     const errors: any[] = [];
 
+    // Check if we're in Cloudflare Workers runtime (production) or local dev
+    let cloudflareEnv: { PROCESSING_QUEUE?: any } | null = null;
     try {
-      const { env } = getCloudflareContext();
+      cloudflareEnv = getCloudflareContext().env;
+    } catch (error) {
+      // Local dev mode - queue not available, consumer will poll database
+    }
 
+    try {
       do {
         const response = await fetchUnreadItems(
           readerApiToken,
@@ -140,25 +146,31 @@ export async function POST(request: NextRequest) {
               continue;
             }
 
-            // Enqueue message
-            // Phase 4 consumer will fetch content from Reader API when generating summary
-            try {
-              await env.PROCESSING_QUEUE.send({
-                jobId: job.id,
-                userId: userId,
-                readerItemId: readerItem.id,
-                readerId: item.id, // Reader's ID for fetching content in Phase 4
-                jobType: 'summary_generation',
-              });
+            // Enqueue message (only in production with Cloudflare Queue)
+            // In local dev, consumer will poll database for pending jobs
+            if (cloudflareEnv?.PROCESSING_QUEUE) {
+              try {
+                await cloudflareEnv.PROCESSING_QUEUE.send({
+                  jobId: job.id,
+                  userId: userId,
+                  readerItemId: readerItem.id,
+                  readerId: item.id, // Reader's ID for fetching content in Phase 4
+                  jobType: 'summary_generation',
+                });
 
+                totalCreated++;
+              } catch (queueError) {
+                console.error('[Sync] Failed to enqueue job:', queueError);
+                errors.push({
+                  reader_id: item.id,
+                  title: item.title,
+                  error: 'Failed to enqueue processing job',
+                });
+              }
+            } else {
+              // Local dev: just count the job as created (consumer will poll DB)
+              console.log(`[Sync] Job created (local dev): ${job.id}`);
               totalCreated++;
-            } catch (queueError) {
-              console.error('[Sync] Failed to enqueue job:', queueError);
-              errors.push({
-                reader_id: item.id,
-                title: item.title,
-                error: 'Failed to enqueue processing job',
-              });
             }
           } catch (itemProcessError) {
             console.error('[Sync] Error processing item:', itemProcessError);
