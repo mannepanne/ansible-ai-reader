@@ -13,6 +13,9 @@ interface ReaderItem {
   source: string | null;
   url: string;
   word_count: number | null;
+  short_summary: string | null;
+  tags: string[];
+  perplexity_model: string | null;
   created_at: string;
 }
 
@@ -399,13 +402,41 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
                             {item.title}
                           </a>
                         </h3>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                        <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
                           {item.author && <span>By {item.author}</span>}
                           {item.source && <span>• {item.source}</span>}
                           {item.word_count && (
                             <span>• {item.word_count.toLocaleString()} words</span>
                           )}
+                          {item.perplexity_model && (
+                            <span className="text-xs text-gray-500">
+                              • {item.perplexity_model}
+                            </span>
+                          )}
                         </div>
+
+                        {/* AI Summary */}
+                        {item.short_summary && (
+                          <div className="mt-2 p-3 bg-blue-50 border border-blue-100 rounded-md">
+                            <p className="text-sm text-gray-700 whitespace-pre-line">
+                              {item.short_summary}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Tags */}
+                        {item.tags && item.tags.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {item.tags.map((tag, index) => (
+                              <span
+                                key={index}
+                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <button
                         onClick={() => handleArchive(item.id)}
