@@ -77,6 +77,19 @@ npx wrangler secret put SECRET_NAME  # Add missing secrets
 - Check Resend domain is verified
 - Test magic link emails in spam/junk folders
 
+#### Magic links contain localhost:3000 in production
+**Symptoms:** Magic link emails sent from production contain `redirect_to=http://localhost:3000` despite Site URL being set to production domain.
+
+**Root cause:** Supabase Site URL setting has a caching/state bug where the first change doesn't always persist.
+
+**Solution:** Change the Site URL field multiple times in the Supabase dashboard (Authentication → URL Configuration → Site URL). Toggle between localhost and production URL a few times until the change takes effect.
+
+**Verification:**
+1. Enable Cloudflare observability in `wrangler.toml`: `[observability] enabled = true`
+2. Check logs to verify your code is sending correct `emailRedirectTo` parameter
+3. Test magic link email - the `redirect_to` parameter should match your production URL
+4. If still showing localhost, try changing Site URL again in Supabase dashboard
+
 ---
 
 **Note:** This document will be updated with actual issues and solutions as they are encountered during development.
