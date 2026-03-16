@@ -140,6 +140,18 @@ export default function SummaryCard({
                 {...props}
               />
             ),
+            // Style links (open in new tab)
+            a: ({ ...props }) => (
+              <a
+                style={{
+                  color: '#0d6efd',
+                  textDecoration: 'underline',
+                }}
+                target="_blank"
+                rel="noopener noreferrer"
+                {...props}
+              />
+            ),
           }}
         >
           {displaySummary}

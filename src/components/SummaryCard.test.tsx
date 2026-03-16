@@ -240,4 +240,77 @@ describe('SummaryCard', () => {
     expect(screen.getByText('4 min read')).toBeInTheDocument(); // 1000/250 = 4
     expect(screen.getByText(/truncated content/i)).toBeInTheDocument();
   });
+
+  describe('Markdown rendering', () => {
+    it('renders bold text as strong elements', () => {
+      const markdownSummary = 'This is **bold text** in a summary.';
+      const { container } = render(
+        <SummaryCard {...defaultProps} summary={markdownSummary} />
+      );
+
+      const strongElement = container.querySelector('strong');
+      expect(strongElement).toBeInTheDocument();
+      expect(strongElement?.textContent).toBe('bold text');
+    });
+
+    it('renders bullet lists as ul and li elements', () => {
+      const markdownSummary = '- First bullet point\n- Second bullet point\n- Third bullet point';
+      const { container } = render(
+        <SummaryCard {...defaultProps} summary={markdownSummary} />
+      );
+
+      const ulElement = container.querySelector('ul');
+      expect(ulElement).toBeInTheDocument();
+
+      const liElements = container.querySelectorAll('li');
+      expect(liElements).toHaveLength(3);
+      expect(liElements[0].textContent).toBe('First bullet point');
+      expect(liElements[1].textContent).toBe('Second bullet point');
+      expect(liElements[2].textContent).toBe('Third bullet point');
+    });
+
+    it('renders links with target="_blank" and proper attributes', () => {
+      const markdownSummary = 'Check out [this article](https://example.com) for more info.';
+      render(<SummaryCard {...defaultProps} summary={markdownSummary} />);
+
+      const link = screen.getByRole('link', { name: /this article/i });
+      expect(link).toHaveAttribute('href', 'https://example.com');
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
+    it('renders complex markdown with bullets and bold text', () => {
+      const markdownSummary = '- **First point**: Important detail\n- **Second point**: Another detail\n- Regular point without bold';
+      const { container } = render(
+        <SummaryCard {...defaultProps} summary={markdownSummary} />
+      );
+
+      const strongElements = container.querySelectorAll('strong');
+      expect(strongElements).toHaveLength(2);
+      expect(strongElements[0].textContent).toBe('First point');
+      expect(strongElements[1].textContent).toBe('Second point');
+
+      const liElements = container.querySelectorAll('li');
+      expect(liElements).toHaveLength(3);
+    });
+
+    it('preserves markdown rendering when expanding long summaries', () => {
+      const longMarkdownSummary = `- **First point** with details\n${'- Another point\n'.repeat(50)}`;
+      const { container } = render(
+        <SummaryCard {...defaultProps} summary={longMarkdownSummary} />
+      );
+
+      // Expand the summary
+      const expandButton = screen.getByRole('button', { name: /expand/i });
+      fireEvent.click(expandButton);
+
+      // Verify markdown still renders
+      const strongElement = container.querySelector('strong');
+      expect(strongElement).toBeInTheDocument();
+      expect(strongElement?.textContent).toBe('First point');
+
+      const liElements = container.querySelectorAll('li');
+      expect(liElements.length).toBeGreaterThan(10);
+    });
+  });
 });
