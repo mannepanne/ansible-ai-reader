@@ -46,7 +46,7 @@ describe('POST /api/reader/regenerate-tags', () => {
     const response = await POST();
 
     expect(response.status).toBe(401);
-    const body = await response.json();
+    const body = (await response.json()) as { error?: string };
     expect(body.error).toBe('Unauthorized');
   });
 
@@ -140,7 +140,7 @@ describe('POST /api/reader/regenerate-tags', () => {
     const response = await POST();
 
     expect(response.status).toBe(200);
-    const body = await response.json();
+    const body = (await response.json()) as { count?: number; message?: string };
     expect(body.count).toBe(2);
     expect(body.message).toContain('Queued 2 items');
     expect(mockInsert).toHaveBeenCalledTimes(2);
@@ -186,7 +186,7 @@ describe('POST /api/reader/regenerate-tags', () => {
     });
 
     const response = await POST();
-    const body = await response.json();
+    const body = (await response.json()) as { count?: number; message?: string };
 
     expect(body.count).toBe(3);
     expect(body.message).toBe('Queued 3 items for tag regeneration');
@@ -215,7 +215,7 @@ describe('POST /api/reader/regenerate-tags', () => {
     const response = await POST();
 
     expect(response.status).toBe(200);
-    const body = await response.json();
+    const body = (await response.json()) as { count?: number; message?: string };
     expect(body.message).toBe('No items need tag regeneration');
     expect(body.count).toBe(0);
   });
@@ -243,7 +243,7 @@ describe('POST /api/reader/regenerate-tags', () => {
     const response = await POST();
 
     expect(response.status).toBe(500);
-    const body = await response.json();
+    const body = (await response.json()) as { error?: string };
     expect(body.error).toBe('Failed to query items');
   });
 
@@ -282,12 +282,15 @@ describe('POST /api/reader/regenerate-tags', () => {
     });
 
     const response = await POST();
-    const body = await response.json();
+    const body = (await response.json()) as {
+      count?: number;
+      errors?: Array<{ item_id: string; title: string; error: string }>;
+    };
 
     // Should complete but report errors
     expect(body.count).toBe(0);
     expect(body.errors).toBeDefined();
-    expect(body.errors.length).toBe(1);
+    expect(body.errors?.length).toBe(1);
   });
 
   it('works in local dev mode without queue', async () => {
@@ -331,7 +334,7 @@ describe('POST /api/reader/regenerate-tags', () => {
     });
 
     const response = await POST();
-    const body = await response.json();
+    const body = (await response.json()) as { count?: number };
 
     // Should create job but not send to queue
     expect(body.count).toBe(1);

@@ -62,11 +62,10 @@ export async function POST() {
     for (const item of itemsWithoutTags) {
       try {
         // Create processing job
-        // TODO: Optimize to avoid regenerating summary (wasteful API usage)
-        // Current implementation uses 'summary_generation' job type which regenerates
-        // both summary AND tags. Since summary already exists, we're wasting API credits.
-        // Better approach: Add 'tag_generation' job type or modify worker to check if
-        // summary exists and skip regeneration. Est. waste: ~80% of API cost for these jobs.
+        // TODO: Optimize to avoid regenerating summary (wasteful API usage - see TD-002)
+        // This implementation uses 'summary_generation' job type which regenerates
+        // both summary AND tags. Since summary exists, we waste ~80% of API credits.
+        // See REFERENCE/technical-debt.md TD-002 for cost analysis and future fix options.
         const { data: job, error: jobError } = await supabase
           .from('processing_jobs')
           .insert({
