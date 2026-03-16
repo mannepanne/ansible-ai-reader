@@ -272,9 +272,7 @@ describe('Header', () => {
 
       render(<Header userEmail="mobile@example.com" />);
 
-      // Trigger resize event to update isMobile state
-      fireEvent(window, new Event('resize'));
-
+      // useEffect runs on mount and reads window.innerWidth
       expect(screen.queryByText('mobile@example.com')).not.toBeInTheDocument();
     });
 
@@ -288,9 +286,7 @@ describe('Header', () => {
 
       render(<Header userEmail="desktop@example.com" />);
 
-      // Trigger resize event to update isMobile state
-      fireEvent(window, new Event('resize'));
-
+      // useEffect runs on mount and reads window.innerWidth
       expect(screen.getByText('desktop@example.com')).toBeInTheDocument();
     });
 

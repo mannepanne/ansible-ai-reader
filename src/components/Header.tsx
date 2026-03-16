@@ -25,11 +25,14 @@ export default function Header({
   onRegenerateTags,
   isRegenerating = false,
 }: HeaderProps) {
+  const MOBILE_BREAKPOINT = 640;
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 640);
+      // Guard against SSR (window undefined on server)
+      if (typeof window === 'undefined') return;
+      setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
     };
 
     // Check on mount
