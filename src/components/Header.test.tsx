@@ -260,4 +260,59 @@ describe('Header', () => {
     expect(screen.getByRole('button', { name: /sync/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /logout/i })).toBeInTheDocument();
   });
+
+  describe('Mobile responsive behavior', () => {
+    it('hides email on mobile screens (width <= 640px)', () => {
+      // Mock window.innerWidth for mobile
+      Object.defineProperty(window, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: 375, // iPhone size
+      });
+
+      render(<Header userEmail="mobile@example.com" />);
+
+      // useEffect runs on mount and reads window.innerWidth
+      expect(screen.queryByText('mobile@example.com')).not.toBeInTheDocument();
+    });
+
+    it('shows email on desktop screens (width > 640px)', () => {
+      // Mock window.innerWidth for desktop
+      Object.defineProperty(window, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: 1024,
+      });
+
+      render(<Header userEmail="desktop@example.com" />);
+
+      // useEffect runs on mount and reads window.innerWidth
+      expect(screen.getByText('desktop@example.com')).toBeInTheDocument();
+    });
+
+    it('updates email visibility when window is resized', () => {
+      // Start with desktop
+      Object.defineProperty(window, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: 1024,
+      });
+
+      render(<Header userEmail="responsive@example.com" />);
+
+      // Email should be visible on desktop
+      expect(screen.getByText('responsive@example.com')).toBeInTheDocument();
+
+      // Resize to mobile
+      Object.defineProperty(window, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: 375,
+      });
+      fireEvent(window, new Event('resize'));
+
+      // Email should now be hidden
+      expect(screen.queryByText('responsive@example.com')).not.toBeInTheDocument();
+    });
+  });
 });
