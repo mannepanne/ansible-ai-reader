@@ -153,6 +153,96 @@ describe('Header', () => {
     expect(mockOnSync).not.toHaveBeenCalled();
   });
 
+  it('does not show regenerate tags button by default', () => {
+    render(<Header userEmail="test@example.com" />);
+
+    const button = screen.queryByRole('button', { name: /regenerate tags/i });
+    expect(button).not.toBeInTheDocument();
+  });
+
+  it('shows regenerate tags button when showRegenerateTags is true', () => {
+    const mockOnRegenerate = vi.fn();
+
+    render(
+      <Header
+        userEmail="test@example.com"
+        showRegenerateTags={true}
+        onRegenerateTags={mockOnRegenerate}
+      />
+    );
+
+    const button = screen.getByRole('button', { name: /regenerate tags/i });
+    expect(button).toBeInTheDocument();
+  });
+
+  it('calls onRegenerateTags when button clicked', () => {
+    const mockOnRegenerate = vi.fn();
+
+    render(
+      <Header
+        userEmail="test@example.com"
+        showRegenerateTags={true}
+        onRegenerateTags={mockOnRegenerate}
+      />
+    );
+
+    const button = screen.getByRole('button', { name: /regenerate tags/i });
+    fireEvent.click(button);
+
+    expect(mockOnRegenerate).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables regenerate tags button when isRegenerating is true', () => {
+    const mockOnRegenerate = vi.fn();
+
+    render(
+      <Header
+        userEmail="test@example.com"
+        showRegenerateTags={true}
+        onRegenerateTags={mockOnRegenerate}
+        isRegenerating={true}
+      />
+    );
+
+    const button = screen.getByRole('button', { name: /processing/i });
+    expect(button).toBeDisabled();
+  });
+
+  it('shows "Processing..." text when isRegenerating is true', () => {
+    const mockOnRegenerate = vi.fn();
+
+    render(
+      <Header
+        userEmail="test@example.com"
+        showRegenerateTags={true}
+        onRegenerateTags={mockOnRegenerate}
+        isRegenerating={true}
+      />
+    );
+
+    expect(screen.getByText('Processing...')).toBeInTheDocument();
+    expect(screen.queryByText('Regenerate Tags')).not.toBeInTheDocument();
+  });
+
+  it('prevents regenerate tags button click when regenerating', () => {
+    const mockOnRegenerate = vi.fn();
+
+    render(
+      <Header
+        userEmail="test@example.com"
+        showRegenerateTags={true}
+        onRegenerateTags={mockOnRegenerate}
+        isRegenerating={true}
+      />
+    );
+
+    const button = screen.getByRole('button', { name: /processing/i });
+    fireEvent.click(button);
+
+    // Disabled button should not trigger onClick
+    expect(mockOnRegenerate).not.toHaveBeenCalled();
+  });
+
   it('renders with all props', () => {
     const mockOnSync = vi.fn();
 

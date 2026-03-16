@@ -10,6 +10,9 @@ interface HeaderProps {
   showSync?: boolean;
   onSync?: () => void;
   isSyncing?: boolean;
+  showRegenerateTags?: boolean;
+  onRegenerateTags?: () => void;
+  isRegenerating?: boolean;
 }
 
 export default function Header({
@@ -17,6 +20,9 @@ export default function Header({
   showSync = false,
   onSync,
   isSyncing = false,
+  showRegenerateTags = false,
+  onRegenerateTags,
+  isRegenerating = false,
 }: HeaderProps) {
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -47,6 +53,26 @@ export default function Header({
       >
         Ansible AI Reader
       </Link>
+
+      {/* Regenerate Tags button (orange, before Sync) */}
+      {showRegenerateTags && (
+        <button
+          onClick={onRegenerateTags}
+          disabled={isRegenerating}
+          style={{
+            background: isRegenerating ? '#6c757d' : '#ffc107',
+            color: '#fff',
+            padding: '6px 16px',
+            fontSize: '0.9em',
+            fontWeight: 600,
+            border: 'none',
+            borderRadius: '4px',
+            cursor: isRegenerating ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {isRegenerating ? 'Processing...' : 'Regenerate Tags'}
+        </button>
+      )}
 
       {/* Sync button (only on summaries page) */}
       {showSync && (

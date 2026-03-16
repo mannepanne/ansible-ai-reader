@@ -58,9 +58,11 @@ describe('GET /api/reader/items', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          order: vi.fn().mockResolvedValue({
-            data: mockItems,
-            error: null,
+          is: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({
+              data: mockItems,
+              error: null,
+            }),
           }),
         }),
       }),
@@ -87,9 +89,11 @@ describe('GET /api/reader/items', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          order: vi.fn().mockResolvedValue({
-            data: [],
-            error: null,
+          is: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({
+              data: [],
+              error: null,
+            }),
           }),
         }),
       }),
@@ -122,9 +126,11 @@ describe('GET /api/reader/items', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          order: vi.fn().mockResolvedValue({
-            data: null,
-            error: { message: 'Database error' },
+          is: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({
+              data: null,
+              error: { message: 'Database error' },
+            }),
           }),
         }),
       }),
