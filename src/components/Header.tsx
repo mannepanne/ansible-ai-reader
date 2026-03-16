@@ -4,6 +4,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState, useEffect } from 'react';
 
 interface HeaderProps {
   userEmail: string;
@@ -24,6 +25,21 @@ export default function Header({
   onRegenerateTags,
   isRegenerating = false,
 }: HeaderProps) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 640);
+    };
+
+    // Check on mount
+    checkMobile();
+
+    // Add listener for window resize
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.href = '/';
@@ -31,15 +47,15 @@ export default function Header({
 
   return (
     <header
-      style={{
-        background: '#212529',
-        color: '#fff',
-        padding: '12px 24px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '16px',
-      }}
-    >
+        style={{
+          background: '#212529',
+          color: '#fff',
+          padding: '12px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+        }}
+      >
       {/* Branding */}
       <Link
         href="/"
@@ -94,16 +110,18 @@ export default function Header({
         </button>
       )}
 
-      {/* User email */}
-      <span
-        style={{
-          color: '#adb5bd',
-          fontSize: '0.85em',
-          marginRight: '12px',
-        }}
-      >
-        {userEmail}
-      </span>
+      {/* User email - hidden on mobile */}
+      {!isMobile && (
+        <span
+          style={{
+            color: '#adb5bd',
+            fontSize: '0.85em',
+            marginRight: '12px',
+          }}
+        >
+          {userEmail}
+        </span>
+      )}
 
       {/* Logout button */}
       <button
