@@ -20,11 +20,17 @@ export async function POST(request: NextRequest) {
     // Use SITE_URL env var (server-side), fallback to request origin
     const siteUrl = process.env.SITE_URL || request.nextUrl.origin;
 
+    const redirectUrl = `${siteUrl}/api/auth/callback?returnTo=${encodeURIComponent(returnTo)}`;
+    console.log('[Login] SITE_URL env var:', process.env.SITE_URL);
+    console.log('[Login] request.nextUrl.origin:', request.nextUrl.origin);
+    console.log('[Login] Final siteUrl:', siteUrl);
+    console.log('[Login] Full redirect URL:', redirectUrl);
+
     // Send magic link via Supabase Auth
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${siteUrl}/api/auth/callback?returnTo=${encodeURIComponent(returnTo)}`,
+        emailRedirectTo: redirectUrl,
       },
     });
 
