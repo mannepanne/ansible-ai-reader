@@ -40,7 +40,22 @@ VALUES ('<user-id-from-above>', '<email>', NOW());
 
 ---
 
-### Example Format: TD-002: Description
+### TD-002: Wasteful Tag Regeneration (Re-generates Summaries)
+- **Location:** `src/app/api/reader/regenerate-tags/route.ts` - job creation logic (lines 65-75)
+- **Issue:** Tag regeneration uses `'summary_generation'` job type, which regenerates BOTH summary AND tags via Perplexity API. Since summaries already exist and are correct, this wastes ~80% of API credits for these operations.
+- **Why accepted:** Simpler implementation - reuses existing job type and worker logic. Adding a separate `'tag_generation'` job type would require worker modifications and testing.
+- **Cost impact:** ~$0.001 per item for full summary generation vs ~$0.0002 for tags-only. For 100 items: $0.10 vs $0.02.
+- **Risk:** **Low** - Works correctly, just costs more. Not critical for MVP with low item counts.
+- **Future fix:** Implement one of:
+  1. **New job type** (recommended): Add `'tag_generation'` job type and modify worker to handle tags-only processing with cheaper Perplexity prompt
+  2. **Smart worker**: Modify worker to check if `short_summary` exists and skip summary generation if present
+  3. **Separate endpoint**: Create distinct API for tags-only regeneration with optimized worker
+- **Phase introduced:** UI Design & Tag Regeneration (2026-03-15)
+- **Related code:** `workers/consumer.ts` - processSummaryGeneration(), `src/lib/perplexity-api.ts` - generateSummary()
+
+---
+
+### Example Format: TD-003: Description
 - **Location:** `src/path/to/file.ts` - `functionName()`
 - **Issue:** Clear description of the limitation or shortcut
 - **Why accepted:** Reason for accepting this debt (e.g., runtime constraints, time pressure, lack of alternative)

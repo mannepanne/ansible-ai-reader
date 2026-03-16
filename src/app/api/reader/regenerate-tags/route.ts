@@ -20,10 +20,11 @@ export async function POST() {
 
     const userId = session.user.id;
 
-    // Find items with summaries but no tags
+    // Find items with summaries but no tags (for this user only)
     const { data: itemsWithoutTags, error: queryError } = await supabase
       .from('reader_items')
       .select('id, reader_id, title')
+      .eq('user_id', userId)
       .not('short_summary', 'is', null)
       .or('tags.is.null,tags.eq.{}');
 
@@ -61,13 +62,18 @@ export async function POST() {
     for (const item of itemsWithoutTags) {
       try {
         // Create processing job
+        // TODO: Optimize to avoid regenerating summary (wasteful API usage)
+        // Current implementation uses 'summary_generation' job type which regenerates
+        // both summary AND tags. Since summary already exists, we're wasting API credits.
+        // Better approach: Add 'tag_generation' job type or modify worker to check if
+        // summary exists and skip regeneration. Est. waste: ~80% of API cost for these jobs.
         const { data: job, error: jobError } = await supabase
           .from('processing_jobs')
           .insert({
             user_id: userId,
             reader_item_id: item.id,
             sync_log_id: null, // Not part of a sync operation
-            job_type: 'summary_generation', // Same job type - will regenerate everything
+            job_type: 'summary_generation', // Re-generates BOTH summary and tags (inefficient)
             status: 'pending',
           })
           .select()
