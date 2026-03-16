@@ -24,19 +24,22 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 ## Architecture Overview
 
 **Stack:**
-- **Framework**: Next.js 15+ (App Router)
-- **Styling**: Tailwind CSS 4.0
-- **Database**: Supabase (Postgres + Auth)
+- **Framework**: Next.js 15 (App Router), React 19
+- **Runtime**: Cloudflare Workers (via `@cloudflare/next-on-pages`)
+- **Database**: Supabase (PostgreSQL + Auth)
+- **Queues**: Cloudflare Queues (async job processing)
+- **UI**: ReactMarkdown for formatted summaries
 - **Email**: Resend (magic link authentication)
-- **Deployment**: Cloudflare Workers (via `@opennextjs/cloudflare`)
 - **Domain**: ansible.hultberg.org
 
 **Key Integrations:**
 - Readwise Reader API (fetch/sync articles)
-- Perplexity API (generate summaries)
+- Perplexity API (sonar-pro model for AI summaries)
 - Supabase Auth (magic links via Resend)
 
-**Current Status:** ✅ Phase 3 Complete - Ready for Phase 4 (Perplexity Integration)
+**Current Status:** ✅ Phase 4 Complete - Fully functional application with 237 tests passing
+
+**Complete architecture diagram:** [REFERENCE/architecture.md](./REFERENCE/architecture.md)
 
 ## Implementation Phases
 
@@ -44,50 +47,50 @@ Development is organized into 6 numbered phases with clear deliverables, testing
 
 1. ✅ **Phase 1: Foundation** - [Archived](./SPECIFICATIONS/ARCHIVE/01-foundation.md) - Completed Mar 10, 2026
 2. ✅ **Phase 2: Authentication** - [Archived](./SPECIFICATIONS/ARCHIVE/02-authentication.md) - Completed Mar 12, 2026
-3. ✅ **Phase 3: Reader Integration** - [03-reader-integration.md](./SPECIFICATIONS/03-reader-integration.md) - Completed Mar 14, 2026 (120 tests)
-4. **Phase 4: Perplexity Integration** - [04-perplexity-integration.md](./SPECIFICATIONS/04-perplexity-integration.md) - Auto-generate summaries and tags
-5. **Phase 5: Notes & Rating** - [05-notes-rating-polish.md](./SPECIFICATIONS/05-notes-rating-polish.md) - Document notes, ratings, settings
-6. **Phase 6: Launch** - [06-launch.md](./SPECIFICATIONS/06-launch.md) - Documentation, monitoring, final testing
+3. ✅ **Phase 3: Reader Integration** - [Archived](./SPECIFICATIONS/ARCHIVE/03-reader-integration.md) - Completed Mar 14, 2026
+4. ✅ **Phase 4: Perplexity Integration** - [Archived](./SPECIFICATIONS/ARCHIVE/04-perplexity-integration.md) - Completed Mar 15, 2026 (237 tests)
+5. 🚧 **Phase 5: Notes & Rating** - [05-notes-rating-polish.md](./SPECIFICATIONS/05-notes-rating-polish.md) - Document notes, ratings, settings
+6. 📋 **Phase 6: Launch** - [06-launch.md](./SPECIFICATIONS/06-launch.md) - Documentation, monitoring, final testing
 
-**Current phase:** Phase 3 Complete - Ready for Phase 4
+**Current phase:** Phase 4 Complete - Core functionality delivered, ready for Phase 5 (polish features)
 
-### Phase 3 Summary (Completed)
+### Phase Summaries
 
-**Backend:**
-- ✅ Reader API client with rate limiting (20 req/min)
-- ✅ Sync endpoint with pagination support
-- ✅ Status polling endpoint for real-time progress
-- ✅ Archive endpoint with transaction-like rollback
-- ✅ Retry endpoint for failed job recovery
-- ✅ Queue consumer worker (ready for Phase 4)
+**Phase 1: Foundation (Completed Mar 10, 2026)**
+- Next.js 15 + Cloudflare Workers + Supabase + Cloudflare Queues
+- 26 tests passing with 95%+ coverage
+- See: [phase-1-completion-summary.md](./REFERENCE/phase-1-completion-summary.md)
 
-**UI:**
-- ✅ Sync Reader button with progress indicators
-- ✅ Items list view with archive buttons
-- ✅ Retry button for failed operations
-- ✅ Real-time status polling (2-second intervals)
+**Phase 2: Authentication (Completed Mar 12, 2026)**
+- Magic link authentication with Supabase Auth + Resend SMTP
+- Protected routes with middleware and session management
+- 22 new tests (64 total passing)
+- See: [phase-2-implementation.md](./REFERENCE/phase-2-implementation.md)
 
-**Testing:**
-- ✅ 120 tests passing (56 new tests added)
-- ✅ 95%+ coverage maintained
-- ✅ TypeScript compilation with no errors
+**Phase 3: Reader Integration (Completed Mar 14, 2026)**
+- Reader API client with rate limiting and pagination
+- Sync, archive, retry, and status polling endpoints
+- Queue consumer worker for async processing
+- Full UI implementation with real-time progress
+- 56 new tests (120 total passing)
+- See: [phase-3-implementation.md](./REFERENCE/phase-3-implementation.md)
 
-**Phase 1 Summary (Completed Mar 10, 2026):**
-- ✅ **Phase 1.1** - Next.js scaffolding (PR #2)
-- ✅ **Phase 1.2** - Database setup (PR #5)
-- ✅ **Phase 1.3.1** - Cloudflare deployment (PR #6)
-- ✅ **Phase 1.3.2** - Queues producer (PR #7)
-- ✅ **Phase 1.3.3** - Domain & secrets (concurrent with 1.3.1)
-- **Deliverables:** Next.js 15 + Cloudflare Workers + Supabase + Queues + 26 tests passing
+**Phase 4: Perplexity Integration (Completed Mar 15, 2026)**
+- AI summary generation via Perplexity API (sonar-pro model)
+- Markdown-formatted summaries with ReactMarkdown rendering
+- AI tag generation (3-10 tags per item)
+- Tag regeneration for existing items
+- Content truncation handling (30k char limit)
+- Token usage tracking for cost monitoring
+- 117 new tests (237 total passing)
+- See: [phase-4-implementation.md](./REFERENCE/phase-4-implementation.md) *(to be created)*
 
-**Phase 2 Summary (Completed Mar 12, 2026):**
-- ✅ **Phase 2** - Magic link authentication (PR #8)
-- **Deliverables:** Supabase Auth + Resend SMTP + Protected routes + Session management + 22 new tests (64 total passing)
-
-**Phase 3 Summary (In Progress - Started Mar 13, 2026):**
-- 🚧 **Phase 3** - Reader integration (branch: phase-3-reader-integration)
-- **Backend Complete:** Reader API client + Sync endpoint + Status polling + Queue consumer + 39 new tests (103 total passing)
-- **Remaining:** UI implementation (Sync button, list view, archive, retry)
+**Recent Improvements (Mar 16, 2026):**
+- Fixed archived items reappearing bug (#15)
+- Moved "Regenerate Tags" button to header (#14)
+- Fixed magic link localhost issue (Supabase Site URL caching)
+- Added ReactMarkdown rendering for beautiful summary formatting
+- Created comprehensive architecture documentation
 
 ### SPECIFICATIONS/
 - **Implementation phases** (numbered files) - Active work-in-progress
@@ -97,24 +100,23 @@ Development is organized into 6 numbered phases with clear deliverables, testing
 ### REFERENCE/
 How-it-works documentation for implemented features:
 
-**Phase 1 Implementation Docs:**
+**Essential Docs:**
+- [architecture.md](./REFERENCE/architecture.md) - **START HERE** - Complete system architecture with Mermaid diagram
+- [deployment-guide.md](./REFERENCE/deployment-guide.md) - Production deployment, CI/CD setup, Cloudflare Workers
+- [testing-strategy.md](./REFERENCE/testing-strategy.md) - Testing philosophy, 237 tests, 95%+ coverage
+- [environment-setup.md](./REFERENCE/environment-setup.md) - API keys and environment configuration
+- [troubleshooting.md](./REFERENCE/troubleshooting.md) - Common issues and solutions (includes Supabase quirks)
+- [technical-debt.md](./REFERENCE/technical-debt.md) - Known issues and accepted risks
+
+**Implementation Documentation:**
+- [phase-1-completion-summary.md](./REFERENCE/phase-1-completion-summary.md) - Phase 1 high-level overview
 - [phase-1-1-implementation.md](./REFERENCE/phase-1-1-implementation.md) - Next.js scaffolding & build setup
 - [phase-1-2-implementation.md](./REFERENCE/phase-1-2-implementation.md) - Database schema & Supabase clients
 - [phase-1-3-1-implementation.md](./REFERENCE/phase-1-3-1-implementation.md) - Cloudflare deployment & secrets
-- [phase-1-3-2-implementation.md](./REFERENCE/phase-1-3-2-implementation.md) - Queues infrastructure & getCloudflareContext
-
-**Phase 2 Implementation Docs:**
-- [phase-2-implementation.md](./REFERENCE/phase-2-implementation.md) - Magic link auth, Supabase SSR clients, middleware, session management
-
-**Phase 3 Implementation Docs:**
-- [phase-3-implementation.md](./REFERENCE/phase-3-implementation.md) - Reader API client, sync operations, queue consumer, status polling (🚧 In Progress)
-
-**General Docs:**
-- [deployment-guide.md](./REFERENCE/deployment-guide.md) - Production deployment, CI/CD setup, Cloudflare Workers vs Pages
-- [testing-strategy.md](./REFERENCE/testing-strategy.md) - Testing philosophy and approach
-- [technical-debt.md](./REFERENCE/technical-debt.md) - Known issues and accepted risks
-- [environment-setup.md](./REFERENCE/environment-setup.md) - API keys and environment configuration
-- [troubleshooting.md](./REFERENCE/troubleshooting.md) - Common issues and solutions
+- [phase-1-3-2-implementation.md](./REFERENCE/phase-1-3-2-implementation.md) - Queues infrastructure
+- [phase-2-implementation.md](./REFERENCE/phase-2-implementation.md) - Magic link auth, Supabase SSR clients
+- [phase-3-implementation.md](./REFERENCE/phase-3-implementation.md) - Reader API client, sync operations, queue consumer
+- [pr-review-workflow.md](./REFERENCE/pr-review-workflow.md) - `/review-pr` and `/review-pr-team` skills
 
 Practice is to aim to not allow CLAUDE.md files to grow very large (300+ lines), but keep CLAUDE.md files short and snappy, with relevant details broken out in separate reference files clearly linked with succinct summaries as above. CLAUDE.md files work as "library index" to find the right context when it's needed, and in that way minimise use of tokens.
 
@@ -161,7 +163,7 @@ Practice is to aim to not allow CLAUDE.md files to grow very large (300+ lines),
 - Strict mode enabled
 - Path alias: `@/` maps to `./src/` (Next.js convention)
 - React 19 and Next.js 15 types included
-- Configured with `@opennextjs/cloudflare` adapter
+- Configured with `@cloudflare/next-on-pages` adapter
 
 ## Testing
 
@@ -189,6 +191,7 @@ npm run test:coverage     # Coverage report
 - **Completed specs** → [ARCHIVE/](./SPECIFICATIONS/ARCHIVE/)
 
 **Reference Docs:**
+- **How does the system work?** → [architecture.md](./REFERENCE/architecture.md) - **START HERE**
 - **Deploying to production?** → [deployment-guide.md](./REFERENCE/deployment-guide.md)
 - **Setting up environment?** → [environment-setup.md](./REFERENCE/environment-setup.md)
 - **Testing strategy?** → [testing-strategy.md](./REFERENCE/testing-strategy.md)
