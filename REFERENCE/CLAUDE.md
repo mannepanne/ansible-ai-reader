@@ -47,6 +47,11 @@ Complete documentation of Phase 3 implementation (backend): Reader API client wi
 
 ### General Documentation
 
+### [architecture.md](./architecture.md)
+**When to read:** Understanding how the system works, onboarding new developers, or planning architectural changes.
+
+Complete system architecture with Mermaid diagram showing all components, data flows, database schema, external service integrations, and request flow examples. Includes technology stack and deployment details.
+
 ### [deployment-guide.md](./deployment-guide.md)
 **When to read:** Deploying to production, setting up CI/CD, or troubleshooting deployment issues.
 
