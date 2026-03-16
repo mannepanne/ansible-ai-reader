@@ -249,52 +249,15 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
         showSync={true}
         onSync={handleSync}
         isSyncing={syncing}
+        showRegenerateTags={
+          !loading && items.some((item) => !item.tags || item.tags.length === 0)
+        }
+        onRegenerateTags={handleRegenerateTags}
+        isRegenerating={regenerating}
       />
 
       {/* Main content */}
       <main style={{ maxWidth: '1200px', margin: '32px auto', padding: '0 24px' }}>
-        {/* Regenerate tags button (shown if items without tags exist) */}
-        {!loading &&
-          items.some((item) => !item.tags || item.tags.length === 0) && (
-            <div
-              style={{
-                padding: '12px',
-                background: '#fff3cd',
-                border: '1px solid #ffc107',
-                borderRadius: '4px',
-                marginBottom: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '16px',
-              }}
-            >
-              <div style={{ color: '#856404' }}>
-                <strong>Some items are missing tags.</strong> This can happen if
-                AI tag generation failed. You can retry tag generation for these
-                items.
-              </div>
-              <button
-                onClick={handleRegenerateTags}
-                disabled={regenerating}
-                style={{
-                  background: regenerating ? '#6c757d' : '#ffc107',
-                  color: '#fff',
-                  padding: '6px 16px',
-                  borderRadius: '4px',
-                  border: 'none',
-                  cursor: regenerating ? 'not-allowed' : 'pointer',
-                  fontSize: '0.9em',
-                  fontWeight: 600,
-                  flexShrink: 0,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {regenerating ? 'Processing...' : 'Regenerate Tags'}
-              </button>
-            </div>
-          )}
-
         {/* Error display */}
         {error && (
           <div

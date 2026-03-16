@@ -31,13 +31,14 @@ export async function GET() {
 
     const userId = session.user.id;
 
-    // Fetch items for user
+    // Fetch items for user (excluding archived items)
     const { data: items, error } = await supabase
       .from('reader_items')
       .select(
         'id, reader_id, title, author, source, url, word_count, short_summary, tags, perplexity_model, content_truncated, created_at'
       )
       .eq('user_id', userId)
+      .is('archived_at', null) // Only show non-archived items
       .order('created_at', { ascending: false });
 
     if (error) {
