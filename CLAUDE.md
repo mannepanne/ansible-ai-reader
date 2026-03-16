@@ -138,13 +138,22 @@ Practice is to aim to not allow CLAUDE.md files to grow very large (300+ lines),
 
 ## Development Workflow
 
-1. Create feature branch: `git checkout -b feature/feature-name`
-2. Check `SPECIFICATIONS/` for relevant specs
-3. Implement with tests: `npm test && npx tsc --noEmit`
-4. Create PR for review:
-  - **`/review-pr`** - Fast single-reviewer (regular PRs, 1-2 min)
-  - **`/review-pr-team`** - Multi-perspective agent team (critical changes, 5-10 min)
-  - **See:** [pr-review-workflow.md](./REFERENCE/pr-review-workflow.md) for complete guide
+**CRITICAL: ALL changes to main MUST go through a pull request. NEVER merge or push directly to main.**
+
+1. **Create feature branch:** `git checkout -b feature/feature-name`
+2. **Check specifications:** Review `SPECIFICATIONS/` for relevant specs
+3. **Implement with tests:** `npm test && npx tsc --noEmit`
+4. **Create PR for review:**
+   - **`/review-pr`** - Fast single-reviewer (regular PRs, 1-2 min)
+   - **`/review-pr-team`** - Multi-perspective agent team (critical changes, 5-10 min)
+   - **See:** [pr-review-workflow.md](./REFERENCE/pr-review-workflow.md) for complete guide
+5. **Wait for approval:** Do not merge until PR is reviewed and approved
+6. **Merge only after approval:** Once approved, merge to main (auto-deploys via CI/CD)
+
+**Why this matters:**
+- CI/CD automatically deploys from main to production
+- Main branch must only contain reviewed, tested code
+- PR reviews catch security issues, missing tests, and design problems
 
 ## TypeScript Configuration
 

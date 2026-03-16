@@ -76,6 +76,7 @@ You'll still maintain all core collaboration principles (Swedish directness, no 
 - **Document issues as tasks** - If you notice something that should be fixed but is unrelated to your current task, document it as a new task to potentially do later instead of fixing it immediately.
 - **Keep documentation current** - When making significant changes to architecture, APIs, or core functionality, proactively update project documentation to reflect the new reality. Use the designated documentation folders for implementation details.
 - **Don't waste tokens** - Be succinct and concise.
+- **NEVER merge to main without a PR** - ALL changes to main branch MUST go through a pull request for review. This is non-negotiable. See Git Operations and Workflow section for details.
 
 ### Definition of Done
 
@@ -201,7 +202,10 @@ I value clean git history, but not at the expense of losing work or slowing down
 - Keep main/master clean and deployable
 - Use feature branches for anything non-trivial
 - WIP branches are fine for exploration and experimentation
-- Final commits to shared branches need my explicit approval - this helps me stay aware of what's changing
+- **CRITICAL: NEVER merge directly to main** - ALL changes MUST go through a pull request
+- **CRITICAL: NEVER push directly to main** - Always work in a feature branch
+- Create PR when work is complete, wait for review and approval before merging
+- CI/CD automatically deploys from main, so main must only contain reviewed code
 - When finishing up a project milestone, with a code base that is clean and functional, suggest we set a release flag to easily find it and mark our progress
 
 **Commit message style:**
