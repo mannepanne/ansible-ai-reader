@@ -4,6 +4,9 @@ main = "workers/consumer.ts"
 compatibility_date = "2026-03-06"
 compatibility_flags = ["nodejs_compat"]
 
+[observability]
+enabled = true
+
 [[queues.consumers]]
 queue = "ansible-processing-queue"
 max_batch_size = 10
