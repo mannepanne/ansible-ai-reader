@@ -4,6 +4,7 @@
 'use client';
 
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 interface SummaryCardProps {
   id: string;
@@ -89,8 +90,72 @@ export default function SummaryCard({
       </h3>
 
       {/* Summary */}
-      <div style={{ color: '#495057', fontSize: '0.9em', lineHeight: 1.5 }}>
-        {displaySummary}
+      <div
+        style={{
+          color: '#495057',
+          fontSize: '0.9em',
+          lineHeight: 1.5,
+        }}
+        className="summary-markdown"
+      >
+        <ReactMarkdown
+          components={{
+            // Style unordered lists
+            ul: ({ ...props }) => (
+              <ul
+                style={{
+                  margin: '8px 0',
+                  paddingLeft: '20px',
+                  listStyleType: 'disc',
+                }}
+                {...props}
+              />
+            ),
+            // Style list items
+            li: ({ ...props }) => (
+              <li
+                style={{
+                  marginBottom: '6px',
+                  lineHeight: 1.6,
+                }}
+                {...props}
+              />
+            ),
+            // Style paragraphs
+            p: ({ ...props }) => (
+              <p
+                style={{
+                  margin: '8px 0',
+                }}
+                {...props}
+              />
+            ),
+            // Style bold text
+            strong: ({ ...props }) => (
+              <strong
+                style={{
+                  fontWeight: 700,
+                  color: '#212529',
+                }}
+                {...props}
+              />
+            ),
+            // Style links (open in new tab)
+            a: ({ ...props }) => (
+              <a
+                style={{
+                  color: '#0d6efd',
+                  textDecoration: 'underline',
+                }}
+                target="_blank"
+                rel="noopener noreferrer"
+                {...props}
+              />
+            ),
+          }}
+        >
+          {displaySummary}
+        </ReactMarkdown>
         {shouldTruncate && !isExpanded && (
           <button
             onClick={() => setIsExpanded(true)}
@@ -100,8 +165,9 @@ export default function SummaryCard({
               color: '#0d6efd',
               cursor: 'pointer',
               padding: 0,
-              marginLeft: '4px',
+              marginTop: '4px',
               fontSize: 'inherit',
+              display: 'block',
             }}
           >
             Expand
@@ -116,8 +182,9 @@ export default function SummaryCard({
               color: '#0d6efd',
               cursor: 'pointer',
               padding: 0,
-              marginLeft: '4px',
+              marginTop: '4px',
               fontSize: 'inherit',
+              display: 'block',
             }}
           >
             Collapse
