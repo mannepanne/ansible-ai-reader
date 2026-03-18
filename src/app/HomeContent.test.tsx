@@ -64,7 +64,7 @@ describe('HomeContent', () => {
         screen.getByText(/Sync your Readwise Reader library/i)
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/Get AI summaries of unread articles/i)
+        screen.getByText(/Get summaries of articles and video transcripts/i)
       ).toBeInTheDocument();
     });
 

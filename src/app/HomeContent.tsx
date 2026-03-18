@@ -271,7 +271,12 @@ export default function HomeContent({
           height="120"
           viewBox="0 0 400 120"
           style={{ maxWidth: '100%', height: 'auto' }}
+          role="img"
+          aria-label="Ansible symbol: a question mark connected by transmission waves to a therefore symbol, representing the journey from question to answer through instantaneous knowledge transmission"
         >
+          <title>Ansible symbol</title>
+          <desc>A question mark on the left connected by wavy transmission lines to a therefore symbol on the right, with small nodes along the path representing distributed knowledge</desc>
+
           {/* Left node - Question */}
           <circle cx="60" cy="60" r="35" fill="none" stroke="#666" strokeWidth="2" />
           <text
@@ -396,10 +401,10 @@ export default function HomeContent({
             Sync your Readwise Reader library
           </li>
           <li style={{ marginBottom: '0.5em' }}>
-            Get AI summaries of unread articles (Perplexity sonar-pro)
+            Get summaries of articles and video transcripts, tagged with topics
           </li>
           <li style={{ marginBottom: '0.5em' }}>
-            Archive the fluff, read what matters
+            Get the key takeaways and move on, or switch to Reader for the full deal
           </li>
         </ol>
       </div>
