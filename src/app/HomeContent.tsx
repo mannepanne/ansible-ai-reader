@@ -345,8 +345,8 @@ export default function HomeContent({
             marginBottom: '0',
           }}
         >
-          Ansible gives you AI-powered summaries of your Readwise library, so
-          you can finally decide what deserves your attention.
+          AI-powered summaries of your Readwise library, so you can focus on
+          what deserves your attention.
         </p>
       </div>
 

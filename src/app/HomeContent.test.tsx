@@ -32,7 +32,7 @@ describe('HomeContent', () => {
 
       expect(screen.getByText(/stop drowning in saved articles/i)).toBeInTheDocument();
       expect(
-        screen.getByText(/Ansible gives you AI-powered summaries/i)
+        screen.getByText(/AI-powered summaries of your Readwise library/i)
       ).toBeInTheDocument();
     });
 

@@ -48,7 +48,7 @@ describe('Home Page', () => {
     });
 
     const tagline = screen.getByText(
-      /Ansible gives you AI-powered summaries/i
+      /AI-powered summaries of your Readwise library/i
     );
     expect(tagline).toBeDefined();
   });
