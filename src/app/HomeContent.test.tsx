@@ -26,27 +26,116 @@ describe('HomeContent', () => {
     window.location = { reload: vi.fn() } as any;
   });
 
-  describe('Unauthenticated state', () => {
-    it('shows welcome message', () => {
+  describe('Landing page (unauthenticated)', () => {
+    it('shows hero headline', () => {
       render(<HomeContent isAuthenticated={false} />);
 
-      expect(screen.getByText('Ansible AI Reader')).toBeInTheDocument();
+      expect(screen.getByText(/stop drowning in saved articles/i)).toBeInTheDocument();
       expect(
-        screen.getByText(/AI-powered reading triage for your Readwise library/i)
+        screen.getByText(/Ansible gives you AI-powered summaries/i)
       ).toBeInTheDocument();
     });
 
-    it('shows login form', () => {
+    it('shows ansible symbol', () => {
+      const { container } = render(<HomeContent isAuthenticated={false} />);
+
+      // Check for SVG ansible symbol
+      const svg = container.querySelector('svg');
+      expect(svg).toBeInTheDocument();
+    });
+
+    it('shows "The Problem" section', () => {
       render(<HomeContent isAuthenticated={false} />);
+
+      expect(screen.getByText('The Problem')).toBeInTheDocument();
+      expect(
+        screen.getByText(/You save articles faster than you read them/i)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Your reading list grows by hundreds/i)
+      ).toBeInTheDocument();
+    });
+
+    it('shows "How It Works" section', () => {
+      render(<HomeContent isAuthenticated={false} />);
+
+      expect(screen.getByText('How It Works')).toBeInTheDocument();
+      expect(
+        screen.getByText(/Sync your Readwise Reader library/i)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Get summaries of articles and video transcripts/i)
+      ).toBeInTheDocument();
+    });
+
+    it('shows "Key Features" section', () => {
+      render(<HomeContent isAuthenticated={false} />);
+
+      expect(screen.getByText('Key Features')).toBeInTheDocument();
+      expect(screen.getByText(/AI summaries with smart tags/i)).toBeInTheDocument();
+      expect(screen.getByText(/Two-way sync with Readwise Reader/i)).toBeInTheDocument();
+    });
+
+    it('shows "Built With" section', () => {
+      render(<HomeContent isAuthenticated={false} />);
+
+      expect(screen.getByText('Built With')).toBeInTheDocument();
+      expect(screen.getByText(/Next.js 15.*React 19.*Cloudflare/s)).toBeInTheDocument();
+      expect(screen.getByText(/240 tests.*95%\+ coverage/s)).toBeInTheDocument();
+    });
+
+    it('shows developer login button', () => {
+      render(<HomeContent isAuthenticated={false} />);
+
+      expect(
+        screen.getByRole('button', { name: /developer login/i })
+      ).toBeInTheDocument();
+    });
+
+    it('does not show login form by default', () => {
+      render(<HomeContent isAuthenticated={false} />);
+
+      expect(screen.queryByLabelText(/email address/i)).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /send login link/i })
+      ).not.toBeInTheDocument();
+    });
+
+    it('shows login form when developer login clicked', async () => {
+      const user = userEvent.setup();
+      render(<HomeContent isAuthenticated={false} />);
+
+      const devLoginButton = screen.getByRole('button', { name: /developer login/i });
+      await user.click(devLoginButton);
 
       expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
       expect(
         screen.getByRole('button', { name: /send login link/i })
       ).toBeInTheDocument();
     });
+  });
 
-    it('shows how it works section', () => {
+  describe('Login form (after clicking developer login)', () => {
+    async function openLoginForm() {
+      const user = userEvent.setup();
       render(<HomeContent isAuthenticated={false} />);
+      const devLoginButton = screen.getByRole('button', { name: /developer login/i });
+      await user.click(devLoginButton);
+      return user;
+    }
+
+    it('shows login form elements', async () => {
+      await openLoginForm();
+
+      expect(screen.getByText('Ansible AI Reader')).toBeInTheDocument();
+      expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /send login link/i })
+      ).toBeInTheDocument();
+    });
+
+    it('shows how it works section', async () => {
+      await openLoginForm();
 
       expect(screen.getByText(/how it works:/i)).toBeInTheDocument();
       expect(
@@ -55,13 +144,12 @@ describe('HomeContent', () => {
     });
 
     it('submits login form and shows success message', async () => {
-      const user = userEvent.setup();
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ message: 'Magic link sent' }),
       });
 
-      render(<HomeContent isAuthenticated={false} />);
+      const user = await openLoginForm();
 
       const emailInput = screen.getByLabelText(/email address/i);
       const submitButton = screen.getByRole('button', {
@@ -85,13 +173,12 @@ describe('HomeContent', () => {
     });
 
     it('clears email field after successful submission', async () => {
-      const user = userEvent.setup();
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ message: 'Success' }),
       });
 
-      render(<HomeContent isAuthenticated={false} />);
+      const user = await openLoginForm();
 
       const emailInput = screen.getByLabelText(/email address/i) as HTMLInputElement;
       await user.type(emailInput, 'test@example.com');
@@ -108,12 +195,12 @@ describe('HomeContent', () => {
         json: async () => ({ error: 'Invalid email' }),
       });
 
-      const { container } = render(<HomeContent isAuthenticated={false} />);
+      const user = await openLoginForm();
 
       const emailInput = screen.getByLabelText(/email address/i);
-      fireEvent.change(emailInput, { target: { value: 'invalid-email' } });
+      await user.type(emailInput, 'invalid-email');
 
-      const form = container.querySelector('form');
+      const form = emailInput.closest('form');
       fireEvent.submit(form!);
 
       // Wait for error message to appear
@@ -131,12 +218,12 @@ describe('HomeContent', () => {
           })
       );
 
-      const { container } = render(<HomeContent isAuthenticated={false} />);
+      await openLoginForm();
 
       const emailInput = screen.getByLabelText(/email address/i);
       fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
 
-      const form = container.querySelector('form');
+      const form = emailInput.closest('form');
       fireEvent.submit(form!);
 
       // Should show "Sending..." during submission
@@ -154,7 +241,6 @@ describe('HomeContent', () => {
     });
 
     it('disables form during submission', async () => {
-      const user = userEvent.setup();
       (global.fetch as any).mockImplementationOnce(
         () =>
           new Promise((resolve) =>
@@ -165,7 +251,7 @@ describe('HomeContent', () => {
           )
       );
 
-      render(<HomeContent isAuthenticated={false} />);
+      const user = await openLoginForm();
 
       const emailInput = screen.getByLabelText(/email address/i);
       const submitButton = screen.getByRole('button', {
@@ -267,13 +353,15 @@ describe('HomeContent', () => {
     it('switches from unauthenticated to authenticated', () => {
       const { rerender } = render(<HomeContent isAuthenticated={false} />);
 
-      expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
+      // Should show landing page
+      expect(screen.getByText(/stop drowning in saved articles/i)).toBeInTheDocument();
 
       rerender(
         <HomeContent isAuthenticated={true} userEmail="test@example.com" />
       );
 
-      expect(screen.queryByLabelText(/email address/i)).not.toBeInTheDocument();
+      // Should now show authenticated view
+      expect(screen.queryByText(/stop drowning in saved articles/i)).not.toBeInTheDocument();
       expect(screen.getByText(/welcome back/i)).toBeInTheDocument();
     });
   });
@@ -282,12 +370,17 @@ describe('HomeContent', () => {
     it('shows generic error on network failure', async () => {
       (global.fetch as any).mockRejectedValueOnce(new Error('Network error'));
 
-      const { container } = render(<HomeContent isAuthenticated={false} />);
+      const user = userEvent.setup();
+      render(<HomeContent isAuthenticated={false} />);
+
+      // Click developer login to show form
+      const devLoginButton = screen.getByRole('button', { name: /developer login/i });
+      await user.click(devLoginButton);
 
       const emailInput = screen.getByLabelText(/email address/i);
       fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
 
-      const form = container.querySelector('form');
+      const form = emailInput.closest('form');
       fireEvent.submit(form!);
 
       // Wait for error message to appear
@@ -297,16 +390,26 @@ describe('HomeContent', () => {
   });
 
   describe('Accessibility', () => {
-    it('has required email input', () => {
+    it('has required email input', async () => {
+      const user = userEvent.setup();
       render(<HomeContent isAuthenticated={false} />);
+
+      // Click developer login to show form
+      const devLoginButton = screen.getByRole('button', { name: /developer login/i });
+      await user.click(devLoginButton);
 
       const emailInput = screen.getByLabelText(/email address/i);
       expect(emailInput).toHaveAttribute('type', 'email');
       expect(emailInput).toHaveAttribute('required');
     });
 
-    it('has proper form structure', () => {
+    it('has proper form structure', async () => {
+      const user = userEvent.setup();
       const { container } = render(<HomeContent isAuthenticated={false} />);
+
+      // Click developer login to show form
+      const devLoginButton = screen.getByRole('button', { name: /developer login/i });
+      await user.click(devLoginButton);
 
       const form = container.querySelector('form');
       expect(form).toBeInTheDocument();

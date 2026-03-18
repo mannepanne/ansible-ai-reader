@@ -63,18 +63,22 @@ export default function HomeContent({
     window.location.reload();
   };
 
-  return (
-    <div
-      style={{
-        fontFamily:
-          "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-        lineHeight: 1.6,
-        color: '#333',
-        maxWidth: '500px',
-        margin: '80px auto',
-        padding: '20px',
-      }}
-    >
+  const [showLogin, setShowLogin] = useState(false);
+
+  // If authenticated or login form requested, show the old experience
+  if (isAuthenticated || showLogin) {
+    return (
+      <div
+        style={{
+          fontFamily:
+            "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+          lineHeight: 1.6,
+          color: '#333',
+          maxWidth: '500px',
+          margin: '80px auto',
+          padding: '20px',
+        }}
+      >
       {/* Welcome Section */}
       <div style={{ textAlign: 'center', marginBottom: '40px' }}>
         <h1
@@ -244,6 +248,252 @@ export default function HomeContent({
           </div>
         </>
       )}
+    </div>
+    );
+  }
+
+  // Landing page for non-authenticated users
+  return (
+    <div
+      style={{
+        fontFamily: 'Georgia, "Times New Roman", Times, serif',
+        lineHeight: 1.6,
+        color: '#000',
+        maxWidth: '800px',
+        margin: '0 auto',
+        padding: '40px 40px',
+      }}
+    >
+      {/* Ansible Symbol */}
+      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+        <svg
+          width="400"
+          height="120"
+          viewBox="0 0 400 120"
+          style={{ maxWidth: '100%', height: 'auto' }}
+          role="img"
+          aria-label="Ansible symbol: a question mark connected by transmission waves to a therefore symbol, representing the journey from question to answer through instantaneous knowledge transmission"
+        >
+          <title>Ansible symbol</title>
+          <desc>A question mark on the left connected by wavy transmission lines to a therefore symbol on the right, with small nodes along the path representing distributed knowledge</desc>
+
+          {/* Left node - Question */}
+          <circle cx="60" cy="60" r="35" fill="none" stroke="#666" strokeWidth="2" />
+          <text
+            x="60"
+            y="72"
+            textAnchor="middle"
+            fontFamily="Georgia, serif"
+            fontSize="48"
+            fill="#666"
+          >
+            ?
+          </text>
+
+          {/* Transmission waves - instantaneous */}
+          <path
+            d="M 100 60 Q 150 30, 200 60 T 300 60"
+            fill="none"
+            stroke="#666"
+            strokeWidth="2"
+            strokeDasharray="5,5"
+          />
+          <path
+            d="M 100 60 Q 150 90, 200 60 T 300 60"
+            fill="none"
+            stroke="#666"
+            strokeWidth="2"
+            strokeDasharray="5,5"
+          />
+
+          {/* Small nodes along the path - representing distributed knowledge */}
+          <circle cx="150" cy="45" r="3" fill="#666" />
+          <circle cx="200" cy="60" r="3" fill="#666" />
+          <circle cx="250" cy="45" r="3" fill="#666" />
+
+          {/* Right node - Answer/You */}
+          <circle cx="340" cy="60" r="35" fill="none" stroke="#666" strokeWidth="2" />
+          <text
+            x="340"
+            y="68"
+            textAnchor="middle"
+            fontFamily="Courier, monospace"
+            fontSize="32"
+            fill="#666"
+          >
+            ∴
+          </text>
+        </svg>
+      </div>
+
+      {/* Hero */}
+      <div style={{ marginBottom: '40px' }}>
+        <h1
+          style={{
+            fontSize: '1.5em',
+            fontWeight: 'bold',
+            marginBottom: '0.5em',
+            lineHeight: 1.2,
+          }}
+        >
+          Stop drowning in saved articles
+        </h1>
+        <p
+          style={{
+            fontSize: '1em',
+            color: '#000',
+            marginBottom: '0',
+          }}
+        >
+          Ansible gives you AI-powered summaries of your Readwise library, so
+          you can finally decide what deserves your attention.
+        </p>
+      </div>
+
+      {/* The Problem */}
+      <div style={{ marginBottom: '30px' }}>
+        <h2
+          style={{
+            fontSize: '1.17em',
+            fontWeight: 'bold',
+            marginBottom: '0.5em',
+          }}
+        >
+          The Problem
+        </h2>
+        <ul
+          style={{
+            fontSize: '1em',
+            paddingLeft: '20px',
+            listStyleType: 'none',
+          }}
+        >
+          <li style={{ marginBottom: '0.5em' }}>
+            → You save articles faster than you read them
+          </li>
+          <li style={{ marginBottom: '0.5em' }}>
+            → Your reading list grows by hundreds while guilt grows by thousands
+          </li>
+          <li style={{ marginBottom: '0.5em' }}>
+            → You need triage, not another productivity system
+          </li>
+        </ul>
+      </div>
+
+      {/* How It Works */}
+      <div style={{ marginBottom: '30px' }}>
+        <h2
+          style={{
+            fontSize: '1.17em',
+            fontWeight: 'bold',
+            marginBottom: '0.5em',
+          }}
+        >
+          How It Works
+        </h2>
+        <ol
+          style={{
+            fontSize: '1em',
+            paddingLeft: '20px',
+          }}
+        >
+          <li style={{ marginBottom: '0.5em' }}>
+            Sync your Readwise Reader library
+          </li>
+          <li style={{ marginBottom: '0.5em' }}>
+            Get summaries of articles and video transcripts, tagged with topics
+          </li>
+          <li style={{ marginBottom: '0.5em' }}>
+            Get the key takeaways and move on, or switch to Reader for the full deal
+          </li>
+        </ol>
+      </div>
+
+      {/* Key Features */}
+      <div style={{ marginBottom: '30px' }}>
+        <h2
+          style={{
+            fontSize: '1.17em',
+            fontWeight: 'bold',
+            marginBottom: '0.5em',
+          }}
+        >
+          Key Features
+        </h2>
+        <ul
+          style={{
+            fontSize: '1em',
+            paddingLeft: '20px',
+            listStyleType: 'disc',
+          }}
+        >
+          <li style={{ marginBottom: '0.5em' }}>
+            AI summaries with smart tags
+          </li>
+          <li style={{ marginBottom: '0.5em' }}>
+            Beautiful markdown rendering
+          </li>
+          <li style={{ marginBottom: '0.5em' }}>
+            Two-way sync with Readwise Reader
+          </li>
+          <li style={{ marginBottom: '0.5em' }}>
+            Zero cognitive overhead
+          </li>
+        </ul>
+      </div>
+
+      {/* Tech Stack */}
+      <div style={{ marginBottom: '40px' }}>
+        <h2
+          style={{
+            fontSize: '1.17em',
+            fontWeight: 'bold',
+            marginBottom: '0.5em',
+          }}
+        >
+          Built With
+        </h2>
+        <p
+          style={{
+            fontSize: '0.9em',
+            color: '#000',
+            fontFamily: 'monospace',
+          }}
+        >
+          Next.js 15 • React 19 • Cloudflare Workers • Perplexity AI • Supabase
+          <br />
+          240 tests • 95%+ coverage • TypeScript
+        </p>
+      </div>
+
+      {/* Developer Login Link */}
+      <div
+        style={{
+          paddingTop: '30px',
+          borderTop: '1px solid #e0e0e0',
+          textAlign: 'center',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            console.log('Developer login clicked');
+            setShowLogin(true);
+          }}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: '#0000EE',
+            fontSize: '1em',
+            cursor: 'pointer',
+            textDecoration: 'underline',
+            fontFamily: 'inherit',
+            padding: '4px',
+          }}
+        >
+          Developer login
+        </button>
+      </div>
     </div>
   );
 }

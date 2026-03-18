@@ -21,7 +21,7 @@ describe('Home Page', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the main heading', async () => {
+  it('renders the landing page hero heading', async () => {
     mockGetSession.mockResolvedValue({
       data: { session: null },
     });
@@ -32,12 +32,12 @@ describe('Home Page', () => {
     });
 
     const heading = screen.getByRole('heading', {
-      name: /ansible ai reader/i,
+      name: /stop drowning in saved articles/i,
     });
     expect(heading).toBeDefined();
   });
 
-  it('displays the tagline', async () => {
+  it('displays the landing page tagline', async () => {
     mockGetSession.mockResolvedValue({
       data: { session: null },
     });
@@ -48,12 +48,12 @@ describe('Home Page', () => {
     });
 
     const tagline = screen.getByText(
-      /AI-powered reading triage for your Readwise library/i
+      /Ansible gives you AI-powered summaries/i
     );
     expect(tagline).toBeDefined();
   });
 
-  it('shows login form when not authenticated', async () => {
+  it('shows developer login button when not authenticated', async () => {
     mockGetSession.mockResolvedValue({
       data: { session: null },
     });
@@ -63,8 +63,11 @@ describe('Home Page', () => {
       render(component as any);
     });
 
-    expect(screen.getByLabelText(/email address/i)).toBeDefined();
-    expect(screen.getByRole('button', { name: /send login link/i })).toBeDefined();
+    // Landing page should show developer login button
+    expect(screen.getByRole('button', { name: /developer login/i })).toBeDefined();
+
+    // Login form should not be visible by default
+    expect(screen.queryByLabelText(/email address/i)).toBeNull();
   });
 
   it('shows authenticated view when user is logged in', async () => {
