@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { archiveItem } from '@/lib/reader-api';
+import { archiveItem, ReaderAPIError } from '@/lib/reader-api';
 
 /**
  * POST /api/reader/archive
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       console.log('[Archive] Archived in Reader:', item.reader_id);
     } catch (error) {
       // If item was deleted in Reader (404), mark as reader_deleted but continue
-      if (error instanceof Error && error.message.includes('Item not found in Reader')) {
+      if (error instanceof ReaderAPIError && error.statusCode === 404) {
         console.log('[Archive] Item already deleted in Reader:', item.reader_id);
         readerDeleted = true;
       } else {

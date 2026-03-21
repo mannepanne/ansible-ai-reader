@@ -22,6 +22,16 @@ const mockArchiveItem = vi.fn();
 
 vi.mock('@/lib/reader-api', () => ({
   archiveItem: (...args: any[]) => mockArchiveItem(...args),
+  ReaderAPIError: class ReaderAPIError extends Error {
+    constructor(
+      message: string,
+      public statusCode?: number,
+      public retryable: boolean = false
+    ) {
+      super(message);
+      this.name = 'ReaderAPIError';
+    }
+  },
 }));
 
 describe('POST /api/reader/archive', () => {
@@ -305,7 +315,10 @@ describe('POST /api/reader/archive', () => {
     });
 
     // Simulate Reader API returning 404 (item not found)
-    mockArchiveItem.mockRejectedValue(new Error('Item not found in Reader'));
+    const { ReaderAPIError } = await import('@/lib/reader-api');
+    mockArchiveItem.mockRejectedValue(
+      new ReaderAPIError('Item not found in Reader', 404, false)
+    );
 
     const request = new NextRequest('http://localhost:3000/api/reader/archive', {
       method: 'POST',

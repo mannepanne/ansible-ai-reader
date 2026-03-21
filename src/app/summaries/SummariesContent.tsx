@@ -163,6 +163,18 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
         throw new Error(errorData.error || 'Archive failed');
       }
 
+      const data = (await response.json()) as {
+        success: boolean;
+        readerDeleted?: boolean;
+      };
+
+      // Show feedback if item was already deleted in Reader
+      if (data.readerDeleted) {
+        console.log(
+          '[Archive] Item was already deleted in Reader but archived locally'
+        );
+      }
+
       // Remove from items list
       setItems((prev) => prev.filter((item) => item.id !== itemId));
     } catch (err) {

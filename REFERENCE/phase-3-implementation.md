@@ -556,7 +556,10 @@ POST /api/reader/archive
 #### Response
 
 ```typescript
-{ success: true }
+{
+  success: true,
+  readerDeleted?: boolean  // True if item was already deleted in Reader
+}
 ```
 
 #### Implementation Flow
@@ -569,12 +572,28 @@ POST /api/reader/archive
 
 ```typescript
 // Archive in Reader first
-await archiveItem(readerApiToken, item.reader_id);
+let readerDeleted = false;
+try {
+  await archiveItem(readerApiToken, item.reader_id);
+} catch (error) {
+  // Special case: If item was deleted in Reader (404), still archive locally
+  if (error instanceof ReaderAPIError && error.statusCode === 404) {
+    console.log('[Archive] Item already deleted in Reader:', item.reader_id);
+    readerDeleted = true;
+  } else {
+    // For other errors, fail the request
+    throw error;
+  }
+}
 
-// Only update DB if Reader succeeded
+// Update DB (includes reader_deleted flag if applicable)
 await supabase
   .from('reader_items')
-  .update({ archived_at: new Date().toISOString() })
+  .update({
+    archived: true,
+    archived_at: new Date().toISOString(),
+    reader_deleted: readerDeleted,
+  })
   .eq('id', itemId);
 ```
 
@@ -582,6 +601,13 @@ await supabase
 - If Reader API fails, item stays in local DB
 - If DB update fails after Reader archives, item won't appear in Reader anymore (acceptable)
 - No orphaned archived items in Reader that still show locally
+
+**Special handling for deleted Reader items:**
+- If the item was already deleted in Reader (404 error), the archive operation still succeeds locally
+- The `reader_deleted` flag is set to `true` to track orphaned items
+- This prevents errors when users try to archive items that were deleted directly in Reader
+- Future features can filter out these items: `WHERE reader_deleted = false`
+- UI shows console feedback: "Item was already deleted in Reader but archived locally"
 
 ---
 
