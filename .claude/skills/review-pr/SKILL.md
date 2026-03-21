@@ -20,103 +20,15 @@ A single expert full-stack developer reviews the PR and provides actionable feed
 
 When this skill is invoked with a PR number (e.g., `/review-pr 2`):
 
-### Step 1: Spawn Independent Reviewer - Let Them Gather Their Own Context
-
-**IMPORTANT:** The reviewer agent has access to all the same tools you do (Bash, Read, Grep, Glob, etc.). Don't pre-gather context for them - this can create stale context if files have been updated since you last read them. Let the reviewer fetch what they need directly.
+### Step 1: Spawn Code Reviewer Agent
 
 **CRITICAL:** You must spawn an independent subagent for this review. DO NOT review the PR yourself in this session. The reviewer needs fresh, unbiased context.
 
 Spawn a **general-purpose** subagent with this task:
 
-**Task:** "You are an experienced full-stack developer conducting an independent code review of PR #$ARGUMENTS.
+**Task:** "Read `.claude/agents/code-reviewer.md` for your role and instructions, then conduct a comprehensive code review of PR #$ARGUMENTS following those guidelines.
 
-CRITICAL: This is a fresh review. You have NOT been involved in writing this code. Review it objectively as if you're seeing it for the first time.
-
-**IMPORTANT - Gather Your Own Context:**
-
-You have full access to all tools. Before starting your review, gather the context you need:
-
-1. **Fetch PR details:**
-   ```bash
-   gh pr view $ARGUMENTS
-   gh pr diff $ARGUMENTS
-   gh pr view $ARGUMENTS --comments
-   ```
-
-2. **Read project foundation:**
-   - Read `CLAUDE.md` in repository root for architecture, conventions, and testing philosophy
-   - Read any other CLAUDE.md files in subdirectories if relevant to the PR
-
-3. **Discover relevant specifications:**
-   - Extract keywords from PR title, description, and changed files
-   - Use Bash/Glob to list files in `SPECIFICATIONS/` directory (if it exists)
-   - Read specifications that match the PR's scope
-   - Follow links to related specs as needed
-
-4. **Review changed files:**
-   - Use the PR diff to understand what changed
-   - Read full file context where needed using the Read tool
-   - Check for related files that might be affected
-
-**Why gather your own context?** This ensures you see the LATEST committed state of all files, avoiding stale context if files were updated after the main session read them.
-
-**Your Mission:**
-Conduct a comprehensive, unbiased review across all dimensions:
-
-**Code Quality:**
-- Is the code readable and maintainable?
-- Appropriate naming conventions?
-- Proper error handling?
-- Code organization and structure?
-- Comments where needed (but not over-commented)?
-
-**Functionality:**
-- Does this implement the requirements correctly?
-- Are there bugs or logical errors?
-- Edge cases handled?
-- Does it actually work as intended?
-
-**Security:**
-- Any security vulnerabilities? (XSS, injection, auth bypass, etc.)
-- Secrets properly managed?
-- Input validation adequate?
-- Authentication/authorization correct?
-
-**Architecture & Design:**
-- Fits well with existing codebase?
-- Design patterns used appropriately?
-- Not over-engineered or under-engineered?
-- Future extensibility considered?
-
-**Performance:**
-- Any obvious performance issues?
-- Appropriate use of caching?
-- Database queries optimized (if applicable)?
-- Resource usage reasonable?
-
-**Testing:**
-- Are tests included (if needed)?
-- Test coverage adequate?
-- Tests actually test the right things?
-
-**TypeScript/Types:**
-- Proper use of types (no `any` unless necessary)?
-- Type safety maintained?
-- Interfaces/types well-defined?
-
-**Best Practices:**
-- Follows project conventions?
-- No deprecated patterns?
-- Dependencies appropriate and up-to-date?
-- Breaking changes documented?
-
-**Output Format:**
-- ✅ **Well Done**: What's good about this PR
-- 🔴 **Critical Issues**: Must fix before merge (blocking)
-- ⚠️ **Suggestions**: Should consider (not blocking)
-- 💡 **Nice-to-Haves**: Optional improvements
-
-Be specific with file:line references. Be practical and pragmatic - focus on issues that actually matter. Don't be pedantic about minor style issues if the code is otherwise solid."
+Replace [PR_NUMBER] in the agent instructions with $ARGUMENTS."
 
 Wait for the review to complete.
 

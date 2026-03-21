@@ -34,9 +34,7 @@ This is fundamentally different from independent reviews - the **discussion phas
 
 When this skill is invoked with a PR number (e.g., `/review-pr-team 1`):
 
-### Step 1: Create Agent Team - Let Them Gather Their Own Context
-
-**IMPORTANT:** The agent team has access to all the same tools you do (Bash, Read, Grep, Glob, etc.). Don't pre-gather context for them - this can create stale context if files have been updated since you last read them. Let the team fetch what they need directly.
+### Step 1: Create Agent Team
 
 **CRITICAL:** You must create an **agent team**, not spawn sequential subagents. The reviewers need to discuss findings with each other, not just report back to you.
 
@@ -46,46 +44,18 @@ Create an agent team for reviewing PR #$ARGUMENTS with the following instruction
 
 "Create an agent team to conduct a comprehensive, collaborative review of PR #$ARGUMENTS.
 
-**IMPORTANT - Gather Your Own Context:**
-
-The team has full access to all tools. Before starting your review, gather the context you need:
-
-1. **Fetch PR details:**
-   ```bash
-   gh pr view $ARGUMENTS
-   gh pr diff $ARGUMENTS
-   gh pr view $ARGUMENTS --comments
-   ```
-
-2. **Read project foundation:**
-   - Read `CLAUDE.md` in repository root for architecture, conventions, and testing philosophy
-   - Read any other CLAUDE.md files in subdirectories if relevant to the PR
-
-3. **Discover relevant specifications:**
-   - Extract keywords from PR title, description, and changed files
-   - Use Bash/Glob to list files in `SPECIFICATIONS/` directory
-   - Read specifications that match the PR's scope
-   - Follow links to related specs as needed
-
-4. **Review changed files:**
-   - Use the PR diff to understand what changed
-   - Read full file context where needed using the Read tool
-   - Check for related files that might be affected
-
-**Why gather your own context?** This ensures you see the LATEST committed state of all files, avoiding stale context if files were updated after the main session read them.
-
 **Team Structure:**
 
 Spawn **3 teammates** with these roles:
 
 **1. Security Specialist** (Teammate name: `security-reviewer`)
-Your focus: Authentication, authorization, secrets management, input validation, XSS, CSRF, SQL injection, session security, dependency vulnerabilities.
+Read `.claude/agents/security-specialist.md` for your role and instructions. Replace [PR_NUMBER] with $ARGUMENTS.
 
 **2. Product Manager** (Teammate name: `product-reviewer`)
-Your focus: Requirements alignment, user experience, edge cases, error handling, completeness, documentation, backward compatibility, feature quality.
+Read `.claude/agents/product-reviewer.md` for your role and instructions. Replace [PR_NUMBER] with $ARGUMENTS.
 
 **3. Senior Architect** (Teammate name: `architect-reviewer`)
-Your focus: Design patterns, code quality, scalability, maintainability, testing strategy, technical debt, performance, architectural fit.
+Read `.claude/agents/architect-reviewer.md` for your role and instructions. Replace [PR_NUMBER] with $ARGUMENTS.
 
 ---
 
@@ -94,18 +64,9 @@ Your focus: Design patterns, code quality, scalability, maintainability, testing
 **PHASE 1: Independent Review (30 minutes max per reviewer)**
 
 Each teammate:
-1. Review the PR diff and changed files thoroughly
-2. Analyze from your specialized perspective
-3. Document findings in 4 categories:
-   - ✅ **Strengths**: What's done well
-   - 🔴 **Critical Issues**: Must fix before merge (blocking)
-   - ⚠️ **Warnings**: Should fix, not blocking
-   - 💡 **Suggestions**: Optional improvements
-4. For each issue, provide:
-   - Specific file:line references
-   - Clear explanation of the problem
-   - Suggested fix or approach
-   - Initial severity assessment
+1. Follow your agent definition instructions to gather context and conduct review
+2. Document findings as specified in your agent definition
+3. Focus on your specialized perspective
 
 **PHASE 2: Collaborative Discussion (20 minutes max)**
 
@@ -120,7 +81,7 @@ After all three reviewers complete their independent analysis:
    - Challenge assumptions and conclusions
    - Ask: 'Did you consider...?' or 'What about...?'
    - If you disagree with another reviewer's rating, say why
-   - If security and architect disagree on a fix approach, debate the tradeoffs
+   - If security and architect disagree on a fix approach, debate the trade-offs
 
 3. **Propose collaborative solutions**:
    - For critical issues, work together to identify best fixes
@@ -181,6 +142,11 @@ After all teammates complete the discussion phase:
 ## Comprehensive PR Review - Collaborative Team Analysis
 
 > This review was conducted by a team of specialized reviewers who independently analyzed the PR, then discussed findings, debated severity, and reached collaborative consensus.
+
+### ✅ Completion Requirements Met?
+- [ ] Tests exist and pass (95%+ coverage shown)
+- [ ] Documentation updated (check REFERENCE/ if implementation work)
+- [ ] Code quality verified (conventions, no secrets, clean history)
 
 ### 🔴 Critical Issues - Must Fix Before Merge
 
