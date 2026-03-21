@@ -47,6 +47,7 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
 
   // Load items on mount
@@ -93,6 +94,7 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
   async function loadItems() {
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
       const response = await fetch('/api/reader/items');
@@ -114,6 +116,7 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
   async function handleSync() {
     setSyncing(true);
     setError(null);
+    setSuccessMessage(null);
     setSyncStatus(null);
 
     try {
@@ -148,6 +151,7 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
 
   async function handleArchive(itemId: string) {
     setError(null);
+    setSuccessMessage(null);
 
     try {
       const response = await fetch('/api/reader/archive', {
@@ -170,9 +174,7 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
 
       // Show feedback if item was already deleted in Reader
       if (data.readerDeleted) {
-        console.log(
-          '[Archive] Item was already deleted in Reader but archived locally'
-        );
+        setSuccessMessage('Archived (item was already deleted in Reader)');
       }
 
       // Remove from items list
@@ -187,6 +189,7 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
     if (!syncStatus) return;
 
     setError(null);
+    setSuccessMessage(null);
     setSyncing(true);
 
     try {
@@ -221,6 +224,7 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
 
   async function handleRegenerateTags() {
     setError(null);
+    setSuccessMessage(null);
     setRegenerating(true);
 
     try {
@@ -282,6 +286,21 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
             }}
           >
             Error: {error}
+          </div>
+        )}
+
+        {/* Success message display */}
+        {successMessage && (
+          <div
+            style={{
+              padding: '12px',
+              borderRadius: '4px',
+              marginBottom: '20px',
+              background: '#d4edda',
+              color: '#155724',
+            }}
+          >
+            ✓ {successMessage}
           </div>
         )}
 
