@@ -174,7 +174,7 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
 
       // Show feedback if item was already deleted in Reader
       if (data.readerDeleted) {
-        setSuccessMessage('Archived (item was already deleted in Reader)');
+        setSuccessMessage('Archived (already deleted in Reader)');
       }
 
       // Remove from items list
@@ -300,7 +300,7 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
               color: '#155724',
             }}
           >
-            ✓ {successMessage}
+            ✅ {successMessage}
           </div>
         )}
 
