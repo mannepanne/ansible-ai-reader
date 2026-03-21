@@ -22,6 +22,16 @@ const mockArchiveItem = vi.fn();
 
 vi.mock('@/lib/reader-api', () => ({
   archiveItem: (...args: any[]) => mockArchiveItem(...args),
+  ReaderAPIError: class ReaderAPIError extends Error {
+    constructor(
+      message: string,
+      public statusCode?: number,
+      public retryable: boolean = false
+    ) {
+      super(message);
+      this.name = 'ReaderAPIError';
+    }
+  },
 }));
 
 describe('POST /api/reader/archive', () => {
@@ -268,5 +278,65 @@ describe('POST /api/reader/archive', () => {
     expect(response.status).toBe(500);
     expect(data.error).toContain('failed to update local database');
     expect(data.requiresRefresh).toBe(true);
+  });
+
+  it('archives item locally when item was deleted in Reader (404)', async () => {
+    mockGetSession.mockResolvedValue({
+      data: { session: mockSession },
+    });
+
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({
+        error: null,
+      }),
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'reader_items') {
+        const selectMock = {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'item-123',
+                    reader_id: 'reader-123',
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+          update: mockUpdate,
+        };
+
+        return selectMock as any;
+      }
+    });
+
+    // Simulate Reader API returning 404 (item not found)
+    const { ReaderAPIError } = await import('@/lib/reader-api');
+    mockArchiveItem.mockRejectedValue(
+      new ReaderAPIError('Item not found in Reader', 404, false)
+    );
+
+    const request = new NextRequest('http://localhost:3000/api/reader/archive', {
+      method: 'POST',
+      body: JSON.stringify({ itemId: 'item-123' }),
+    });
+
+    const response = await POST(request);
+    const data = (await response.json()) as any;
+
+    expect(response.status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(data.readerDeleted).toBe(true);
+
+    // Verify the update was called with reader_deleted: true
+    expect(mockUpdate).toHaveBeenCalledWith({
+      archived: true,
+      archived_at: expect.any(String),
+      reader_deleted: true,
+    });
   });
 });
