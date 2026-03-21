@@ -11,16 +11,19 @@ import { archiveItem } from '@/lib/reader-api';
  * Archives a Reader item both in Readwise Reader and in local database.
  * Transaction-like pattern: archives in Reader first, only updates DB on success.
  *
+ * Special case: If the item was already deleted in Reader (404 error),
+ * still marks it as archived locally and sets reader_deleted flag to true.
+ *
  * Authentication: Required (session check)
  *
  * Request body:
  * - itemId: UUID of the reader_item to archive
  *
  * Response:
- * - 200: { success: true }
+ * - 200: { success: true, readerDeleted?: boolean }
  * - 400: Missing or invalid itemId
  * - 401: Not authenticated
- * - 404: Item not found
+ * - 404: Item not found in local database
  * - 500: Archive failed (Reader API or database error)
  */
 export async function POST(request: NextRequest) {
@@ -72,28 +75,37 @@ export async function POST(request: NextRequest) {
     }
 
     // Archive in Reader first (transaction-like pattern)
+    let readerDeleted = false;
     try {
       await archiveItem(readerApiToken, item.reader_id);
       console.log('[Archive] Archived in Reader:', item.reader_id);
     } catch (error) {
-      console.error('[Archive] Failed to archive in Reader:', error);
-      return NextResponse.json(
-        {
-          error:
-            error instanceof Error
-              ? error.message
-              : 'Failed to archive in Reader',
-        },
-        { status: 500 }
-      );
+      // If item was deleted in Reader (404), mark as reader_deleted but continue
+      if (error instanceof Error && error.message.includes('Item not found in Reader')) {
+        console.log('[Archive] Item already deleted in Reader:', item.reader_id);
+        readerDeleted = true;
+      } else {
+        // For other errors, fail the request
+        console.error('[Archive] Failed to archive in Reader:', error);
+        return NextResponse.json(
+          {
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Failed to archive in Reader',
+          },
+          { status: 500 }
+        );
+      }
     }
 
-    // Update local database (mark as archived)
+    // Update local database (mark as archived, and reader_deleted if applicable)
     const { error: updateError } = await supabase
       .from('reader_items')
       .update({
         archived: true,
         archived_at: new Date().toISOString(),
+        reader_deleted: readerDeleted,
       })
       .eq('id', itemId);
 
@@ -113,7 +125,10 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[Archive] Successfully archived item:', itemId);
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      readerDeleted: readerDeleted
+    });
   } catch (error) {
     console.error('[Archive] Unexpected error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
