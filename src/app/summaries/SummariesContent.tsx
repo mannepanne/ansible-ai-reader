@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import SummaryCard from '@/components/SummaryCard';
+import EmptyState from '@/components/EmptyState';
 
 interface ReaderItem {
   id: string;
@@ -446,20 +447,7 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
             <p style={{ color: '#6c757d' }}>Loading summaries...</p>
           </div>
         ) : items.length === 0 ? (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '48px',
-              background: '#fff',
-              borderRadius: '6px',
-              boxShadow: '0 1px 3px rgba(0,0,0,.1)',
-            }}
-          >
-            <p style={{ color: '#6c757d', margin: 0 }}>
-              No summaries yet. Click &quot;Sync&quot; in the header to fetch
-              your unread items from Readwise Reader.
-            </p>
-          </div>
+          <EmptyState />
         ) : (
           <div
             style={{
