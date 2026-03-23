@@ -98,10 +98,12 @@ describe('SummariesPage', () => {
     });
 
     await waitFor(() => {
+      expect(screen.getByText('Knowledge Synchronized')).toBeInTheDocument();
       expect(
-        screen.getByText(
-          /No summaries yet. Click "Sync" in the header to fetch your unread items from Readwise Reader./
-        )
+        screen.getByText(/All articles processed. Your ansible is fully charged./)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Time to transmit what you've learned to the world./)
       ).toBeInTheDocument();
     });
   });
