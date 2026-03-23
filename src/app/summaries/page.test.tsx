@@ -108,6 +108,56 @@ describe('SummariesPage', () => {
     });
   });
 
+  it('hides empty state when items exist', async () => {
+    mockGetSession.mockResolvedValue({
+      data: {
+        session: {
+          user: {
+            id: 'test-user-id',
+            email: 'test@example.com',
+          },
+        },
+      },
+    });
+
+    // Mock fetch to return items
+    (global.fetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        items: [
+          {
+            id: 'item-1',
+            reader_id: 'reader-1',
+            title: 'Test Article',
+            author: 'Test Author',
+            source: 'test.com',
+            url: 'https://test.com/article',
+            word_count: 1000,
+            short_summary: 'This is a test summary.',
+            tags: ['test', 'article'],
+            perplexity_model: 'sonar-pro',
+            content_truncated: false,
+            created_at: '2024-01-01T00:00:00Z',
+          },
+        ],
+      }),
+    });
+
+    const component = await SummariesPage();
+    await act(async () => {
+      render(component as any);
+    });
+
+    await waitFor(() => {
+      // Empty state should NOT be present
+      expect(
+        screen.queryByText('Knowledge Synchronized')
+      ).not.toBeInTheDocument();
+      // Item should be present
+      expect(screen.getByText('Test Article')).toBeInTheDocument();
+    });
+  });
+
   it('displays logout button', async () => {
     mockGetSession.mockResolvedValue({
       data: {

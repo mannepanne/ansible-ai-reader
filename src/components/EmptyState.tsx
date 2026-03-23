@@ -3,7 +3,10 @@
 
 'use client';
 
+import { useId } from 'react';
+
 export default function EmptyState() {
+  const glowId = useId();
   return (
     <div
       style={{
@@ -32,7 +35,7 @@ export default function EmptyState() {
 
           {/* Define glow filter for the right circle */}
           <defs>
-            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+            <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="3" result="coloredBlur" />
               <feMerge>
                 <feMergeNode in="coloredBlur" />
@@ -92,7 +95,7 @@ export default function EmptyState() {
             fill="none"
             stroke="#4a90e2"
             strokeWidth="2.5"
-            filter="url(#glow)"
+            filter={`url(#${glowId})`}
           />
           <text
             x="340"
@@ -101,7 +104,7 @@ export default function EmptyState() {
             fontFamily="Courier, monospace"
             fontSize="32"
             fill="#4a90e2"
-            filter="url(#glow)"
+            filter={`url(#${glowId})`}
           >
             ∴
           </text>
