@@ -29,7 +29,7 @@ export default function EmptyState() {
         >
           <title>Transmission Complete</title>
           <desc>
-            The ansible symbol showing knowledge flowing outward - you've
+            The ansible symbol showing knowledge flowing outward - you&apos;ve
             absorbed the information and are ready to transmit it to the world
           </desc>
 
