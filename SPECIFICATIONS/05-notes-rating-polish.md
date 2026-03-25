@@ -26,12 +26,13 @@ Add document notes (synced to Reader), interest ratings, customizable summary pr
 - [ ] Support retry for failed summaries via UI button
 
 **Phase 5 Original Scope**:
+- [ ] Implement automated scheduled syncing (Cloudflare Cron + user-configurable intervals)
 - [ ] Implement input validation with Zod and DOMPurify
 - [ ] Implement document notes UI (add/edit note field)
 - [ ] Validate and sanitize notes (XSS prevention, max 10k chars)
 - [ ] Sync notes to Reader API (PATCH `/api/v3/update/:id`)
 - [ ] Implement rating system (0-5 stars with validation)
-- [ ] Create settings page (editable summary prompt)
+- [ ] Create settings page (editable summary prompt + sync interval)
 - [ ] Validate summary prompts (prevent injection, max 2k chars)
 - [ ] Add "Read in Reader" link (opens Reader URL)
 - [ ] Improve empty states (helpful guidance)
@@ -44,7 +45,6 @@ Add document notes (synced to Reader), interest ratings, customizable summary pr
 - Long summaries (future v1.1)
 - Learning from ratings (future v2)
 - Tag filtering/search (future v1.1)
-- Automated background sync (future v2)
 
 ---
 
