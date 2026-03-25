@@ -6,7 +6,8 @@ import { createClient } from '@supabase/supabase-js';
 import { performSyncForUser } from '@/lib/sync-operations';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 
-export const runtime = 'edge';
+// Note: Using Node.js runtime (nodejs_compat) instead of edge runtime
+// OpenNext requires edge runtime functions to be defined separately
 
 /**
  * GET /api/cron/auto-sync

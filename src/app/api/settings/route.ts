@@ -5,11 +5,37 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { z } from 'zod';
 
-export const runtime = 'edge';
+// Note: Using Node.js runtime (nodejs_compat) instead of edge runtime
+// OpenNext requires edge runtime functions to be defined separately
+
+const SummaryPromptSchema = z
+  .string()
+  .min(10, 'Prompt must be at least 10 characters')
+  .max(2000, 'Prompt must be under 2000 characters')
+  .transform((prompt) => {
+    // Strip HTML tags
+    return prompt.replace(/<[^>]*>/g, '');
+  })
+  .refine(
+    (prompt) => {
+      // Prevent obvious injection attempts
+      const dangerous = [
+        'ignore previous',
+        'ignore all',
+        'system:',
+        'assistant:',
+      ];
+      const lower = prompt.toLowerCase();
+      return !dangerous.some((phrase) => lower.includes(phrase));
+    },
+    {
+      message: 'Prompt contains potentially dangerous instructions',
+    }
+  );
 
 const settingsSchema = z.object({
   sync_interval: z.number().int().min(0).max(24).optional(),
-  summary_prompt: z.string().min(10).max(2000).optional(),
+  summary_prompt: SummaryPromptSchema.optional(),
 });
 
 /**
