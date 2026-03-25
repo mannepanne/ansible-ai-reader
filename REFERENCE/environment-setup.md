@@ -94,6 +94,30 @@ npx wrangler secret put PERPLEXITY_API_KEY --config wrangler-consumer.toml
 
 **⚠️ Important:** The consumer worker will fail to process summaries without this key.
 
+### Phase 5 Variables (Automated Syncing)
+
+#### CRON_SECRET
+Secret token for authenticating Cloudflare Cron Trigger requests to the auto-sync endpoint.
+
+**How to generate:** Use a cryptographically secure random string:
+```bash
+openssl rand -hex 32
+```
+
+**Purpose:** Prevents unauthorized access to the `/api/cron/auto-sync` endpoint, which runs automated syncs for all users with auto-sync enabled.
+
+**Required for:** Automated scheduled syncing (Part 3 - Settings API + UI)
+
+```bash
+# Main Next.js worker
+npx wrangler secret put CRON_SECRET
+# Enter: your generated secret (e.g., output from openssl rand -hex 32)
+```
+
+**⚠️ Security:** Keep this secret secure. If compromised, attackers could trigger expensive sync operations for all users.
+
+**Note:** This is only required when cron triggers are enabled in `wrangler.toml`. Part 2 adds the endpoint but doesn't activate it yet.
+
 ### Verifying Secrets
 
 ```bash
@@ -122,6 +146,9 @@ READER_API_TOKEN=your_reader_token
 
 # Phase 4 (Perplexity Integration)
 PERPLEXITY_API_KEY=pplx-xxxxx
+
+# Phase 5 (Automated Syncing)
+CRON_SECRET=your_generated_secret
 ```
 
 **Usage:**
@@ -250,6 +277,7 @@ Before deploying to production:
 - [ ] All Phase 1 & 2 secrets set via `wrangler secret put`
 - [ ] Phase 3 secrets set (READER_API_TOKEN) if deploying Reader integration
 - [ ] Phase 4 secrets set (PERPLEXITY_API_KEY) if deploying AI summaries
+- [ ] Phase 5 secrets set (CRON_SECRET) if deploying automated syncing
 - [ ] Consumer worker secrets set (READER_API_TOKEN, PERPLEXITY_API_KEY)
 - [ ] Supabase RLS policies verified
 - [ ] Resend SMTP configured in Supabase
