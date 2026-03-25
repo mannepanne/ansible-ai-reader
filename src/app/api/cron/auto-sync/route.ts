@@ -86,11 +86,20 @@ export async function GET(request: NextRequest) {
 
     // 6. Process each user
     const now = new Date();
+    const START_TIME = Date.now();
+    const MAX_EXECUTION_TIME = 14 * 60 * 1000; // 14 minutes (buffer under 15min limit)
+
     let synced = 0;
     let skipped = 0;
     let failed = 0;
+    let timestampFailures = 0;
 
     for (const user of users || []) {
+      // Check timeout to avoid hitting Cloudflare Workers limits
+      if (Date.now() - START_TIME > MAX_EXECUTION_TIME) {
+        console.warn('[Cron] Approaching timeout limit, stopping early');
+        break;
+      }
       try {
         // Calculate hours since last sync
         const lastSync = user.last_auto_sync_at
@@ -127,7 +136,8 @@ export async function GET(request: NextRequest) {
               `[Cron] Failed to update last_auto_sync_at for user ${user.id}:`,
               updateError
             );
-            // Don't fail the entire job - sync succeeded, just timestamp update failed
+            // Track timestamp failures separately - sync succeeded but timestamp didn't update
+            timestampFailures++;
           }
 
           synced++;
@@ -145,7 +155,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const result = { synced, skipped, failed };
+    const result = { synced, skipped, failed, timestampFailures };
     console.log('[Cron] Auto-sync job completed:', result);
 
     return NextResponse.json(result);

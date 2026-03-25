@@ -123,7 +123,7 @@ describe('GET /api/cron/auto-sync', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data).toEqual({ synced: 1, skipped: 0, failed: 0 });
+    expect(data).toEqual({ synced: 1, skipped: 0, failed: 0, timestampFailures: 0 });
 
     expect(performSyncForUser).toHaveBeenCalledWith(
       mockSupabase,
@@ -166,7 +166,7 @@ describe('GET /api/cron/auto-sync', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data).toEqual({ synced: 0, skipped: 1, failed: 0 });
+    expect(data).toEqual({ synced: 0, skipped: 1, failed: 0, timestampFailures: 0 });
     expect(performSyncForUser).not.toHaveBeenCalled();
   });
 
@@ -199,7 +199,7 @@ describe('GET /api/cron/auto-sync', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data).toEqual({ synced: 1, skipped: 0, failed: 0 });
+    expect(data).toEqual({ synced: 1, skipped: 0, failed: 0, timestampFailures: 0 });
     expect(performSyncForUser).toHaveBeenCalledTimes(1);
   });
 
@@ -251,7 +251,7 @@ describe('GET /api/cron/auto-sync', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data).toEqual({ synced: 1, skipped: 1, failed: 1 });
+    expect(data).toEqual({ synced: 1, skipped: 1, failed: 1, timestampFailures: 0 });
     expect(performSyncForUser).toHaveBeenCalledTimes(2);
   });
 
@@ -296,7 +296,7 @@ describe('GET /api/cron/auto-sync', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data).toEqual({ synced: 1, skipped: 0, failed: 1 });
+    expect(data).toEqual({ synced: 1, skipped: 0, failed: 1, timestampFailures: 0 });
     expect(performSyncForUser).toHaveBeenCalledTimes(2);
   });
 
@@ -336,7 +336,7 @@ describe('GET /api/cron/auto-sync', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data).toEqual({ synced: 1, skipped: 0, failed: 0 });
+    expect(data).toEqual({ synced: 1, skipped: 0, failed: 0, timestampFailures: 0 });
 
     // Should pass undefined cloudflareEnv to performSyncForUser
     expect(performSyncForUser).toHaveBeenCalledWith(
@@ -400,6 +400,6 @@ describe('GET /api/cron/auto-sync', () => {
 
     // Should still return success - sync succeeded, just timestamp update failed
     expect(response.status).toBe(200);
-    expect(data).toEqual({ synced: 1, skipped: 0, failed: 0 });
+    expect(data).toEqual({ synced: 1, skipped: 0, failed: 0, timestampFailures: 1 });
   });
 });
