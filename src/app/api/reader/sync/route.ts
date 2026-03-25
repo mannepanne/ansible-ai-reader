@@ -1,5 +1,6 @@
 // ABOUT: API endpoint to sync unread items from Readwise Reader
 // ABOUT: Fetches items, stores in database, enqueues processing jobs
+// TODO: Refactor to use performSyncForUser() from sync-operations.ts (Part 2 of automated sync)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';

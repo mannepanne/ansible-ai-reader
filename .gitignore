@@ -16,6 +16,7 @@ dist/
 # Cloudflare Workers
 .wrangler/
 .open-next/
+.vercel/
 wrangler.toml.local
 
 # Environment & Secrets
