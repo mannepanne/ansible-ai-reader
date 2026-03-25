@@ -35,5 +35,6 @@ binding = "PROCESSING_QUEUE"
 #   - NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 #   - SUPABASE_SECRET_KEY
 #   - RESEND_API_KEY
+#   - CRON_SECRET (required for automated syncing - Part 3)
 #
 # See REFERENCE/environment-setup.md for values and configuration details.
