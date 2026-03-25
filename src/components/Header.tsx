@@ -113,6 +113,26 @@ export default function Header({
         </button>
       )}
 
+      {/* Settings link */}
+      <Link
+        href="/settings"
+        style={{
+          border: '1px solid #6c757d',
+          color: '#adb5bd',
+          padding: '6px 12px',
+          borderRadius: '4px',
+          textDecoration: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          fontSize: '0.85em',
+        }}
+        title="Settings"
+      >
+        <span>⚙️</span>
+        {!isMobile && <span>Settings</span>}
+      </Link>
+
       {/* User email - hidden on mobile */}
       {!isMobile && (
         <span
