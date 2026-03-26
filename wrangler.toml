@@ -22,11 +22,10 @@ binding = "PROCESSING_QUEUE"
 # Consumer configuration in separate worker (wrangler-consumer.toml)
 # This keeps the Next.js worker and queue consumer independent
 
-# Cron Triggers (Part 3 - Not Yet Active)
-# Uncomment when Part 3 (Settings API + UI) is deployed:
-# [triggers]
-# crons = ["0 * * * *"]  # Runs hourly to check for users needing auto-sync
-# IMPORTANT: Ensure CRON_SECRET is deployed before enabling cron trigger!
+# Cron Triggers - Automated Scheduled Syncing (Active)
+# Runs hourly to check for users with auto-sync enabled
+[triggers]
+crons = ["0 * * * *"]  # Every hour at minute 0
 
 # Environment Variables
 # All environment variables are set as secrets via wrangler CLI to avoid committing values to git.
