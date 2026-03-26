@@ -1,0 +1,16 @@
+# Cloudflare Workers configuration for Cron Handler
+# Separate worker that triggers the auto-sync endpoint hourly
+name = "ansible-ai-reader-cron"
+main = "workers/cron.ts"
+compatibility_date = "2026-03-06"
+
+[observability]
+enabled = true
+
+# Cron Trigger - Runs every hour
+[triggers]
+crons = ["0 * * * *"]  # Every hour at minute 0
+
+# Environment Variables
+# Required secrets (set via: wrangler secret put <KEY_NAME> --name ansible-ai-reader-cron):
+#   - CRON_SECRET (must match the secret in main worker)
