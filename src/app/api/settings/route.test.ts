@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GET, PATCH } from './route';
 import { NextRequest } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { createClient, createServiceRoleClient } from '@/utils/supabase/server';
 
 // Mock dependencies
 vi.mock('@/utils/supabase/server');
@@ -138,6 +138,9 @@ describe('PATCH /api/settings', () => {
           data: { session: mockSession },
         }),
       },
+    } as any);
+
+    vi.mocked(createServiceRoleClient).mockReturnValue({
       from: vi.fn().mockReturnThis(),
       upsert: vi.fn().mockResolvedValue({ error: null }),
     } as any);
@@ -156,6 +159,9 @@ describe('PATCH /api/settings', () => {
           data: { session: mockSession },
         }),
       },
+    } as any);
+
+    vi.mocked(createServiceRoleClient).mockReturnValue({
       from: vi.fn().mockReturnThis(),
       upsert: vi.fn().mockResolvedValue({ error: null }),
     } as any);
@@ -176,11 +182,15 @@ describe('PATCH /api/settings', () => {
           data: { session: mockSession },
         }),
       },
+    };
+
+    const mockServiceClient = {
       from: vi.fn().mockReturnThis(),
       upsert: vi.fn().mockResolvedValue({ error: null }),
     };
 
     vi.mocked(createClient).mockResolvedValue(mockSupabase as any);
+    vi.mocked(createServiceRoleClient).mockReturnValue(mockServiceClient as any);
 
     const response = await PATCH(
       mockRequest({
@@ -193,8 +203,8 @@ describe('PATCH /api/settings', () => {
     expect(response.status).toBe(200);
     expect(data).toEqual({ success: true });
 
-    // Verify upsert was called with correct data
-    expect(mockSupabase.upsert).toHaveBeenCalledWith(
+    // Verify upsert was called with correct data on service client
+    expect(mockServiceClient.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'user-123',
         email: 'test@example.com',
@@ -294,6 +304,9 @@ describe('PATCH /api/settings', () => {
           data: { session: mockSession },
         }),
       },
+    } as any);
+
+    vi.mocked(createServiceRoleClient).mockReturnValue({
       from: vi.fn().mockReturnThis(),
       upsert: vi.fn().mockResolvedValue({ error: null }),
     } as any);
@@ -312,6 +325,9 @@ describe('PATCH /api/settings', () => {
           data: { session: mockSession },
         }),
       },
+    } as any);
+
+    vi.mocked(createServiceRoleClient).mockReturnValue({
       from: vi.fn().mockReturnThis(),
       upsert: vi.fn().mockResolvedValue({ error: null }),
     } as any);
@@ -330,6 +346,9 @@ describe('PATCH /api/settings', () => {
           data: { session: mockSession },
         }),
       },
+    } as any);
+
+    vi.mocked(createServiceRoleClient).mockReturnValue({
       from: vi.fn().mockReturnThis(),
       upsert: vi.fn().mockResolvedValue({
         error: { message: 'Database error' },
@@ -354,11 +373,15 @@ describe('PATCH /api/settings', () => {
           data: { session: mockSession },
         }),
       },
+    };
+
+    const mockServiceClient = {
       from: vi.fn().mockReturnThis(),
       upsert: vi.fn().mockResolvedValue({ error: null }),
     };
 
     vi.mocked(createClient).mockResolvedValue(mockSupabase as any);
+    vi.mocked(createServiceRoleClient).mockReturnValue(mockServiceClient as any);
 
     const response = await PATCH(
       mockRequest({
@@ -371,7 +394,7 @@ describe('PATCH /api/settings', () => {
     expect(data).toEqual({ success: true });
 
     // Verify HTML tags were stripped (but content between tags remains)
-    expect(mockSupabase.upsert).toHaveBeenCalledWith(
+    expect(mockServiceClient.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         summary_prompt: 'Bold text and italic for summary',
       }),
