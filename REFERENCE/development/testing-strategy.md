@@ -1,11 +1,20 @@
 # Testing Strategy
+REFERENCE > Development > Testing Strategy
 
-**When to read this:** Writing tests, setting up test coverage, or implementing TDD workflow.
+Testing philosophy, framework, and workflow for the Ansible AI Reader project.
 
-**Related Documents:**
-- [CLAUDE.md](./../CLAUDE.md) - Project navigation index
-- [CLAUDE.md](./../.claude/CLAUDE.md) - Collaboration principles (testing section)
-- [pr-review-workflow.md](./pr-review-workflow.md) - PR review process
+## When to Read This
+- Writing tests for new features
+- Setting up test coverage
+- Implementing TDD workflow
+- Understanding test requirements
+- Debugging test failures
+
+## Related Documentation
+- [PR Review Workflow](./pr-review-workflow.md) - PR review process
+- [Code Conventions](./code-conventions.md) - Coding standards
+- [Local Development](./local-development.md) - Running tests locally
+- [.claude/CLAUDE.md](../../.claude/CLAUDE.md) - Testing principles in collaboration guide
 
 ---
 
@@ -321,4 +330,22 @@ Tests validate **correctness**, but don't guarantee:
 
 ---
 
-**Status:** Template ready - will be updated with actual test patterns as features are implemented
+## Current Status
+
+**Tests passing:** 237 (as of Phase 4 completion)
+**Coverage:** 95%+ (lines/functions/statements), 90%+ (branches)
+
+**Test distribution:**
+- Phase 1 (Foundation): 26 tests
+- Phase 2 (Authentication): 22 tests (64 total)
+- Phase 3 (Reader Integration): 56 tests (120 total)
+- Phase 4 (Perplexity Integration): 117 tests (237 total)
+
+---
+
+## Related Documentation
+
+- [PR Review Workflow](./pr-review-workflow.md) - Using `/review-pr` and `/review-pr-team`
+- [Code Conventions](./code-conventions.md) - Coding standards
+- [Local Development](./local-development.md) - Running tests locally
+- [Operations - Monitoring](../operations/monitoring.md) - Production observability
