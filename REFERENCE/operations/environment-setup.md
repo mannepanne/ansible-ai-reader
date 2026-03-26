@@ -1,15 +1,20 @@
 # Environment & Secrets Setup
+REFERENCE > Operations > Environment Setup
 
-**When to read this:** Setting up local development, configuring secrets, or deploying to production.
+Configuration guide for API keys, secrets, and local development environment.
 
-**Related Documents:**
-- [CLAUDE.md](./../CLAUDE.md) - Project navigation index
-- [troubleshooting.md](./troubleshooting.md) - Common issues and solutions
-- [phase-1-2-implementation.md](./phase-1-2-implementation.md) - Environment validation with Zod
+## When to Read This
+- Setting up local development
+- Configuring production secrets
+- Adding new API integrations
+- Troubleshooting missing environment variables
+
+## Related Documentation
+- [Deployment](./deployment.md) - Production deployment and secrets management
+- [Troubleshooting](./troubleshooting.md) - Common configuration issues
+- [Architecture - Database](../architecture/database-schema.md) - Database setup and migrations
 
 ---
-
-Configuration guide for API keys and local development environment.
 
 ## Required Environment Variables
 
@@ -17,22 +22,29 @@ Configuration is stored in:
 - **Local development:** `.dev.vars` file (git-ignored)
 - **Production:** Cloudflare Workers secrets (via `wrangler secret put`)
 
-### Phase 1 & 2 Variables (Currently Required)
+### Core Infrastructure Variables
 
 #### NEXT_PUBLIC_SUPABASE_URL
 Supabase project URL for database and authentication.
 
 **Where to find:** Supabase Dashboard → Project Settings → API → Project URL
 
+**Required for:** All 3 workers (main app, consumer, cron)
+
 ```bash
 npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL
 # Enter: https://xxxxx.supabase.co
+
+npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL --config wrangler-consumer.toml
+npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL --config wrangler-cron.toml
 ```
 
 #### NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 Supabase publishable (anon) key for client-side operations.
 
 **Where to find:** Supabase Dashboard → Project Settings → API → Project API keys → anon/public
+
+**Required for:** Main app only
 
 ```bash
 npx wrangler secret put NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
@@ -44,47 +56,55 @@ Supabase service role key for server-side operations (bypasses RLS).
 
 **Where to find:** Supabase Dashboard → Project Settings → API → Project API keys → service_role
 
+**Required for:** Main app and consumer worker
+
 **⚠️ Warning:** This key bypasses Row Level Security. Never expose it to clients.
 
 ```bash
 npx wrangler secret put SUPABASE_SECRET_KEY
 # Enter: eyJhbGc...
+
+npx wrangler secret put SUPABASE_SECRET_KEY --config wrangler-consumer.toml
 ```
 
+### Authentication Variables
+
 #### RESEND_API_KEY
-Resend API key for sending magic link emails (Phase 2).
+Resend API key for sending magic link emails.
 
 **Where to find:** Resend Dashboard → API Keys
+
+**Required for:** Main app only
 
 ```bash
 npx wrangler secret put RESEND_API_KEY
 # Enter: re_xxxxxxxxx
 ```
 
-### Phase 3 Variables (Reader Integration)
+### Integration Variables
 
 #### READER_API_TOKEN
 Readwise Reader API token for fetching unread items and archiving.
 
 **Where to find:** https://readwise.io/access_token
 
+**Required for:** Main app and consumer worker
+
 ```bash
 # For main Next.js worker
 npx wrangler secret put READER_API_TOKEN
 # Enter: your Reader API token
 
-# For queue consumer worker (also needs it for Phase 4)
+# For queue consumer worker
 npx wrangler secret put READER_API_TOKEN --config wrangler-consumer.toml
 ```
-
-### Phase 4 Variables (Perplexity Integration)
 
 #### PERPLEXITY_API_KEY
 Perplexity API key for generating AI summaries.
 
 **Where to find:** https://www.perplexity.ai/settings/api
 
-**Required for:** Queue consumer worker (processes summary generation jobs)
+**Required for:** Queue consumer worker only
 
 ```bash
 # Queue consumer needs this for AI summary generation
@@ -94,7 +114,7 @@ npx wrangler secret put PERPLEXITY_API_KEY --config wrangler-consumer.toml
 
 **⚠️ Important:** The consumer worker will fail to process summaries without this key.
 
-### Phase 5 Variables (Automated Syncing)
+### Automation Variables
 
 #### CRON_SECRET
 Secret token for authenticating Cloudflare Cron Trigger requests to the auto-sync endpoint.
@@ -106,26 +126,34 @@ openssl rand -hex 32
 
 **Purpose:** Prevents unauthorized access to the `/api/cron/auto-sync` endpoint, which runs automated syncs for all users with auto-sync enabled.
 
-**Required for:** Automated scheduled syncing (Part 3 - Settings API + UI)
+**Required for:** Main app and cron worker
 
 ```bash
-# Main Next.js worker
+# Main Next.js worker (validates the secret)
 npx wrangler secret put CRON_SECRET
 # Enter: your generated secret (e.g., output from openssl rand -hex 32)
+
+# Cron worker (sends the secret)
+npx wrangler secret put CRON_SECRET --config wrangler-cron.toml
 ```
 
 **⚠️ Security:** Keep this secret secure. If compromised, attackers could trigger expensive sync operations for all users.
 
-**Note:** This is only required when cron triggers are enabled in `wrangler.toml`. Part 2 adds the endpoint but doesn't activate it yet.
-
 ### Verifying Secrets
 
 ```bash
-npx wrangler secret list               # List configured secrets
-npx wrangler secret delete SECRET_NAME # Remove a secret
+# Main app
+npx wrangler secret list
 
-# For consumer worker
+# Consumer worker
 npx wrangler secret list --config wrangler-consumer.toml
+
+# Cron worker
+npx wrangler secret list --config wrangler-cron.toml
+
+# Delete a secret
+npx wrangler secret delete SECRET_NAME
+npx wrangler secret delete SECRET_NAME --config wrangler-consumer.toml
 ```
 
 ---
@@ -135,19 +163,19 @@ npx wrangler secret list --config wrangler-consumer.toml
 Create a `.dev.vars` file in project root (already in `.gitignore`):
 
 ```bash
-# Phase 1 & 2 (Required)
+# Core Infrastructure
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJhbGc...
 SUPABASE_SECRET_KEY=eyJhbGc...
+
+# Authentication
 RESEND_API_KEY=re_xxxxxxxxx
 
-# Phase 3 (Reader Integration)
+# Integrations
 READER_API_TOKEN=your_reader_token
-
-# Phase 4 (Perplexity Integration)
 PERPLEXITY_API_KEY=pplx-xxxxx
 
-# Phase 5 (Automated Syncing)
+# Automation
 CRON_SECRET=your_generated_secret
 ```
 
@@ -155,12 +183,13 @@ CRON_SECRET=your_generated_secret
 - Next.js dev server: `npm run dev` (uses `.env.local` if present)
 - Cloudflare Workers dev: `npm run dev:worker` (uses `.dev.vars`)
 - Queue consumer dev: `npm run dev:consumer` (uses `.dev.vars`)
+- Cron worker dev: `npm run dev:cron` (uses `.dev.vars`)
 
 ---
 
 ## Third-Party Service Setup
 
-### Supabase (Phase 1)
+### Supabase
 
 1. **Create Project:**
    - Go to https://supabase.com/dashboard
@@ -168,21 +197,20 @@ CRON_SECRET=your_generated_secret
    - Choose region (closest to users)
 
 2. **Database Schema:**
-   - Run initial schema from Phase 1.2
    - Run migrations from `supabase/migrations/`
-   - See [phase-1-2-implementation.md](./phase-1-2-implementation.md) for schema details
+   - See [database-schema.md](../architecture/database-schema.md) for schema details
 
 3. **Row Level Security:**
    - All tables have RLS enabled
    - Policies ensure users can only access their own data
    - Service role key bypasses RLS for server operations
 
-4. **Configure Resend SMTP (Phase 2):**
+4. **Configure Resend SMTP:**
    - Settings → Authentication → Email Provider
    - Select "Custom SMTP"
-   - Use Resend SMTP credentials
+   - Use Resend SMTP credentials (see below)
 
-### Resend (Phase 2)
+### Resend
 
 1. **Create Account:**
    - Go to https://resend.com
@@ -206,7 +234,7 @@ CRON_SECRET=your_generated_secret
    - SMTP Pass: Your Resend API key
    - Sender email: `noreply@hultberg.org`
 
-### Readwise Reader (Phase 3)
+### Readwise Reader
 
 1. **Get API Token:**
    - Go to https://readwise.io/access_token
@@ -218,7 +246,7 @@ CRON_SECRET=your_generated_secret
    - Update: 600 requests/hour
    - Rate limiting enforced via p-queue
 
-### Perplexity (Phase 4)
+### Perplexity
 
 1. **Get API Key:**
    - Go to https://www.perplexity.ai/settings/api
@@ -227,8 +255,7 @@ CRON_SECRET=your_generated_secret
 2. **Pricing:**
    - Pay-as-you-go
    - ~$3-15/month for personal use
-   - Model: `sonar` (default, cost-effective)
-   - Model: `sonar-pro` (optional, higher quality, 10x cost)
+   - Model: `sonar-pro` (good balance of quality and cost)
 
 3. **Rate Limits:**
    - 50 requests/minute (enforced via p-queue)
@@ -246,7 +273,7 @@ Environment variables are validated at startup using Zod.
 
 **Validation file:** `src/lib/env.ts`
 
-**Current validation (Phase 1 & 2):**
+**Current validation:**
 ```typescript
 const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
@@ -263,10 +290,10 @@ Missing required environment variables:
   NEXT_PUBLIC_SUPABASE_URL: Required
   RESEND_API_KEY: String must start with "re_"
 
-See REFERENCE/environment-setup.md for configuration details.
+See REFERENCE/operations/environment-setup.md for configuration details.
 ```
 
-**Phase 3 & 4 Note:** Reader and Perplexity API keys are checked at runtime in the respective API routes and queue consumer.
+**Note:** Reader, Perplexity, and Cron secrets are checked at runtime in the respective API routes and workers.
 
 ---
 
@@ -274,17 +301,38 @@ See REFERENCE/environment-setup.md for configuration details.
 
 Before deploying to production:
 
-- [ ] All Phase 1 & 2 secrets set via `wrangler secret put`
-- [ ] Phase 3 secrets set (READER_API_TOKEN) if deploying Reader integration
-- [ ] Phase 4 secrets set (PERPLEXITY_API_KEY) if deploying AI summaries
-- [ ] Phase 5 secrets set (CRON_SECRET) if deploying automated syncing
-- [ ] Consumer worker secrets set (READER_API_TOKEN, PERPLEXITY_API_KEY)
+- [ ] All core infrastructure secrets set via `wrangler secret put`
+- [ ] Main app secrets set (6 secrets)
+- [ ] Consumer worker secrets set (4 secrets)
+- [ ] Cron worker secrets set (2 secrets)
 - [ ] Supabase RLS policies verified
 - [ ] Resend SMTP configured in Supabase
 - [ ] Domain DNS configured for Resend
 - [ ] Database migrations run in Supabase
-- [ ] Verify secrets with `npx wrangler secret list`
-- [ ] Verify consumer secrets with `npx wrangler secret list --config wrangler-consumer.toml`
+- [ ] Verify all secrets: `npx wrangler secret list` (for each worker)
+- [ ] CRON_SECRET matches in both main app and cron worker
+
+---
+
+## Secrets Summary by Worker
+
+### Main App (`wrangler.toml`)
+1. `NEXT_PUBLIC_SUPABASE_URL`
+2. `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+3. `SUPABASE_SECRET_KEY`
+4. `RESEND_API_KEY`
+5. `READER_API_TOKEN`
+6. `CRON_SECRET`
+
+### Consumer Worker (`wrangler-consumer.toml`)
+1. `NEXT_PUBLIC_SUPABASE_URL`
+2. `SUPABASE_SECRET_KEY`
+3. `READER_API_TOKEN`
+4. `PERPLEXITY_API_KEY`
+
+### Cron Worker (`wrangler-cron.toml`)
+1. `CRON_SECRET`
+2. `NEXT_PUBLIC_SUPABASE_URL`
 
 ---
 
@@ -303,4 +351,18 @@ Before deploying to production:
 - Check domain is verified in Resend
 - Test with Supabase Auth test email
 
+**Error: "CRON_SECRET mismatch"**
+- Verify secret is identical in main app and cron worker
+- Use `npx wrangler secret list` to check both workers
+- Regenerate if needed using `openssl rand -hex 32`
+
 **See Also:** [troubleshooting.md](./troubleshooting.md) for more common issues.
+
+---
+
+## Related Documentation
+
+- [Deployment](./deployment.md) - Production deployment process
+- [Monitoring](./monitoring.md) - Checking logs and debugging
+- [Troubleshooting](./troubleshooting.md) - Common configuration issues
+- [Architecture - Database](../architecture/database-schema.md) - Database schema and migrations

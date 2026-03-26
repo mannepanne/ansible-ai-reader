@@ -1,11 +1,19 @@
 # Deployment Guide
+REFERENCE > Operations > Deployment
 
-**When to read this:** Deploying to production, setting up CI/CD, or troubleshooting deployment issues.
+How to deploy the Ansible AI Reader application to Cloudflare Workers.
 
-**Related Documents:**
-- [CLAUDE.md](./../CLAUDE.md) - Project navigation index
-- [environment-setup.md](./environment-setup.md) - API keys and environment configuration
-- [troubleshooting.md](./troubleshooting.md) - Common issues and solutions
+## When to Read This
+- Deploying to production
+- Setting up CI/CD
+- Troubleshooting deployment issues
+- Understanding the 3-worker architecture
+
+## Related Documentation
+- [Architecture - Workers](../architecture/workers.md) - 3-worker system design
+- [Environment Setup](./environment-setup.md) - API keys and secrets configuration
+- [Troubleshooting](./troubleshooting.md) - Common deployment issues
+- [Monitoring](./monitoring.md) - Production logs and debugging
 
 ---
 
@@ -55,8 +63,9 @@ Every push to the `main` branch automatically:
 1. Runs all tests (`npm test -- --run`)
 2. Runs type checking (`npx tsc --noEmit`)
 3. Builds the application (`npm run build:worker`)
-4. Deploys consumer worker (`wrangler deploy --config wrangler-consumer.toml`)
-5. Deploys main application (`wrangler deploy`)
+4. Deploys cron worker (`wrangler deploy --config wrangler-cron.toml`)
+5. Deploys consumer worker (`wrangler deploy --config wrangler-consumer.toml`)
+6. Deploys main application (`wrangler deploy`)
 
 **Workflow file:** `.github/workflows/deploy.yml`
 
@@ -68,12 +77,13 @@ https://github.com/mannepanne/ansible-ai-reader/settings/secrets/actions
 | Secret Name | Purpose | Where to get it |
 |-------------|---------|-----------------|
 | `CLOUDFLARE_API_TOKEN` | Authenticate deployments to Cloudflare | Cloudflare Dashboard → My Profile → API Tokens → Create Token (use "Edit Cloudflare Workers" template) |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (both workers) | Your `.dev.vars` file |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (all workers) | Your `.dev.vars` file |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase public API key (main app) | Your `.dev.vars` file |
-| `SUPABASE_SECRET_KEY` | Supabase service role key (both workers) | Your `.dev.vars` file |
-| `READER_API_TOKEN` | Readwise Reader API token (both workers) | Your `.dev.vars` file |
+| `SUPABASE_SECRET_KEY` | Supabase service role key (all workers) | Your `.dev.vars` file |
+| `READER_API_TOKEN` | Readwise Reader API token (main app + consumer) | Your `.dev.vars` file |
 | `PERPLEXITY_API_KEY` | Perplexity AI API key (consumer worker) | Your `.dev.vars` file |
 | `RESEND_API_KEY` | Resend email API key (main app) | Your `.dev.vars` file |
+| `CRON_SECRET` | Cron endpoint authentication (main app + cron worker) | Your `.dev.vars` file |
 
 **Note:** All secrets except `CLOUDFLARE_API_TOKEN` should match the values in your local `.dev.vars` file.
 
@@ -85,7 +95,7 @@ https://github.com/mannepanne/ansible-ai-reader/settings/secrets/actions
    - Name: Exact name from table (case-sensitive)
    - Value: Copy from `.dev.vars` or Cloudflare dashboard
    - Click "Add secret"
-4. Repeat for all 7 secrets
+4. Repeat for all 8 secrets
 
 ### Testing the Workflow
 
@@ -93,7 +103,7 @@ After setting up secrets:
 1. Make any small change to the codebase
 2. Commit and push to `main` branch
 3. Go to Actions tab in GitHub to watch the deployment
-4. Both workers will be automatically deployed on success
+4. All three workers will be automatically deployed on success
 
 ---
 
@@ -121,6 +131,13 @@ This runs OpenNext to build the Next.js app for Cloudflare Workers.
 
 #### 2. Set Production Secrets (First-Time Only)
 
+**For cron worker (2 secrets):**
+
+```bash
+npx wrangler secret put CRON_SECRET --config wrangler-cron.toml
+npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL --config wrangler-cron.toml
+```
+
 **For consumer worker (4 secrets):**
 
 ```bash
@@ -133,7 +150,7 @@ npx wrangler secret put READER_API_TOKEN --config wrangler-consumer.toml
 npx wrangler secret put PERPLEXITY_API_KEY --config wrangler-consumer.toml
 ```
 
-**For main app (5 secrets):**
+**For main app (6 secrets):**
 
 ```bash
 # Supabase configuration
@@ -144,11 +161,25 @@ npx wrangler secret put SUPABASE_SECRET_KEY
 # API tokens
 npx wrangler secret put RESEND_API_KEY
 npx wrangler secret put READER_API_TOKEN
+npx wrangler secret put CRON_SECRET
 ```
 
 When prompted, paste the value from your `.dev.vars` file.
 
-#### 3. Deploy Consumer Worker
+#### 3. Deploy Cron Worker
+
+```bash
+npm run deploy:cron
+```
+
+Or directly:
+```bash
+npx wrangler deploy --config wrangler-cron.toml
+```
+
+**Output:** Cron worker deployed (no HTTP endpoint, schedule only)
+
+#### 4. Deploy Consumer Worker
 
 ```bash
 npm run deploy:consumer
@@ -161,7 +192,7 @@ npx wrangler deploy --config wrangler-consumer.toml
 
 **Output:** Consumer worker deployed to https://ansible-queue-consumer.herrings.workers.dev
 
-#### 4. Deploy Main Application
+#### 5. Deploy Main Application
 
 ```bash
 npm run deploy
@@ -174,13 +205,14 @@ npx wrangler deploy
 
 **Output:** Main app deployed to https://ansible-ai-reader.herrings.workers.dev
 
-#### 5. Verify Deployment
+#### 6. Verify Deployment
 
 Test the deployment:
 1. Visit https://ansible-ai-reader.herrings.workers.dev
 2. Log in with magic link
 3. Sync items from Readwise
 4. Verify summaries are generated
+5. Check automated sync settings are available
 
 ---
 
@@ -255,6 +287,23 @@ max_batch_timeout = 30
 - Consumes from `ansible-processing-queue`
 - Processes one message at a time (`max_batch_size = 1`)
 
+### Cron Worker: `wrangler-cron.toml`
+
+```toml
+name = "ansible-ai-reader-cron"
+main = "workers/cron.ts"
+compatibility_date = "2026-03-06"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+crons = ["0 * * * *"]
+```
+
+**Key points:**
+- Runs hourly at minute 0 (`0 * * * *`)
+- Calls main app's `/api/cron/auto-sync` endpoint
+- Separate because OpenNext doesn't support scheduled() function
+
 ---
 
 ## Package.json Scripts
@@ -264,6 +313,7 @@ max_batch_timeout = 30
 | `npm run build:worker` | `npx opennextjs-cloudflare build` | Build Next.js for Cloudflare Workers |
 | `npm run deploy` | `wrangler deploy` | Deploy main application |
 | `npm run deploy:consumer` | `wrangler deploy --config wrangler-consumer.toml` | Deploy consumer worker |
+| `npm run deploy:cron` | `wrangler deploy --config wrangler-cron.toml` | Deploy cron worker |
 
 ---
 
@@ -317,14 +367,26 @@ npm run build:worker && npm run deploy
 2. Check queue exists: `npx wrangler queues list`
 3. Verify queue binding in `wrangler-consumer.toml`
 
+### Cron triggers not firing
+
+**Cause:** Cron worker not deployed or CRON_SECRET mismatch
+
+**Fix:**
+1. Verify cron worker is deployed: `npx wrangler deployments list --config wrangler-cron.toml`
+2. Check CRON_SECRET matches in both main app and cron worker
+3. Verify cron schedule in `wrangler-cron.toml` (should be `"0 * * * *"`)
+4. Monitor cron worker logs: `npx wrangler tail --config wrangler-cron.toml`
+
 ### GitHub Actions deployment fails
 
 **Cause:** Missing GitHub secrets or incorrect secret names
 
 **Fix:**
 1. Verify secrets are set in GitHub repo settings
-2. Secret names must exactly match: `CLOUDFLARE_API_TOKEN`, `PERPLEXITY_API_KEY`
+2. Secret names must exactly match: `CLOUDFLARE_API_TOKEN`, `PERPLEXITY_API_KEY`, `CRON_SECRET`
 3. Check Actions logs for specific error messages
+
+See [troubleshooting.md](./troubleshooting.md) for more common issues.
 
 ---
 
@@ -340,6 +402,7 @@ Before deploying to production:
 - [ ] GitHub secrets configured (for CI/CD)
 - [ ] Supabase Site URL updated to production domain
 - [ ] Custom domain configured (if using ansible.hultberg.org)
+- [ ] CRON_SECRET generated and configured
 
 After deployment:
 
@@ -347,35 +410,10 @@ After deployment:
 - [ ] Magic link authentication works
 - [ ] Sync from Readwise succeeds
 - [ ] Summary generation works
-- [ ] No errors in Cloudflare Workers logs
+- [ ] Automated sync settings available in UI
+- [ ] No errors in Cloudflare Workers logs (all 3 workers)
 - [ ] Custom domain works (if configured)
-
----
-
-## Monitoring and Logs
-
-### Viewing Worker Logs
-
-**Via Wrangler CLI:**
-```bash
-# Main app logs
-npx wrangler tail
-
-# Consumer worker logs
-npx wrangler tail --config wrangler-consumer.toml
-```
-
-**Via Cloudflare Dashboard:**
-1. Go to Workers & Pages → Select worker
-2. View "Logs" tab for real-time logs
-3. Check "Metrics" tab for performance
-
-### Key Metrics to Monitor
-
-- **Request count**: Should match user activity
-- **Error rate**: Should be <1%
-- **CPU time**: Should be <50ms per request
-- **Queue messages**: Should process within 30 seconds
+- [ ] Cron triggers are firing hourly
 
 ---
 
@@ -395,6 +433,12 @@ npx wrangler deployments list
 
 # Rollback to specific version
 npx wrangler rollback [deployment-id]
+
+# For consumer worker
+npx wrangler rollback [deployment-id] --config wrangler-consumer.toml
+
+# For cron worker
+npx wrangler rollback [deployment-id] --config wrangler-cron.toml
 ```
 
 ### 3. Emergency Fix
@@ -413,17 +457,16 @@ npx wrangler rollback [deployment-id]
 | **API Keys** | From `.dev.vars` | From Wrangler secrets |
 | **Deployment** | `npm run dev` | `wrangler deploy` via CI/CD |
 | **Logs** | Terminal output | Cloudflare Workers logs |
+| **Cron** | Not active (manual testing) | Active (hourly) |
 
-*Note: Currently using shared database for dev/prod - see [technical-debt.md](./technical-debt.md) TD-001
+*Note: Currently using shared database for dev/prod - see [technical-debt.md](../technical-debt.md) TD-001
 
 ---
 
-## Next Steps
+## Related Documentation
 
-After successful deployment:
-
-1. **Set up monitoring**: Configure alerts for errors and downtime
-2. **Separate dev/prod databases**: Create dedicated Supabase project for development (see technical debt TD-001)
-3. **Custom domain**: Configure ansible.hultberg.org if not done
-4. **User onboarding**: Implement automatic user record creation (see technical debt TD-001)
-5. **Cost monitoring**: Track Perplexity API usage and Cloudflare costs
+- [Architecture - Workers](../architecture/workers.md) - Understanding the 3-worker system
+- [Environment Setup](./environment-setup.md) - Configuring API keys and secrets
+- [Monitoring](./monitoring.md) - Production logs and debugging
+- [Troubleshooting](./troubleshooting.md) - Common deployment issues
+- [Technical Debt](../technical-debt.md) - Known limitations
