@@ -13,7 +13,7 @@
 
 Ansible AI Reader deploys to **Cloudflare Workers** (NOT Cloudflare Pages - this is a common confusion point).
 
-### Two Separate Workers
+### Three Separate Workers
 
 1. **`ansible-ai-reader`** (Main Application)
    - Next.js 15 application built with OpenNext for Cloudflare
@@ -28,6 +28,12 @@ Ansible AI Reader deploys to **Cloudflare Workers** (NOT Cloudflare Pages - this
    - Generates AI summaries via Perplexity API
    - Stores results in Supabase
    - Deployment URL: https://ansible-queue-consumer.herrings.workers.dev
+
+3. **`ansible-ai-reader-cron`** (Cron Trigger)
+   - Triggers automated syncing every hour
+   - Calls `/api/cron/auto-sync` endpoint with CRON_SECRET
+   - Separate worker because OpenNext doesn't support scheduled() function
+   - No deployment URL (cron-only, no HTTP endpoints)
 
 ### Why Workers, Not Pages?
 
