@@ -2,7 +2,7 @@
 // ABOUT: GET fetches current settings, PATCH updates settings with validation
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { createClient, createServiceRoleClient } from '@/utils/supabase/server';
 import { z } from 'zod';
 
 // Note: Using Node.js runtime (nodejs_compat) instead of edge runtime
@@ -139,8 +139,10 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Upsert user settings
-    const { error } = await supabase.from('users').upsert(
+    // Upsert user settings using service role client to bypass RLS
+    // We've already verified authentication above, so this is safe
+    const serviceClient = createServiceRoleClient();
+    const { error } = await serviceClient.from('users').upsert(
       {
         id: session.user.id,
         email: session.user.email,

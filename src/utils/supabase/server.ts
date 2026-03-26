@@ -2,6 +2,7 @@
 // ABOUT: Uses @supabase/ssr with cookie handling for API routes and server components
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
 export async function createClient() {
@@ -33,6 +34,24 @@ export async function createClient() {
             // user sessions.
           }
         },
+      },
+    }
+  );
+}
+
+/**
+ * Creates a service role client that bypasses RLS policies.
+ * Use only in server-side code where you've already verified authentication.
+ * Never expose this client to the frontend.
+ */
+export function createServiceRoleClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
       },
     }
   );
