@@ -1,12 +1,27 @@
 # Pull Request Review Workflow
+REFERENCE > Development > PR Review Workflow
 
-**Related Documents:**
-- [Development Workflow](../CLAUDE.md#development-workflow)
-- [Testing Strategy](./testing-strategy.md)
+Automated PR review skills and workflow using agent teams.
 
-**Skills Available:**
-- `/review-pr` - Fast single-reviewer (1-2 min)
-- `/review-pr-team` - Collaborative multi-perspective (5-10 min)
+## When to Read This
+- Creating pull requests
+- Requesting code reviews
+- Understanding review process
+- Choosing between review types
+- Interpreting review feedback
+
+## Related Documentation
+- [Testing Strategy](./testing-strategy.md) - Test requirements
+- [Code Conventions](./code-conventions.md) - Coding standards
+- [Local Development](./local-development.md) - Pre-commit workflow
+- [Root CLAUDE.md](../../CLAUDE.md) - Development workflow overview
+
+---
+
+## Skills Available
+
+- **`/review-pr`** - Fast single-reviewer (1-2 min)
+- **`/review-pr-team`** - Collaborative multi-perspective (5-10 min)
 
 ---
 
@@ -266,4 +281,9 @@ The `/review-pr-team` skill uses Claude Code's experimental **agent teams** feat
 
 ---
 
-**Note:** These skills use intelligent context discovery - they automatically find and read relevant SPECIFICATIONS/ files based on PR keywords. Keep specs up-to-date for best results.
+## Related Documentation
+
+- [Testing Strategy](./testing-strategy.md) - Test requirements and TDD workflow
+- [Code Conventions](./code-conventions.md) - Coding standards
+- [Local Development](./local-development.md) - Running tests before PR
+- [Root CLAUDE.md](../../CLAUDE.md) - Complete development workflow
