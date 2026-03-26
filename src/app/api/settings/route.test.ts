@@ -340,7 +340,10 @@ describe('PATCH /api/settings', () => {
     const data = await response.json();
 
     expect(response.status).toBe(500);
-    expect(data).toEqual({ error: 'Failed to update settings' });
+    expect(data).toMatchObject({
+      error: 'Failed to update settings',
+      details: 'Database error',
+    });
   });
 
   // Prompt injection prevention tests
