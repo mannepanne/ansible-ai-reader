@@ -1,83 +1,67 @@
-# Reference Documentation Library
+# Reference Documentation
+REFERENCE
 
-Auto-loaded when working with files in this directory. How-it-works documentation for implemented features.
+How-it-works documentation for the Ansible AI Reader system. Auto-loaded when working with files in this directory.
 
-## Files in This Directory
+## Finding What You Need
 
-### [phase-1-completion-summary.md](./phase-1-completion-summary.md)
-**When to read:** Understanding what was built in Phase 1 and the overall foundation.
+Documentation is organized by **function**, not build chronology. Navigate by **what you're trying to do**:
 
-High-level overview of Phase 1 completion: what we built, key metrics, technical learnings, architecture decisions, and next steps. Start here for Phase 1 context.
+### 📐 Understanding the System
+**[architecture/](./architecture/CLAUDE.md)** - System design, infrastructure, tech stack
+- How does it work? What's the tech stack? Why 3 workers?
 
-### Phase 1 Implementation Details
+### ✨ Working with Features
+**[features/](./features/CLAUDE.md)** - User-facing feature documentation
+- How does Reader sync work? How are AI summaries generated?
 
-#### [phase-1-1-implementation.md](./phase-1-1-implementation.md)
-**When to read:** Understanding the Next.js setup, build process, or testing infrastructure.
+### 🚀 Deploying & Operating
+**[operations/](./operations/CLAUDE.md)** - Deployment, monitoring, troubleshooting
+- How do I deploy? Where are the logs? Something broke!
 
-Complete documentation of Phase 1.1 implementation: Next.js 15 scaffolding, Cloudflare Workers setup, testing infrastructure, and build commands.
+### 💻 Contributing Code
+**[development/](./development/CLAUDE.md)** - Dev workflow, testing, code quality
+- How do I run tests? What are the conventions?
 
-#### [phase-1-2-implementation.md](./phase-1-2-implementation.md)
-**When to read:** Understanding the database schema, environment validation, or Supabase client usage.
+### 🏗️ Learning Patterns
+**[patterns/](./patterns/CLAUDE.md)** - Best practices, architectural decisions
+- Why do we do it this way? How should I implement similar functionality?
 
-Complete documentation of Phase 1.2 implementation: Database schema (4 tables), Row-Level Security policies, environment variable validation with Zod, and Supabase client setup.
+## Quick Links
 
-#### [phase-1-3-1-implementation.md](./phase-1-3-1-implementation.md)
-**When to read:** Understanding Cloudflare Workers deployment, environment variable configuration, or production setup.
+### Most Common Needs
+- **Deploy to production** → [operations/deployment.md](./operations/deployment.md)
+- **Run tests** → [development/testing-strategy.md](./development/testing-strategy.md)
+- **Set up environment** → [operations/environment-setup.md](./operations/environment-setup.md)
+- **Fix something** → [operations/troubleshooting.md](./operations/troubleshooting.md)
+- **Understand architecture** → [architecture/overview.md](./architecture/overview.md)
 
-Complete documentation of Phase 1.3.1 implementation: Cloudflare Workers deployment configuration, environment variable management with Wrangler secrets, build process, and deployment workflow.
+### Feature-Specific
+- **Reader sync** → [features/reader-sync.md](./features/reader-sync.md)
+- **AI summaries** → [features/ai-summaries.md](./features/ai-summaries.md)
+- **Automated sync** → [features/automated-sync.md](./features/automated-sync.md)
+- **User settings** → [features/settings.md](./features/settings.md)
 
-#### [phase-1-3-2-implementation.md](./phase-1-3-2-implementation.md)
-**When to read:** Understanding Cloudflare Queues setup, queue producer API, or async job processing.
+### Patterns & Best Practices
+- **Service role client (RLS bypass)** → [patterns/service-role-client.md](./patterns/service-role-client.md)
+- **API validation** → [patterns/api-validation.md](./patterns/api-validation.md)
+- **Queue processing** → [patterns/queue-processing.md](./patterns/queue-processing.md)
 
-Complete documentation of Phase 1.3.2 implementation: Cloudflare Queues producer infrastructure, getCloudflareContext usage, build-time vs runtime environment handling, and lazy-loading patterns.
+## Standalone Documentation
 
-### Phase 2 Implementation Details
+Some docs don't fit cleanly in a category but are important:
 
-#### [phase-2-implementation.md](./phase-2-implementation.md)
-**When to read:** Understanding authentication flow, Supabase SSR clients, middleware, or session management.
+- **[technical-debt.md](./technical-debt.md)** - Known issues and accepted risks
+- **[pr-review-workflow.md](./pr-review-workflow.md)** - Using `/review-pr` and `/review-pr-team`
+- **[documentation-refactor-plan.md](./documentation-refactor-plan.md)** - Refactor plan and implementation status
 
-Complete documentation of Phase 2 implementation: Magic link authentication with Supabase Auth + Resend SMTP, three Supabase client patterns (browser, server, middleware), protected route middleware, session refresh, and testing strategy.
+## Navigation Tips
 
-### Phase 3 Implementation Details
+1. **Start with the section index** - Each subdirectory has a CLAUDE.md that lists all docs
+2. **Use breadcrumbs** - Every doc shows its location (e.g., "REFERENCE > Features > Reader Sync")
+3. **Follow related links** - Docs link to related information at the bottom
+4. **Search by question** - "How do I X?" → Find X in the indexes
 
-#### [phase-3-implementation.md](./phase-3-implementation.md)
-**When to read:** Understanding Reader API integration, sync operations, queue consumer, or status polling. 🚧 In Progress
+## Historical Documentation
 
-Complete documentation of Phase 3 implementation (backend): Reader API client with Zod validation and rate limiting, sync endpoint with pagination support, status polling endpoint, queue consumer worker, database migration (sync_log_id), error handling, and testing strategy. UI implementation pending.
-
-### General Documentation
-
-### [architecture.md](./architecture.md)
-**When to read:** Understanding how the system works, onboarding new developers, or planning architectural changes.
-
-Complete system architecture with Mermaid diagram showing all components, data flows, database schema, external service integrations, and request flow examples. Includes technology stack and deployment details.
-
-### [deployment-guide.md](./deployment-guide.md)
-**When to read:** Deploying to production, setting up CI/CD, or troubleshooting deployment issues.
-
-Complete deployment guide for Cloudflare Workers (NOT Pages - important distinction), CI/CD setup with GitHub Actions, manual deployment process, required secrets, custom domain configuration, and deployment troubleshooting.
-
-### [testing-strategy.md](./testing-strategy.md)
-**When to read:** Writing tests, setting up test coverage, or implementing TDD workflow.
-
-Complete testing philosophy, framework setup (Vitest), test categories, coverage requirements, and CI/CD integration.
-
-### [technical-debt.md](./technical-debt.md)
-**When to read:** Planning refactors, reviewing known issues, or documenting accepted shortcuts.
-
-Tracker for known limitations, accepted risks, and deferred improvements with risk assessments.
-
-### [environment-setup.md](./environment-setup.md)
-**When to read:** Setting up local development, configuring secrets, or deploying to production.
-
-Environment variables, API key configuration, third-party service setup (Supabase, Readwise, Perplexity, Resend).
-
-### [troubleshooting.md](./troubleshooting.md)
-**When to read:** Debugging issues, fixing deployment problems, or resolving API integration errors.
-
-Common issues and solutions for local development, deployment, and API integrations.
-
-### [pr-review-workflow.md](./pr-review-workflow.md)
-**When to read:** Creating PRs or running code reviews.
-
-How to use `/review-pr` and `/review-pr-team` skills for automated code review.
+Phase-based implementation docs are being moved to `SPECIFICATIONS/ARCHIVE/implementation/` as they're replaced by functional documentation above. These remain for historical reference but are not the primary documentation source.
