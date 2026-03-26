@@ -120,6 +120,14 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    if (!session.user.email) {
+      console.error('[Settings] User email is missing from session:', session.user);
+      return NextResponse.json(
+        { error: 'User email not found in session' },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
 
     // Validate request body
@@ -142,9 +150,18 @@ export async function PATCH(request: NextRequest) {
     );
 
     if (error) {
-      console.error('[Settings] Failed to update settings:', error);
+      console.error('[Settings] Failed to update settings:', {
+        error,
+        userId: session.user.id,
+        email: session.user.email,
+        data: validated.data,
+      });
       return NextResponse.json(
-        { error: 'Failed to update settings' },
+        {
+          error: 'Failed to update settings',
+          details: error.message,
+          hint: error.hint,
+        },
         { status: 500 }
       );
     }
