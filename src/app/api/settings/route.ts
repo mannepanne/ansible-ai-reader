@@ -137,7 +137,6 @@ export async function PATCH(request: NextRequest) {
         id: session.user.id,
         email: session.user.email,
         ...validated.data,
-        updated_at: new Date().toISOString(),
       },
       { onConflict: 'id' }
     );

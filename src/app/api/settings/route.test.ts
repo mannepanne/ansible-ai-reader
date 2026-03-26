@@ -200,7 +200,6 @@ describe('PATCH /api/settings', () => {
         email: 'test@example.com',
         sync_interval: 12,
         summary_prompt: 'New prompt',
-        updated_at: expect.any(String),
       }),
       { onConflict: 'id' }
     );
