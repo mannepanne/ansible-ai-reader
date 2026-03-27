@@ -28,6 +28,59 @@ describe('GET /api/reader/status', () => {
     vi.clearAllMocks();
   });
 
+  it('returns completed status for empty sync (0 jobs)', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'sync_log') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: { id: 'sync-123' },
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === 'processing_jobs') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: [],
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+    });
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/reader/status?syncId=sync-123'
+    );
+
+    const response = await GET(request);
+    const data = (await response.json()) as any;
+
+    expect(response.status).toBe(200);
+    expect(data).toMatchObject({
+      syncId: 'sync-123',
+      totalJobs: 0,
+      completedJobs: 0,
+      failedJobs: 0,
+      inProgressJobs: 0,
+      pendingJobs: 0,
+      status: 'completed',
+    });
+  });
+
   it('returns status for pending sync', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: mockSession.user },

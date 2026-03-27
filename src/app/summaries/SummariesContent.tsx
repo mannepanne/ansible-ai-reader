@@ -73,8 +73,9 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
         const status: SyncStatus = await response.json();
         setSyncStatus(status);
 
-        // Stop polling when sync is complete
+        // Stop polling when sync is complete or empty
         if (
+          status.totalJobs === 0 ||
           status.status === 'completed' ||
           status.status === 'partial_failure' ||
           status.status === 'failed'
@@ -388,7 +389,9 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
               }}
             >
               <p style={{ margin: 0, fontWeight: 600 }}>
-                {syncStatus.status === 'completed' &&
+                {syncStatus.status === 'completed' && syncStatus.totalJobs === 0 &&
+                  `✅ No unsynced items. Ansible is up to date!`}
+                {syncStatus.status === 'completed' && syncStatus.totalJobs > 0 &&
                   `✅ Sync completed! ${syncStatus.completedJobs} items processed.`}
                 {syncStatus.status === 'partial_failure' &&
                   `⚠️ Sync completed with ${syncStatus.failedJobs} failures. ${syncStatus.completedJobs} items processed successfully.`}

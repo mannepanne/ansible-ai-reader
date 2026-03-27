@@ -101,7 +101,8 @@ export async function GET(request: NextRequest) {
     // Determine overall status
     let status: SyncStatusResponse['status'];
     if (totalJobs === 0) {
-      status = 'pending';
+      // Empty sync is considered complete (nothing to do)
+      status = 'completed';
     } else if (completedJobs === totalJobs) {
       status = 'completed';
     } else if (failedJobs === totalJobs) {
