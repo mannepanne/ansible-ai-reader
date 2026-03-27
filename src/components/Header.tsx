@@ -153,13 +153,17 @@ export default function Header({
           background: 'transparent',
           border: '1px solid #6c757d',
           color: '#adb5bd',
-          padding: '4px 12px',
+          padding: '6px 12px',
           borderRadius: '4px',
           cursor: 'pointer',
           fontSize: '0.85em',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
         }}
       >
-        Logout
+        <span>➜</span>
+        {!isMobile && <span>Logout</span>}
       </button>
     </header>
   );
