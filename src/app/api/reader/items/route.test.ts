@@ -5,13 +5,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GET } from './route';
 
 // Mock dependencies
-const mockGetSession = vi.fn();
+const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
 
 vi.mock('@/utils/supabase/server', () => ({
   createClient: vi.fn(async () => ({
     auth: {
-      getSession: mockGetSession,
+      getUser: mockGetUser,
     },
     from: mockFrom,
   })),
@@ -28,8 +28,8 @@ describe('GET /api/reader/items', () => {
   });
 
   it('returns items for authenticated user', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     const mockItems = [
@@ -82,8 +82,8 @@ describe('GET /api/reader/items', () => {
   });
 
   it('returns empty array when user has no items', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     mockFrom.mockReturnValue({
@@ -107,8 +107,8 @@ describe('GET /api/reader/items', () => {
   });
 
   it('returns 401 when not authenticated', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: null },
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
     });
 
     const response = await GET();
@@ -119,8 +119,8 @@ describe('GET /api/reader/items', () => {
   });
 
   it('returns 500 when database query fails', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     mockFrom.mockReturnValue({

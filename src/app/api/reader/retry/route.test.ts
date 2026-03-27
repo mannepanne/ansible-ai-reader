@@ -6,14 +6,14 @@ import { POST } from './route';
 import { NextRequest } from 'next/server';
 
 // Mock dependencies
-const mockGetSession = vi.fn();
+const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
 const mockSend = vi.fn();
 
 vi.mock('@/utils/supabase/server', () => ({
   createClient: vi.fn(async () => ({
     auth: {
-      getSession: mockGetSession,
+      getUser: mockGetUser,
     },
     from: mockFrom,
   })),
@@ -40,8 +40,8 @@ describe('POST /api/reader/retry', () => {
   });
 
   it('retries failed jobs successfully', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     mockFrom.mockImplementation((table: string) => {
@@ -122,8 +122,8 @@ describe('POST /api/reader/retry', () => {
   });
 
   it('returns 0 when no failed jobs', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     mockFrom.mockImplementation((table: string) => {
@@ -170,8 +170,8 @@ describe('POST /api/reader/retry', () => {
   });
 
   it('returns 401 when not authenticated', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: null },
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
     });
 
     const request = new NextRequest('http://localhost:3000/api/reader/retry', {
@@ -187,8 +187,8 @@ describe('POST /api/reader/retry', () => {
   });
 
   it('returns 400 when syncId is missing', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     const request = new NextRequest('http://localhost:3000/api/reader/retry', {
@@ -204,8 +204,8 @@ describe('POST /api/reader/retry', () => {
   });
 
   it('returns 404 when sync not found', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     mockFrom.mockReturnValue({
@@ -234,8 +234,8 @@ describe('POST /api/reader/retry', () => {
   });
 
   it('returns 500 when failed to fetch jobs', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     mockFrom.mockImplementation((table: string) => {

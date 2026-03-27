@@ -55,17 +55,17 @@ export async function GET() {
   try {
     const supabase = await createClient();
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { data: user, error } = await supabase
       .from('users')
       .select('sync_interval, summary_prompt')
-      .eq('id', session.user.id)
+      .eq('id', authUser.id)
       .single();
 
     if (error && error.code !== 'PGRST116') {
@@ -113,17 +113,17 @@ export async function PATCH(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!session.user.email) {
-      console.error('[Settings] User email is missing from session:', session.user);
+    if (!user.email) {
+      console.error('[Settings] User email is missing from auth:', user);
       return NextResponse.json(
-        { error: 'User email not found in session' },
+        { error: 'User email not found' },
         { status: 400 }
       );
     }
@@ -144,8 +144,8 @@ export async function PATCH(request: NextRequest) {
     const serviceClient = createServiceRoleClient();
     const { error } = await serviceClient.from('users').upsert(
       {
-        id: session.user.id,
-        email: session.user.email,
+        id: user.id,
+        email: user.email,
         ...validated.data,
       },
       { onConflict: 'id' }
@@ -154,8 +154,8 @@ export async function PATCH(request: NextRequest) {
     if (error) {
       console.error('[Settings] Failed to update settings:', {
         error,
-        userId: session.user.id,
-        email: session.user.email,
+        userId: user.id,
+        email: user.email,
         data: validated.data,
       });
       return NextResponse.json(

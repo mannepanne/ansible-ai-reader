@@ -22,8 +22,8 @@ describe('GET /api/settings', () => {
   it('returns user settings successfully', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
       from: vi.fn().mockReturnThis(),
@@ -51,8 +51,8 @@ describe('GET /api/settings', () => {
   it('returns defaults when user record does not exist', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
       from: vi.fn().mockReturnThis(),
@@ -77,8 +77,8 @@ describe('GET /api/settings', () => {
   it('returns 401 when not authenticated', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: null },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: null },
         }),
       },
     } as any);
@@ -93,8 +93,8 @@ describe('GET /api/settings', () => {
   it('returns 500 on database error', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
       from: vi.fn().mockReturnThis(),
@@ -134,8 +134,8 @@ describe('PATCH /api/settings', () => {
   it('updates sync_interval successfully', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -155,8 +155,8 @@ describe('PATCH /api/settings', () => {
   it('updates summary_prompt successfully', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -178,8 +178,8 @@ describe('PATCH /api/settings', () => {
   it('updates both settings simultaneously', async () => {
     const mockSupabase = {
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     };
@@ -218,8 +218,8 @@ describe('PATCH /api/settings', () => {
   it('returns 401 when not authenticated', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: null },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: null },
         }),
       },
     } as any);
@@ -234,8 +234,8 @@ describe('PATCH /api/settings', () => {
   it('returns 400 for invalid sync_interval (negative)', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -250,8 +250,8 @@ describe('PATCH /api/settings', () => {
   it('returns 400 for invalid sync_interval (too large)', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -266,8 +266,8 @@ describe('PATCH /api/settings', () => {
   it('returns 400 for invalid summary_prompt (too short)', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -282,8 +282,8 @@ describe('PATCH /api/settings', () => {
   it('returns 400 for invalid summary_prompt (too long)', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -300,8 +300,8 @@ describe('PATCH /api/settings', () => {
   it('accepts sync_interval = 0 (disabled)', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -321,8 +321,8 @@ describe('PATCH /api/settings', () => {
   it('accepts sync_interval = 24 (maximum)', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -342,8 +342,8 @@ describe('PATCH /api/settings', () => {
   it('returns 500 on database error', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -369,8 +369,8 @@ describe('PATCH /api/settings', () => {
   it('strips HTML tags from summary_prompt', async () => {
     const mockSupabase = {
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     };
@@ -405,8 +405,8 @@ describe('PATCH /api/settings', () => {
   it('rejects prompt with "ignore previous" injection attempt', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -426,8 +426,8 @@ describe('PATCH /api/settings', () => {
   it('rejects prompt with "ignore all" injection attempt', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -447,8 +447,8 @@ describe('PATCH /api/settings', () => {
   it('rejects prompt with "system:" injection attempt', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -468,8 +468,8 @@ describe('PATCH /api/settings', () => {
   it('rejects prompt with "assistant:" injection attempt', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -488,8 +488,8 @@ describe('PATCH /api/settings', () => {
   it('handles malformed JSON in request body', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -524,7 +524,7 @@ describe('GET /api/settings - Error handling', () => {
   it('handles unexpected exceptions in try/catch', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockRejectedValue(new Error('Network failure')),
+        getUser: vi.fn().mockRejectedValue(new Error('Network failure')),
       },
     } as any);
 

@@ -39,8 +39,8 @@ describe('POST /api/reader/sync', () => {
   it('syncs items successfully', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -77,8 +77,8 @@ describe('POST /api/reader/sync', () => {
   it('returns 401 when not authenticated', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: null },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: null },
         }),
       },
     } as any);
@@ -94,8 +94,8 @@ describe('POST /api/reader/sync', () => {
   it('returns 500 when READER_API_TOKEN not configured', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -113,8 +113,8 @@ describe('POST /api/reader/sync', () => {
   it('handles sync errors gracefully', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -135,8 +135,8 @@ describe('POST /api/reader/sync', () => {
   it('calls performSyncForUser with triggered_by=manual', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -160,8 +160,8 @@ describe('POST /api/reader/sync', () => {
   it('returns errors count when sync has errors', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);
@@ -188,8 +188,8 @@ describe('POST /api/reader/sync', () => {
   it('works in local dev mode without Cloudflare queue', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: mockSession },
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
         }),
       },
     } as any);

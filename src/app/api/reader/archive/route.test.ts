@@ -6,13 +6,13 @@ import { POST } from './route';
 import { NextRequest } from 'next/server';
 
 // Mock dependencies
-const mockGetSession = vi.fn();
+const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
 
 vi.mock('@/utils/supabase/server', () => ({
   createClient: vi.fn(async () => ({
     auth: {
-      getSession: mockGetSession,
+      getUser: mockGetUser,
     },
     from: mockFrom,
   })),
@@ -52,8 +52,8 @@ describe('POST /api/reader/archive', () => {
   });
 
   it('archives item successfully', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     mockFrom.mockImplementation((table: string) => {
@@ -99,8 +99,8 @@ describe('POST /api/reader/archive', () => {
   });
 
   it('returns 401 when not authenticated', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: null },
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
     });
 
     const request = new NextRequest('http://localhost:3000/api/reader/archive', {
@@ -116,8 +116,8 @@ describe('POST /api/reader/archive', () => {
   });
 
   it('returns 400 when itemId is missing', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     const request = new NextRequest('http://localhost:3000/api/reader/archive', {
@@ -133,8 +133,8 @@ describe('POST /api/reader/archive', () => {
   });
 
   it('returns 404 when item not found', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     mockFrom.mockReturnValue({
@@ -165,8 +165,8 @@ describe('POST /api/reader/archive', () => {
   it('returns 500 when READER_API_TOKEN not configured', async () => {
     process.env.READER_API_TOKEN = '';
 
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     mockFrom.mockReturnValue({
@@ -198,8 +198,8 @@ describe('POST /api/reader/archive', () => {
   });
 
   it('returns 500 when Reader API fails', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     mockFrom.mockReturnValue({
@@ -233,8 +233,8 @@ describe('POST /api/reader/archive', () => {
   });
 
   it('returns 500 when database update fails after Reader archive', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     mockFrom.mockImplementation((table: string) => {
@@ -281,8 +281,8 @@ describe('POST /api/reader/archive', () => {
   });
 
   it('archives item locally when item was deleted in Reader (404)', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     const mockUpdate = vi.fn().mockReturnValue({

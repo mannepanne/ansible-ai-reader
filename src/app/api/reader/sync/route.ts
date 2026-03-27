@@ -27,14 +27,14 @@ export async function POST(request: NextRequest) {
     // Check authentication
     const supabase = await createClient();
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = user.id;
 
     // Get Reader API token from environment
     const readerApiToken = process.env.READER_API_TOKEN;

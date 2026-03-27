@@ -5,14 +5,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from './route';
 
 // Mock dependencies
-const mockGetSession = vi.fn();
+const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
 const mockSend = vi.fn();
 
 vi.mock('@/utils/supabase/server', () => ({
   createClient: vi.fn(async () => ({
     auth: {
-      getSession: mockGetSession,
+      getUser: mockGetUser,
     },
     from: mockFrom,
   })),
@@ -39,8 +39,8 @@ describe('POST /api/reader/regenerate-tags', () => {
   });
 
   it('returns 401 when not authenticated', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: null },
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
     });
 
     const response = await POST();
@@ -51,8 +51,8 @@ describe('POST /api/reader/regenerate-tags', () => {
   });
 
   it('only regenerates tags for authenticated user items', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     const mockSelect = vi.fn().mockReturnValue({
@@ -93,8 +93,8 @@ describe('POST /api/reader/regenerate-tags', () => {
   });
 
   it('creates jobs for items with summaries but null tags', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     const mockSelect = vi.fn().mockReturnValue({
@@ -148,8 +148,8 @@ describe('POST /api/reader/regenerate-tags', () => {
   });
 
   it('returns count of queued items', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     const mockSelect = vi.fn().mockReturnValue({
@@ -193,8 +193,8 @@ describe('POST /api/reader/regenerate-tags', () => {
   });
 
   it('returns message when no items need regeneration', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     const mockSelect = vi.fn().mockReturnValue({
@@ -221,8 +221,8 @@ describe('POST /api/reader/regenerate-tags', () => {
   });
 
   it('handles database query errors', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     const mockSelect = vi.fn().mockReturnValue({
@@ -248,8 +248,8 @@ describe('POST /api/reader/regenerate-tags', () => {
   });
 
   it('handles job creation errors', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     const mockSelect = vi.fn().mockReturnValue({
@@ -300,8 +300,8 @@ describe('POST /api/reader/regenerate-tags', () => {
       throw new Error('Not in Cloudflare runtime');
     });
 
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     const mockSelect = vi.fn().mockReturnValue({
@@ -342,8 +342,8 @@ describe('POST /api/reader/regenerate-tags', () => {
   });
 
   it('enqueues messages with correct structure', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     const mockSelect = vi.fn().mockReturnValue({

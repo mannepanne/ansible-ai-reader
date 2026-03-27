@@ -6,13 +6,13 @@ import { GET } from './route';
 import { NextRequest } from 'next/server';
 
 // Mock dependencies
-const mockGetSession = vi.fn();
+const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
 
 vi.mock('@/utils/supabase/server', () => ({
   createClient: vi.fn(async () => ({
     auth: {
-      getSession: mockGetSession,
+      getUser: mockGetUser,
     },
     from: mockFrom,
   })),
@@ -29,8 +29,8 @@ describe('GET /api/reader/status', () => {
   });
 
   it('returns status for pending sync', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     mockFrom.mockImplementation((table: string) => {
@@ -85,8 +85,8 @@ describe('GET /api/reader/status', () => {
   });
 
   it('returns status for processing sync', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     mockFrom.mockImplementation((table: string) => {
@@ -142,8 +142,8 @@ describe('GET /api/reader/status', () => {
   });
 
   it('returns status for completed sync', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     mockFrom.mockImplementation((table: string) => {
@@ -196,8 +196,8 @@ describe('GET /api/reader/status', () => {
   });
 
   it('returns status for partial failure', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     mockFrom.mockImplementation((table: string) => {
@@ -271,8 +271,8 @@ describe('GET /api/reader/status', () => {
   });
 
   it('returns status for complete failure', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     mockFrom.mockImplementation((table: string) => {
@@ -343,8 +343,8 @@ describe('GET /api/reader/status', () => {
   });
 
   it('returns 401 when not authenticated', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: null },
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
     });
 
     const request = new NextRequest(
@@ -359,8 +359,8 @@ describe('GET /api/reader/status', () => {
   });
 
   it('returns 400 when syncId missing', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     const request = new NextRequest('http://localhost:3000/api/reader/status');
@@ -373,8 +373,8 @@ describe('GET /api/reader/status', () => {
   });
 
   it('returns 404 when sync not found', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     mockFrom.mockReturnValue({
@@ -402,8 +402,8 @@ describe('GET /api/reader/status', () => {
   });
 
   it('returns 500 when jobs query fails', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: mockSession },
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
     });
 
     mockFrom.mockImplementation((table: string) => {
