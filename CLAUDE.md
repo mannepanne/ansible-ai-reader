@@ -37,106 +37,68 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 - Perplexity API (sonar-pro model for AI summaries)
 - Supabase Auth (magic links via Resend)
 
-**Current Status:** ✅ Phase 4 Complete - Fully functional application with 237 tests passing
+**Current Status:** ✅ Fully functional application with 237 tests passing (95%+ coverage)
 
-**Complete architecture diagram:** [REFERENCE/architecture.md](./REFERENCE/architecture.md)
+**Complete architecture:** [REFERENCE/architecture/](./REFERENCE/architecture/) - 3-worker system, database schema, auth patterns
 
-## Implementation Phases
+## Finding Documentation
 
-Development is organized into 6 numbered phases with clear deliverables, testing requirements, and PR workflows:
+Documentation is organized by **function** (what you're trying to do), not build chronology:
 
-1. ✅ **Phase 1: Foundation** - [Archived](./SPECIFICATIONS/ARCHIVE/01-foundation.md) - Completed Mar 10, 2026
-2. ✅ **Phase 2: Authentication** - [Archived](./SPECIFICATIONS/ARCHIVE/02-authentication.md) - Completed Mar 12, 2026
-3. ✅ **Phase 3: Reader Integration** - [Archived](./SPECIFICATIONS/ARCHIVE/03-reader-integration.md) - Completed Mar 14, 2026
-4. ✅ **Phase 4: Perplexity Integration** - [Archived](./SPECIFICATIONS/ARCHIVE/04-perplexity-integration.md) - Completed Mar 15, 2026 (237 tests)
-5. 🚧 **Phase 5: Notes & Rating** - [05-notes-rating-polish.md](./SPECIFICATIONS/05-notes-rating-polish.md) - Document notes, ratings, settings
-6. 📋 **Phase 6: Launch** - [06-launch.md](./SPECIFICATIONS/06-launch.md) - Documentation, monitoring, final testing
+### 📐 Understanding the System
+**[REFERENCE/architecture/](./REFERENCE/architecture/)** - How it works
+- System overview (3-worker architecture, tech stack)
+- Database schema (tables, RLS policies)
+- Workers (main app, queue consumer, cron)
+- Authentication (magic links, 3 client types)
+- API design (REST conventions)
 
-**Current phase:** Phase 4 Complete - Core functionality delivered, ready for Phase 5 (polish features)
+### ✨ Working with Features
+**[REFERENCE/features/](./REFERENCE/features/)** - User-facing functionality
+- Reader sync (API integration, pagination, archiving)
+- AI summaries (Perplexity, content truncation, token tracking)
+- Automated sync (cron worker, intervals, settings)
+- Settings (sync intervals, custom prompts)
+- Tags (AI generation, regeneration)
 
-### Phase Summaries
+### 🚀 Deploying & Operating
+**[REFERENCE/operations/](./REFERENCE/operations/)** - Production deployment
+- Deployment (3-worker setup, CI/CD, secrets)
+- Environment setup (API keys, .dev.vars)
+- Monitoring (logs, metrics, debugging)
+- Troubleshooting (common issues, RLS errors, queue problems)
 
-**Phase 1: Foundation (Completed Mar 10, 2026)**
-- Next.js 15 + Cloudflare Workers + Supabase + Cloudflare Queues
-- 26 tests passing with 95%+ coverage
-- See: [phase-1-completion-summary.md](./REFERENCE/phase-1-completion-summary.md)
+### 💻 Contributing Code
+**[REFERENCE/development/](./REFERENCE/development/)** - Dev workflow
+- Local development (setup, running tests, debugging)
+- Testing strategy (TDD, 95%+ coverage, patterns)
+- Code conventions (ABOUT comments, naming, style)
+- PR review workflow (`/review-pr` vs `/review-pr-team`)
 
-**Phase 2: Authentication (Completed Mar 12, 2026)**
-- Magic link authentication with Supabase Auth + Resend SMTP
-- Protected routes with middleware and session management
-- 22 new tests (64 total passing)
-- See: [phase-2-implementation.md](./REFERENCE/phase-2-implementation.md)
+### 🏗️ Learning Patterns
+**[REFERENCE/patterns/](./REFERENCE/patterns/)** - Implementation patterns
+- Service role client (safely bypassing RLS)
+- API validation (Zod, prompt injection prevention)
+- Queue processing (retries, DLQ, monitoring)
+- Error handling (logging, user messages, debugging)
 
-**Phase 3: Reader Integration (Completed Mar 14, 2026)**
-- Reader API client with rate limiting and pagination
-- Sync, archive, retry, and status polling endpoints
-- Queue consumer worker for async processing
-- Full UI implementation with real-time progress
-- 56 new tests (120 total passing)
-- See: [phase-3-implementation.md](./REFERENCE/phase-3-implementation.md)
+## Quick Navigation
 
-**Phase 4: Perplexity Integration (Completed Mar 15, 2026)**
-- AI summary generation via Perplexity API (sonar-pro model)
-- Markdown-formatted summaries with ReactMarkdown rendering
-- AI tag generation (3-10 tags per item)
-- Tag regeneration for existing items
-- Content truncation handling (30k char limit)
-- Token usage tracking for cost monitoring
-- 117 new tests (237 total passing)
-- See: [phase-4-implementation.md](./REFERENCE/phase-4-implementation.md) *(to be created)*
+**Most common needs:**
+- **"How do I deploy?"** → [REFERENCE/operations/deployment.md](./REFERENCE/operations/deployment.md)
+- **"How do I run locally?"** → [REFERENCE/development/local-development.md](./REFERENCE/development/local-development.md)
+- **"How does X work?"** → Browse [REFERENCE/](./REFERENCE/) by category above
+- **"Something broke!"** → [REFERENCE/operations/troubleshooting.md](./REFERENCE/operations/troubleshooting.md)
+- **"What are the conventions?"** → [REFERENCE/development/code-conventions.md](./REFERENCE/development/code-conventions.md)
 
-**Recent Improvements (Mar 16, 2026):**
-- Fixed archived items reappearing bug (#15)
-- Moved "Regenerate Tags" button to header (#14)
-- Fixed magic link localhost issue (Supabase Site URL caching)
-- Added ReactMarkdown rendering for beautiful summary formatting
-- Created comprehensive architecture documentation
+**Planning new features:**
+- **Active specs** → [SPECIFICATIONS/](./SPECIFICATIONS/) (numbered phases)
+- **Completed specs** → [SPECIFICATIONS/ARCHIVE/](./SPECIFICATIONS/ARCHIVE/)
+- **Implementation history** → [SPECIFICATIONS/ARCHIVE/implementation/](./SPECIFICATIONS/ARCHIVE/implementation/) (phase docs)
 
-### SPECIFICATIONS/
-- **Implementation phases** (numbered files) - Active work-in-progress
-- **ORIGINAL\_IDEA/** - Master spec and naming inspiration
-- **ARCHIVE/** - Completed specs (move here when phase complete)
-
-### REFERENCE/
-How-it-works documentation for implemented features:
-
-**Essential Docs:**
-- [architecture.md](./REFERENCE/architecture.md) - **START HERE** - Complete system architecture with Mermaid diagram
-- [deployment-guide.md](./REFERENCE/deployment-guide.md) - Production deployment, CI/CD setup, Cloudflare Workers
-- [testing-strategy.md](./REFERENCE/testing-strategy.md) - Testing philosophy, 237 tests, 95%+ coverage
-- [environment-setup.md](./REFERENCE/environment-setup.md) - API keys and environment configuration
-- [troubleshooting.md](./REFERENCE/troubleshooting.md) - Common issues and solutions (includes Supabase quirks)
-- [technical-debt.md](./REFERENCE/technical-debt.md) - Known issues and accepted risks
-
-**Implementation Documentation:**
-- [phase-1-completion-summary.md](./REFERENCE/phase-1-completion-summary.md) - Phase 1 high-level overview
-- [phase-1-1-implementation.md](./REFERENCE/phase-1-1-implementation.md) - Next.js scaffolding & build setup
-- [phase-1-2-implementation.md](./REFERENCE/phase-1-2-implementation.md) - Database schema & Supabase clients
-- [phase-1-3-1-implementation.md](./REFERENCE/phase-1-3-1-implementation.md) - Cloudflare deployment & secrets
-- [phase-1-3-2-implementation.md](./REFERENCE/phase-1-3-2-implementation.md) - Queues infrastructure
-- [phase-2-implementation.md](./REFERENCE/phase-2-implementation.md) - Magic link auth, Supabase SSR clients
-- [phase-3-implementation.md](./REFERENCE/phase-3-implementation.md) - Reader API client, sync operations, queue consumer
-- [pr-review-workflow.md](./REFERENCE/pr-review-workflow.md) - `/review-pr` and `/review-pr-team` skills
-
-Practice is to aim to not allow CLAUDE.md files to grow very large (300+ lines), but keep CLAUDE.md files short and snappy, with relevant details broken out in separate reference files clearly linked with succinct summaries as above. CLAUDE.md files work as "library index" to find the right context when it's needed, and in that way minimise use of tokens.
-
-## Code Conventions
-
-### File Headers
-```typescript
-// ABOUT: Brief description of file purpose
-// ABOUT: Key functionality or responsibility
-```
-
-### Naming
-- Descriptive names: `AUTH_KV` not `KV1`
-- TypeScript conventions: camelCase (variables), PascalCase (types)
-- Avoid temporal references: no "new", "improved", "old"
-
-### Comments
-- Evergreen (describe what code does, not recent changes)
-- Minimal (code should be self-documenting)
-- Explain complex logic and non-obvious decisions
+**Other important docs:**
+- **Technical debt** → [REFERENCE/technical-debt.md](./REFERENCE/technical-debt.md)
+- **Project outline** → [SPECIFICATIONS/ORIGINAL_IDEA/ansible-outline.md](./SPECIFICATIONS/ORIGINAL_IDEA/ansible-outline.md)
 
 ## Development Workflow
 
@@ -148,7 +110,7 @@ Practice is to aim to not allow CLAUDE.md files to grow very large (300+ lines),
 4. **Create PR for review:**
    - **`/review-pr`** - Fast single-reviewer (regular PRs, 1-2 min)
    - **`/review-pr-team`** - Multi-perspective agent team (critical changes, 5-10 min)
-   - **See:** [pr-review-workflow.md](./REFERENCE/pr-review-workflow.md) for complete guide
+   - **See:** [REFERENCE/development/pr-review-workflow.md](./REFERENCE/development/pr-review-workflow.md)
 5. **Wait for approval:** Do not merge until PR is reviewed and approved
 6. **Merge only after approval:** Once approved, merge to main (auto-deploys via CI/CD)
 
@@ -156,14 +118,6 @@ Practice is to aim to not allow CLAUDE.md files to grow very large (300+ lines),
 - CI/CD automatically deploys from main to production
 - Main branch must only contain reviewed, tested code
 - PR reviews catch security issues, missing tests, and design problems
-
-## TypeScript Configuration
-
-- Target: ESNext for Next.js/Cloudflare Workers runtime
-- Strict mode enabled
-- Path alias: `@/` maps to `./src/` (Next.js convention)
-- React 19 and Next.js 15 types included
-- Configured with `@cloudflare/next-on-pages` adapter
 
 ## Testing
 
@@ -178,22 +132,33 @@ npm run test:watch        # Watch mode
 npm run test:coverage     # Coverage report
 ```
 
-**Coverage target:** 100% (enforced minimums: 95% lines/functions/statements, 90% branches)
+**Coverage target:** 95%+ lines/functions/statements, 90%+ branches
 
-**See:** [testing-strategy.md](./REFERENCE/testing-strategy.md) for complete details
+**Current status:** 237 tests passing
 
-## Quick Reference Links
+**See:** [REFERENCE/development/testing-strategy.md](./REFERENCE/development/testing-strategy.md)
 
-**Planning & Specs:**
-- **Project outline** → [ansible-outline.md](./SPECIFICATIONS/ORIGINAL_IDEA/ansible-outline.md)
-- **Naming inspiration** → [Naming-the-Ansible-of-Thoth.md](./SPECIFICATIONS/ORIGINAL_IDEA/Naming-the-Ansible-of-Thoth.md)
-- **Implementation phases** → See section above or [SPECIFICATIONS/](./SPECIFICATIONS/)
-- **Completed specs** → [ARCHIVE/](./SPECIFICATIONS/ARCHIVE/)
+## TypeScript Configuration
 
-**Reference Docs:**
-- **How does the system work?** → [architecture.md](./REFERENCE/architecture.md) - **START HERE**
-- **Deploying to production?** → [deployment-guide.md](./REFERENCE/deployment-guide.md)
-- **Setting up environment?** → [environment-setup.md](./REFERENCE/environment-setup.md)
-- **Testing strategy?** → [testing-strategy.md](./REFERENCE/testing-strategy.md)
-- **Known issues?** → [technical-debt.md](./REFERENCE/technical-debt.md)
-- **Getting unstuck?** → [troubleshooting.md](./REFERENCE/troubleshooting.md)
+- Target: ESNext for Next.js/Cloudflare Workers runtime
+- Strict mode enabled
+- Path alias: `@/` maps to `./src/` (Next.js convention)
+- React 19 and Next.js 15 types included
+- Configured with `@cloudflare/next-on-pages` adapter
+
+## Implementation Phases
+
+Development followed 6 sequential phases (all completed or in progress):
+
+1. ✅ **Phase 1: Foundation** - [Archived](./SPECIFICATIONS/ARCHIVE/01-foundation.md) (Mar 10, 2026)
+2. ✅ **Phase 2: Authentication** - [Archived](./SPECIFICATIONS/ARCHIVE/02-authentication.md) (Mar 12, 2026)
+3. ✅ **Phase 3: Reader Integration** - [Archived](./SPECIFICATIONS/ARCHIVE/03-reader-integration.md) (Mar 14, 2026)
+4. ✅ **Phase 4: Perplexity Integration** - [Archived](./SPECIFICATIONS/ARCHIVE/04-perplexity-integration.md) (Mar 15, 2026)
+5. 🚧 **Phase 5: Notes & Rating** - [05-notes-rating-polish.md](./SPECIFICATIONS/05-notes-rating-polish.md)
+6. 📋 **Phase 6: Launch** - [06-launch.md](./SPECIFICATIONS/06-launch.md)
+
+**Implementation details:** [SPECIFICATIONS/ARCHIVE/implementation/](./SPECIFICATIONS/ARCHIVE/implementation/) (historical phase-based docs)
+
+---
+
+**Practice:** Keep CLAUDE.md files short (<300 lines). Details go in REFERENCE/ subdirectories. CLAUDE.md works as a "library index" - find the right context when needed, minimize token usage.
