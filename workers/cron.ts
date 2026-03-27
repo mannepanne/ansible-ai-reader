@@ -18,7 +18,7 @@ export default {
       const response = await fetch('https://ansible.hultberg.org/api/cron/auto-sync', {
         method: 'GET',
         headers: {
-          'x-cron-secret': env.CRON_SECRET,
+          'authorization': `Bearer ${env.CRON_SECRET}`,
         },
       });
 
