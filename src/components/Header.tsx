@@ -87,6 +87,7 @@ export default function Header({
             border: 'none',
             borderRadius: '4px',
             cursor: isRegenerating ? 'not-allowed' : 'pointer',
+            lineHeight: '1',
           }}
         >
           {isRegenerating ? 'Processing...' : 'Regenerate Tags'}
@@ -107,6 +108,7 @@ export default function Header({
             border: 'none',
             borderRadius: '4px',
             cursor: isSyncing ? 'not-allowed' : 'pointer',
+            lineHeight: '1',
           }}
         >
           {isSyncing ? 'Syncing...' : 'Sync'}
@@ -126,6 +128,7 @@ export default function Header({
           alignItems: 'center',
           gap: '4px',
           fontSize: '0.85em',
+          lineHeight: '1',
         }}
         title="Settings"
       >
@@ -160,6 +163,7 @@ export default function Header({
           display: 'flex',
           alignItems: 'center',
           gap: '4px',
+          lineHeight: '1',
         }}
       >
         <span>➜</span>
