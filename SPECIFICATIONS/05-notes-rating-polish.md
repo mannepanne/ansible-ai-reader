@@ -54,10 +54,12 @@ v1.0 is production-ready without these features. Notes and ratings are quality-o
 - [x] Test with real data (Magnus's actual Reader items) - **✅ Done**
 
 **Phase 5 Remaining:**
-- [ ] Implement document notes UI (add/edit note field)
-- [ ] Validate and sanitize notes (XSS prevention, max 10k chars)
-- [ ] Sync notes to Reader API (PATCH `/api/v3/update/:id`)
-- [ ] Implement rating system (0-5 stars with validation)
+- [ ] **Document Notes** - See detailed spec: [features/document-notes.md](./features/document-notes.md)
+  - Add/edit note UI in SummaryCard
+  - API endpoint for saving notes
+  - Sync to Reader API
+  - Comprehensive testing (10+ test cases)
+- [ ] **Rating System** (0-5 stars with validation) - *Optional for v1.x*
 - [ ] Performance optimization (if needed)
 
 ### Out of Scope
@@ -69,39 +71,17 @@ v1.0 is production-ready without these features. Notes and ratings are quality-o
 
 ## Input Validation (User Input)
 
-**See Phase 3 for comprehensive validation strategy.** This phase adds user-generated content:
+**See Phase 3 for comprehensive validation strategy.**
 
 ### Document Notes Validation
 
-**Security**: Prevent XSS attacks via malicious notes
+**Detailed specification**: [features/document-notes.md](./features/document-notes.md)
 
-**Validation rules**:
-```typescript
-import DOMPurify from 'isomorphic-dompurify';
-import { z } from 'zod';
-
-const DocumentNoteSchema = z.string()
-  .max(10000, 'Notes must be under 10,000 characters')
-  .transform(note => DOMPurify.sanitize(note, {
-    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'p', 'br', 'ul', 'ol', 'li'],
-    ALLOWED_ATTR: [],
-  }));
-
-// Usage
-function saveNote(rawNote: string) {
-  const sanitized = DocumentNoteSchema.parse(rawNote);
-  // Safe to store and display
-}
-```
-
-**What we allow**:
-- Basic formatting: bold, italic, lists
+**Summary**:
+- Plain text only (no HTML formatting)
 - Max length: 10,000 characters
-- **What we block**: `<script>`, `<iframe>`, `onclick`, `onerror`, etc.
-
-**Display safety**:
-- React automatically escapes JSX content
-- Never use `dangerouslySetInnerHTML` for notes
+- Whitespace trimmed
+- XSS prevention via plain text (no sanitization library needed)
 
 ### Rating Validation
 
@@ -156,51 +136,21 @@ const SummaryPromptSchema = z.string()
 - Don't save invalid prompt
 - Keep previous valid prompt
 
-### API Input Validation (Reader Notes Sync)
-
-**When syncing notes to Reader API**:
-```typescript
-// Before sending to Reader
-const noteForReader = DocumentNoteSchema.parse(userNote);
-
-await fetch(`https://readwise.io/api/v3/update/${readerId}`, {
-  method: 'PATCH',
-  body: JSON.stringify({
-    notes: noteForReader,  // Already sanitized
-  }),
-});
-```
-
 ---
 
 ## User Flows
 
 ### Document Notes Flow
 
-```
-User viewing summary (list or detail view)
-  ↓
-Sees existing note (if any) or "Add Note" button
-  ↓
-Clicks "Add Note" or "Edit Note"
-  ↓
-Text field appears (autofocus)
-  ↓
-User types thought/annotation
-  ↓
-Clicks "Save" or presses Cmd+Enter
-  ↓
-Background:
-  1. Store note in Ansible database (document_note field)
-  2. PATCH to Reader API (notes parameter)
-  3. Show success indicator
-  ↓
-Note displayed below summary
-  ↓
-If user edits note:
-  - Update local database
-  - PATCH full note content to Reader
-```
+**Detailed UX specification**: [features/document-notes.md](./features/document-notes.md#uiux-design)
+
+**Summary**:
+1. User clicks "Add Note" or "Edit Note" link (below summary)
+2. Text area appears (3-4 rows, auto-expanding)
+3. User types note, sees character counter (X / 10,000)
+4. User saves via "Save" button or Cmd+Enter
+5. Note saved to Ansible DB → synced to Reader API
+6. Note displayed below summary with subtle styling
 
 ### Rating Flow
 
@@ -245,33 +195,16 @@ Note: Existing summaries NOT regenerated
 
 ## API Integration Details
 
-### Reader API - Document Notes
+### Document Notes
 
-**Endpoint**: `PATCH https://readwise.io/api/v3/update/<reader_id>/`
+**Detailed specification**: [features/document-notes.md](./features/document-notes.md#reader-api-integration)
 
-**Request**:
-```typescript
-await fetch(`https://readwise.io/api/v3/update/${readerId}/`, {
-  method: 'PATCH',
-  headers: {
-    'Authorization': `Token ${READER_API_TOKEN}`,
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    notes: noteContent, // Full note text
-  }),
-});
-```
-
-**Note**: This creates/updates a document-level note (not attached to a specific highlight).
-
-### Database Schema Updates
-
-**users table**: Already has `summary_prompt` field (Phase 1)
-
-**reader_items table**: Already has `document_note` and `rating` fields (Phase 1)
-
-No schema changes needed - just implement the features!
+**Summary**:
+- Endpoint: `POST /api/reader/note`
+- Request: `{ itemId, note }`
+- Saves to `reader_items.document_note` in Ansible DB
+- Syncs to Reader API: `PATCH /api/v3/update/:reader_id/`
+- No database schema changes needed (fields already exist)
 
 ---
 
