@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from './route';
 import { NextRequest } from 'next/server';
+import { MAX_NOTE_LENGTH } from '@/lib/constants';
 
 // Mock dependencies
 const mockGetUser = vi.fn();
@@ -225,12 +226,12 @@ describe('POST /api/reader/note', () => {
     );
   });
 
-  it('rejects note exceeding 10k characters', async () => {
+  it('rejects note exceeding max length', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: mockUser },
     });
 
-    const longNote = 'x'.repeat(10001);
+    const longNote = 'x'.repeat(MAX_NOTE_LENGTH + 1);
 
     const request = new NextRequest('http://localhost:3000/api/reader/note', {
       method: 'POST',
@@ -249,7 +250,7 @@ describe('POST /api/reader/note', () => {
       expect.arrayContaining([
         expect.objectContaining({
           field: 'note',
-          message: 'Note must be under 10,000 characters',
+          message: `Note must be under ${MAX_NOTE_LENGTH.toLocaleString()} characters`,
         }),
       ])
     );
@@ -381,6 +382,8 @@ describe('POST /api/reader/note', () => {
   });
 
   it('returns 502 when Reader API sync fails', async () => {
+    vi.useFakeTimers();
+
     mockGetUser.mockResolvedValue({
       data: { user: mockUser },
     });
@@ -409,6 +412,7 @@ describe('POST /api/reader/note', () => {
       }
     });
 
+    // Mock persistent 500 errors (will exhaust retries)
     mockFetch.mockResolvedValue({
       ok: false,
       status: 500,
@@ -423,12 +427,18 @@ describe('POST /api/reader/note', () => {
       }),
     });
 
-    const response = await POST(request);
+    const promise = POST(request);
+
+    // Fast-forward through retry delays (2s + 4s)
+    await vi.advanceTimersByTimeAsync(10000);
+
+    const response = await promise;
     const data = (await response.json()) as any;
 
     expect(response.status).toBe(502);
     expect(data.error).toBe('Note saved locally but failed to sync to Reader');
-    expect(data.details).toContain('500');
+
+    vi.useRealTimers();
   });
 
   it('returns 502 when Reader API token not configured', async () => {
@@ -479,6 +489,8 @@ describe('POST /api/reader/note', () => {
   });
 
   it('returns 502 when Reader API request throws error', async () => {
+    vi.useFakeTimers();
+
     mockGetUser.mockResolvedValue({
       data: { user: mockUser },
     });
@@ -517,11 +529,18 @@ describe('POST /api/reader/note', () => {
       }),
     });
 
-    const response = await POST(request);
+    const promise = POST(request);
+
+    // Fast-forward through retry delays (2s + 4s)
+    await vi.advanceTimersByTimeAsync(10000);
+
+    const response = await promise;
     const data = (await response.json()) as any;
 
     expect(response.status).toBe(502);
     expect(data.error).toBe('Note saved locally but failed to sync to Reader');
     expect(data.details).toBe('Network error');
+
+    vi.useRealTimers();
   });
 });

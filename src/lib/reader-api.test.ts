@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   fetchUnreadItems,
   archiveItem,
+  updateNote,
   ReaderAPIError,
   getQueueStatus,
 } from './reader-api';
@@ -395,6 +396,82 @@ describe('Reader API Client', () => {
       await promise;
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('updateNote', () => {
+    it('updates note successfully', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+      });
+
+      await updateNote('test-token', 'reader-123', 'This is my note');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://readwise.io/api/v3/update/reader-123/',
+        expect.objectContaining({
+          method: 'PATCH',
+          headers: expect.objectContaining({
+            Authorization: 'Token test-token',
+            'Content-Type': 'application/json',
+          }),
+          body: JSON.stringify({ notes: 'This is my note' }),
+        })
+      );
+    });
+
+    it('returns 404 error for non-existent item', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+      });
+
+      await expect(
+        updateNote('test-token', 'invalid-id', 'Test note')
+      ).rejects.toThrow('Item not found in Reader');
+    });
+
+    it('retries on server error', async () => {
+      vi.useFakeTimers();
+
+      // First attempt: 500 error
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+      });
+
+      // Second attempt: success
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+      });
+
+      const promise = updateNote('test-token', 'reader-123', 'Test note');
+
+      await vi.advanceTimersByTimeAsync(2000);
+
+      await promise;
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('handles empty notes', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+      });
+
+      await updateNote('test-token', 'reader-123', '');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://readwise.io/api/v3/update/reader-123/',
+        expect.objectContaining({
+          body: JSON.stringify({ notes: '' }),
+        })
+      );
     });
   });
 

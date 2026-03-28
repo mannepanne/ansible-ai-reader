@@ -1,9 +1,9 @@
 # Phase 5: Notes, Rating & Polish
 
-**Status**: In Progress (Partially Complete)
-**Last Updated**: 2026-03-27
-**Dependencies**: Phase 4 (Perplexity Integration) - ✅ Complete
-**Estimated Effort**: Remaining work ~2-3 days
+**Status**: In Progress (Document Notes Complete)
+**Last Updated**: 2026-03-28
+**Dependencies**: Phase 4 (Perplexity Integration) ✅
+**Estimated Effort**: Week 4-5
 
 ---
 
@@ -11,55 +11,34 @@
 
 Add document notes (synced to Reader), interest ratings, customizable summary prompts, and final polish. By the end of this phase, Ansible should be feature-complete for v1 MVP.
 
-### v1.0 Release Status (2026-03-27)
-
-**Released with v1.0 tag:**
-- ✅ Automated scheduled syncing (0-24 hour intervals)
-- ✅ Settings page (sync interval + custom summary prompts)
-- ✅ Input validation and security (Zod + XSS prevention)
-- ✅ "Open in Reader" links on all items
-- ✅ Polished UI with empty states and error messages
-- ✅ 300 tests passing (95%+ coverage)
-
-**Remaining for v1.x (optional enhancements):**
-- Document notes (add/edit notes, sync to Reader)
-- Interest ratings (0-5 stars)
-- Cost monitoring dashboard (deferred from Phase 4)
-
-v1.0 is production-ready without these features. Notes and ratings are quality-of-life improvements for future releases.
-
 ---
 
 ## Scope & Deliverables
 
 ### Core Tasks
 
-**From Phase 4 (Deferred) - Status:**
-- [ ] Implement cost calculation function (Perplexity pricing per model) - **Deferred to v1.1**
-- [ ] Create daily cost report endpoint (`GET /api/cost-report`) - **Deferred to v1.1**
-- [ ] Add billing alerts ($20, $50, $100 monthly thresholds) - **Deferred to v1.1**
-- [ ] Build cost monitoring UI dashboard - **Deferred to v1.1**
-- [x] Add processing status indicators ("Generating summary...") - **Partial (progress bars done)**
-- [x] Support retry for failed summaries via UI button - **✅ Done (PR #34)**
+**From Phase 4 (Deferred)**:
+- [ ] Implement cost calculation function (Perplexity pricing per model)
+- [ ] Create daily cost report endpoint (`GET /api/cost-report`)
+- [ ] Add billing alerts ($20, $50, $100 monthly thresholds)
+- [ ] Build cost monitoring UI dashboard
+- [ ] Add processing status indicators ("Generating summary...")
+- [ ] Support retry for failed summaries via UI button
 
-**Phase 5 Completed:**
-- [x] Implement automated scheduled syncing (Cloudflare Cron + user-configurable intervals) - **✅ Done (PR #34, #35)**
-- [x] Implement input validation with Zod - **✅ Done (settings endpoint)**
-- [x] Create settings page (editable summary prompt + sync interval) - **✅ Done (PR #35)**
-- [x] Validate summary prompts (prevent injection, max 2k chars) - **✅ Done (PR #35)**
-- [x] Add "Read in Reader" link (opens Reader URL) - **✅ Done (SummaryCard)**
-- [x] Improve empty states (helpful guidance) - **✅ Done (inbox zero state)**
-- [x] Polish error messages (user-friendly) - **✅ Done (various)**
-- [x] Add loading states for all async operations - **✅ Done (sync progress, etc.)**
-- [x] Test with real data (Magnus's actual Reader items) - **✅ Done**
-
-**Phase 5 Remaining:**
-- [ ] **Document Notes** - See detailed spec: [features/document-notes.md](./features/document-notes.md)
-  - Add/edit note UI in SummaryCard
-  - API endpoint for saving notes
-  - Sync to Reader API
-  - Comprehensive testing (10+ test cases)
-- [ ] **Rating System** (0-5 stars with validation) - *Optional for v1.x*
+**Phase 5 Original Scope**:
+- [x] Implement automated scheduled syncing (Cloudflare Cron + user-configurable intervals)
+- [x] Implement input validation with Zod (plain text for v1)
+- [x] Implement document notes UI (add/edit note field)
+- [x] Validate and sanitize notes (plain text, XSS-safe, max 10k chars)
+- [x] Sync notes to Reader API (PATCH `/api/v3/update/:id`)
+- [ ] Implement rating system (0-5 stars with validation)
+- [ ] Create settings page (editable summary prompt + sync interval)
+- [ ] Validate summary prompts (prevent injection, max 2k chars)
+- [ ] Add "Read in Reader" link (opens Reader URL)
+- [ ] Improve empty states (helpful guidance)
+- [ ] Polish error messages (user-friendly)
+- [ ] Add loading states for all async operations
+- [ ] Test with real data (Magnus's actual Reader items)
 - [ ] Performance optimization (if needed)
 
 ### Out of Scope
@@ -71,17 +50,50 @@ v1.0 is production-ready without these features. Notes and ratings are quality-o
 
 ## Input Validation (User Input)
 
-**See Phase 3 for comprehensive validation strategy.**
+**See Phase 3 for comprehensive validation strategy.** This phase adds user-generated content:
 
 ### Document Notes Validation
 
-**Detailed specification**: [features/document-notes.md](./features/document-notes.md)
+**Security**: Prevent XSS attacks via malicious notes
 
-**Summary**:
+**v1 Implementation (Plain Text Only)**:
+```typescript
+import { z } from 'zod';
+
+const DocumentNoteSchema = z.object({
+  itemId: z.string().uuid('Invalid item ID'),
+  note: z
+    .string()
+    .max(10000, 'Note must be under 10,000 characters')
+    .transform((note) => note.trim())
+    .refine((note) => note.length > 0, {
+      message: 'Note cannot be empty',
+    }),
+});
+
+// Usage
+function saveNote(rawNote: string) {
+  const validated = DocumentNoteSchema.parse({ itemId, note: rawNote });
+  // Safe to store and display (plain text, no XSS risk)
+}
+```
+
+**What we allow (v1)**:
 - Plain text only (no HTML formatting)
 - Max length: 10,000 characters
-- Whitespace trimmed
-- XSS prevention via plain text (no sanitization library needed)
+- Whitespace preserved with `whiteSpace: 'pre-wrap'`
+
+**Why plain text for v1**:
+- **Security**: Eliminates XSS risk entirely (no HTML parsing needed)
+- **Simplicity**: No need for DOMPurify, no sanitization complexity
+- **Adequate**: Plain text is sufficient for personal notes and annotations
+
+**Display safety**:
+- Plain text rendered with `whiteSpace: 'pre-wrap'` to preserve line breaks
+- React automatically escapes text content (XSS-safe by default)
+- No `dangerouslySetInnerHTML` used
+
+**Future (v2)**: Rich text formatting with DOMPurify sanitization can be added later if needed
 
 ### Rating Validation
 
@@ -136,21 +148,51 @@ const SummaryPromptSchema = z.string()
 - Don't save invalid prompt
 - Keep previous valid prompt
 
+### API Input Validation (Reader Notes Sync)
+
+**When syncing notes to Reader API**:
+```typescript
+// Before sending to Reader
+const noteForReader = DocumentNoteSchema.parse(userNote);
+
+await fetch(`https://readwise.io/api/v3/update/${readerId}`, {
+  method: 'PATCH',
+  body: JSON.stringify({
+    notes: noteForReader,  // Already sanitized
+  }),
+});
+```
+
 ---
 
 ## User Flows
 
 ### Document Notes Flow
 
-**Detailed UX specification**: [features/document-notes.md](./features/document-notes.md#uiux-design)
-
-**Summary**:
-1. User clicks "Add Note" or "Edit Note" link (below summary)
-2. Text area appears (3-4 rows, auto-expanding)
-3. User types note, sees character counter (X / 10,000)
-4. User saves via "Save" button or Cmd+Enter
-5. Note saved to Ansible DB → synced to Reader API
-6. Note displayed below summary with subtle styling
+```
+User viewing summary (list or detail view)
+  ↓
+Sees existing note (if any) or "Add Note" button
+  ↓
+Clicks "Add Note" or "Edit Note"
+  ↓
+Text field appears (autofocus)
+  ↓
+User types thought/annotation
+  ↓
+Clicks "Save" or presses Cmd+Enter
+  ↓
+Background:
+  1. Store note in Ansible database (document_note field)
+  2. PATCH to Reader API (notes parameter)
+  3. Show success indicator
+  ↓
+Note displayed below summary
+  ↓
+If user edits note:
+  - Update local database
+  - PATCH full note content to Reader
+```
 
 ### Rating Flow
 
@@ -195,16 +237,33 @@ Note: Existing summaries NOT regenerated
 
 ## API Integration Details
 
-### Document Notes
+### Reader API - Document Notes
 
-**Detailed specification**: [features/document-notes.md](./features/document-notes.md#reader-api-integration)
+**Endpoint**: `PATCH https://readwise.io/api/v3/update/<reader_id>/`
 
-**Summary**:
-- Endpoint: `POST /api/reader/note`
-- Request: `{ itemId, note }`
-- Saves to `reader_items.document_note` in Ansible DB
-- Syncs to Reader API: `PATCH /api/v3/update/:reader_id/`
-- No database schema changes needed (fields already exist)
+**Request**:
+```typescript
+await fetch(`https://readwise.io/api/v3/update/${readerId}/`, {
+  method: 'PATCH',
+  headers: {
+    'Authorization': `Token ${READER_API_TOKEN}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    notes: noteContent, // Full note text
+  }),
+});
+```
+
+**Note**: This creates/updates a document-level note (not attached to a specific highlight).
+
+### Database Schema Updates
+
+**users table**: Already has `summary_prompt` field (Phase 1)
+
+**reader_items table**: Already has `document_note` and `rating` fields (Phase 1)
+
+No schema changes needed - just implement the features!
 
 ---
 

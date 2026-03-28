@@ -313,6 +313,69 @@ export async function archiveItem(
 }
 
 /**
+ * Update a document note in Readwise Reader
+ *
+ * NOTE: This function does NOT use the rate-limited queue (unlike archiveItem).
+ * Rationale: Users expect immediate feedback when saving notes (UX priority).
+ * For architecture discussion, see: src/app/api/reader/note/route.ts
+ *
+ * @param apiToken - Reader API token
+ * @param readerId - Reader item ID
+ * @param note - Plain text note content
+ * @returns Success status
+ * @throws {ReaderAPIError} On API errors
+ */
+export async function updateNote(
+  apiToken: string,
+  readerId: string,
+  note: string
+): Promise<void> {
+  const url = `https://readwise.io/api/v3/update/${readerId}/`;
+
+  try {
+    const response = await fetchWithRetry(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Token ${apiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        notes: note,
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new ReaderAPIError(
+          'Invalid Reader API token',
+          401,
+          false
+        );
+      }
+
+      if (response.status === 404) {
+        throw new ReaderAPIError(
+          'Item not found in Reader',
+          404,
+          false
+        );
+      }
+
+      throw new ReaderAPIError(
+        `Failed to update note: ${response.status} ${response.statusText}`,
+        response.status,
+        response.status >= 500
+      );
+    }
+
+    console.log(`[Reader API] Updated note for item: ${readerId}`);
+  } catch (error) {
+    console.error('[Reader API] Note update failed:', error);
+    throw error;
+  }
+}
+
+/**
  * Get current queue size and pending count
  * Useful for monitoring rate limit compliance
  */

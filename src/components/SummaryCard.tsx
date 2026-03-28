@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { MAX_NOTE_LENGTH } from '@/lib/constants';
 
 interface SummaryCardProps {
   id: string;
@@ -73,8 +74,8 @@ export default function SummaryCard({
       return;
     }
 
-    if (trimmedNote.length > 10000) {
-      setNoteError('Note must be under 10,000 characters');
+    if (trimmedNote.length > MAX_NOTE_LENGTH) {
+      setNoteError(`Note must be under ${MAX_NOTE_LENGTH.toLocaleString()} characters`);
       return;
     }
 
@@ -230,59 +231,58 @@ export default function SummaryCard({
         >
           {displaySummary}
         </ReactMarkdown>
-        {shouldTruncate && !isExpanded && (
-          <button
-            onClick={() => setIsExpanded(true)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#0d6efd',
-              cursor: 'pointer',
-              padding: 0,
-              marginTop: '4px',
-              fontSize: 'inherit',
-              display: 'block',
-            }}
-          >
-            Expand
-          </button>
-        )}
-        {isExpanded && (
-          <button
-            onClick={() => setIsExpanded(false)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#0d6efd',
-              cursor: 'pointer',
-              padding: 0,
-              marginTop: '4px',
-              fontSize: 'inherit',
-              display: 'block',
-            }}
-          >
-            Collapse
-          </button>
-        )}
-
-        {/* Note link */}
-        {!isEditingNote && (
-          <button
-            onClick={handleAddEditNote}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#0d6efd',
-              cursor: 'pointer',
-              padding: 0,
-              marginTop: '4px',
-              fontSize: 'inherit',
-              display: 'inline-block',
-              marginLeft: shouldTruncate || isExpanded ? '8px' : '0',
-            }}
-          >
-            {savedNote ? 'Edit Note' : 'Add Note'}
-          </button>
+        {/* Action links: Expand/Collapse | Add/Edit note */}
+        {(shouldTruncate || isExpanded || !isEditingNote) && (
+          <div style={{ marginTop: '4px', fontSize: 'inherit' }}>
+            {shouldTruncate && !isExpanded && (
+              <button
+                onClick={() => setIsExpanded(true)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#0d6efd',
+                  cursor: 'pointer',
+                  padding: 0,
+                  fontSize: 'inherit',
+                }}
+              >
+                Expand
+              </button>
+            )}
+            {isExpanded && (
+              <button
+                onClick={() => setIsExpanded(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#0d6efd',
+                  cursor: 'pointer',
+                  padding: 0,
+                  fontSize: 'inherit',
+                }}
+              >
+                Collapse
+              </button>
+            )}
+            {(shouldTruncate || isExpanded) && !isEditingNote && (
+              <span style={{ color: '#6c757d', margin: '0 8px' }}>|</span>
+            )}
+            {!isEditingNote && (
+              <button
+                onClick={handleAddEditNote}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#0d6efd',
+                  cursor: 'pointer',
+                  padding: 0,
+                  fontSize: 'inherit',
+                }}
+              >
+                {savedNote ? 'Edit note' : 'Add note'}
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -319,10 +319,10 @@ export default function SummaryCard({
             <span
               style={{
                 fontSize: '0.85em',
-                color: noteText.length > 9900 ? '#e65100' : '#6c757d',
+                color: noteText.length > MAX_NOTE_LENGTH * 0.99 ? '#e65100' : '#6c757d',
               }}
             >
-              {noteText.length} / 10,000 characters
+              {noteText.length} / {MAX_NOTE_LENGTH.toLocaleString()} characters
             </span>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button

@@ -283,7 +283,7 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
       if (!response.ok) {
         // Handle partial success (502 - saved locally but Reader sync failed)
         if (response.status === 502) {
-          setSuccessMessage('Note saved (Reader sync will retry later)');
+          setSuccessMessage('Note saved locally. Reader sync failed - please try editing again to retry. Your note is safe in Ansible.');
           // Update local state even though Reader sync failed
           setItems((prev) =>
             prev.map((item) =>
