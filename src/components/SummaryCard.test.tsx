@@ -14,6 +14,7 @@ describe('SummaryCard', () => {
     tags: ['tag1', 'tag2'],
     contentTruncated: false,
     onArchive: vi.fn(),
+    onSaveNote: vi.fn(),
   };
 
   it('renders article title', () => {
@@ -230,6 +231,7 @@ describe('SummaryCard', () => {
         wordCount={1000}
         contentTruncated={true}
         onArchive={vi.fn()}
+        onSaveNote={vi.fn()}
       />
     );
 
