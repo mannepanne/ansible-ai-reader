@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from './route';
 import { NextRequest } from 'next/server';
+import { MAX_NOTE_LENGTH } from '@/lib/constants';
 
 // Mock dependencies
 const mockGetUser = vi.fn();
@@ -225,12 +226,12 @@ describe('POST /api/reader/note', () => {
     );
   });
 
-  it('rejects note exceeding 10k characters', async () => {
+  it('rejects note exceeding max length', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: mockUser },
     });
 
-    const longNote = 'x'.repeat(10001);
+    const longNote = 'x'.repeat(MAX_NOTE_LENGTH + 1);
 
     const request = new NextRequest('http://localhost:3000/api/reader/note', {
       method: 'POST',
@@ -249,7 +250,7 @@ describe('POST /api/reader/note', () => {
       expect.arrayContaining([
         expect.objectContaining({
           field: 'note',
-          message: 'Note must be under 10,000 characters',
+          message: `Note must be under ${MAX_NOTE_LENGTH.toLocaleString()} characters`,
         }),
       ])
     );

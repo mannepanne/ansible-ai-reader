@@ -14,12 +14,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { z } from 'zod';
 import { updateNote, ReaderAPIError } from '@/lib/reader-api';
+import { MAX_NOTE_LENGTH } from '@/lib/constants';
 
 const NoteSchema = z.object({
   itemId: z.string().uuid('Invalid item ID'),
   note: z
     .string()
-    .max(10000, 'Note must be under 10,000 characters')
+    .max(MAX_NOTE_LENGTH, `Note must be under ${MAX_NOTE_LENGTH.toLocaleString()} characters`)
     .transform((note) => note.trim())
     .refine((note) => note.length > 0, {
       message: 'Note cannot be empty',

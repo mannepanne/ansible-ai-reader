@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { MAX_NOTE_LENGTH } from '@/lib/constants';
 
 interface SummaryCardProps {
   id: string;
@@ -73,8 +74,8 @@ export default function SummaryCard({
       return;
     }
 
-    if (trimmedNote.length > 10000) {
-      setNoteError('Note must be under 10,000 characters');
+    if (trimmedNote.length > MAX_NOTE_LENGTH) {
+      setNoteError(`Note must be under ${MAX_NOTE_LENGTH.toLocaleString()} characters`);
       return;
     }
 
@@ -319,10 +320,10 @@ export default function SummaryCard({
             <span
               style={{
                 fontSize: '0.85em',
-                color: noteText.length > 9900 ? '#e65100' : '#6c757d',
+                color: noteText.length > MAX_NOTE_LENGTH * 0.99 ? '#e65100' : '#6c757d',
               }}
             >
-              {noteText.length} / 10,000 characters
+              {noteText.length} / {MAX_NOTE_LENGTH.toLocaleString()} characters
             </span>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
