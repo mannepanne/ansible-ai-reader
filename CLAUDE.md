@@ -102,9 +102,31 @@ Documentation is organized by **function** (what you're trying to do), not build
 
 ## Development Workflow
 
-**CRITICAL: ALL changes to main MUST go through a pull request. NEVER merge or push directly to main.**
+**⚠️ CRITICAL: ALL CODE CHANGES REQUIRE A FEATURE BRANCH + PR ⚠️**
 
-1. **Create feature branch:** `git checkout -b feature/feature-name`
+### Step 0: Pre-Implementation Check (DO THIS FIRST!)
+
+**BEFORE writing ANY code for features, bug fixes, or code changes:**
+
+- [ ] Check current branch: `git branch` - Am I on main?
+- [ ] Is this a code change? (not just documentation)
+- [ ] If yes to both: **CREATE FEATURE BRANCH FIRST**
+- [ ] Run: `git checkout -b feature/descriptive-name` or `fix/bug-name`
+
+**If you cannot check all boxes, STOP and ask the user before proceeding.**
+
+**The ONLY exceptions** (can commit to main without PR):
+- Documentation-only changes (CLAUDE.md, README.md, SPECIFICATIONS/*.md)
+- .gitignore or config file updates
+- Emergency hotfixes (create retroactive PR immediately)
+
+**If unsure, the answer is: YES, create a feature branch.**
+
+---
+
+### Implementation Steps
+
+1. **Create feature branch** (see Step 0 above - ALREADY DONE)
 2. **Check specifications:** Review `SPECIFICATIONS/` for relevant specs
 3. **Implement with tests:** `npm test && npx tsc --noEmit`
 4. **Create PR for review:**

@@ -69,6 +69,7 @@ You'll still maintain all core collaboration principles (Swedish directness, no 
 - Should there be a legitimate reason to compromise The First Rule or any of our rules, let's talk about it. You should always feel free to make suggestions, but if you suspect a rule is at risk you need to point that out.
 
 ### Essential Principles
+- **NEVER push code to main directly** - Before writing ANY code for features or bug fixes, create a feature branch first. ALL code changes MUST go through a pull request. This is as critical as not committing secrets. No exceptions for "small" changes. See Pre-Implementation Checklist below.
 - **When in doubt, ask for clarification** - Our collaboration works best when we're both clear on expectations. If any guideline doesn't make sense for what we're doing, just ask - I'd rather discuss it than have you work around something unclear.
 - **Keep it simple** - We prefer simple, clean, maintainable solutions over clever or complex ones. Follow the KISS principle and avoid over-engineering when a simple solution is available.
 - **Don't rewrite working code** - Make the smallest reasonable changes to get to the desired outcome. Don't embark on reimplementing features or systems from scratch without talking about it first - I usually prefer incremental improvements.
@@ -76,7 +77,24 @@ You'll still maintain all core collaboration principles (Swedish directness, no 
 - **Document issues as tasks** - If you notice something that should be fixed but is unrelated to your current task, document it as a new task to potentially do later instead of fixing it immediately.
 - **Keep documentation current** - When making significant changes to architecture, APIs, or core functionality, proactively update project documentation to reflect the new reality. Use the designated documentation folders for implementation details.
 - **Don't waste tokens** - Be succinct and concise.
-- **NEVER merge to main without a PR** - ALL changes to main branch MUST go through a pull request for review. This is non-negotiable. See Git Operations and Workflow section for details.
+
+### Pre-Implementation Checklist
+
+**BEFORE writing ANY code for a feature, bug fix, or code change:**
+
+1. **Check current branch**: Run `git branch` to see what branch you're on
+2. **If on main AND about to write code**: STOP immediately
+3. **Create feature branch**: `git checkout -b feature/descriptive-name` or `fix/bug-name`
+4. **Only then proceed** with implementation
+
+**CRITICAL: This checklist is BLOCKING. You cannot skip it.**
+
+**The ONLY exceptions for committing to main:**
+- Documentation-only changes (README, CLAUDE.md, SPECIFICATIONS/*.md)
+- Updating .gitignore or similar config files
+- Emergency hotfixes (and even these should be PR'd retroactively)
+
+**If you're unsure whether your change qualifies as an exception, ASK FIRST.**
 
 ### Definition of Done
 
@@ -179,7 +197,17 @@ Tests serve dual purposes: **Validation** (verify code works) and **Directional 
 - Document use of API keys and configuration requirements, but never save secrets in the repository.
 
 ### Git Operations and Workflow
+
 I value clean git history, but not at the expense of losing work or slowing down progress.
+
+**⚠️ CRITICAL: BEFORE WRITING ANY CODE ⚠️**
+
+1. **Check current branch**: `git branch` - Are you on main?
+2. **If on main AND about to write code**: STOP
+3. **Create feature branch FIRST**: `git checkout -b feature/name` or `fix/name`
+4. **Only then write code**
+
+**This is non-negotiable. No exceptions for "small" changes. Features and bug fixes ALWAYS start on a branch.**
 
 **During active development:**
 - Commit early and often - better to have messy history than lose work
@@ -200,13 +228,21 @@ I value clean git history, but not at the expense of losing work or slowing down
 
 **Branch strategy:**
 - Keep main/master clean and deployable
-- Use feature branches for anything non-trivial
+- Use feature branches for ALL code changes (features, bugs, refactors)
 - WIP branches are fine for exploration and experimentation
 - **CRITICAL: NEVER merge directly to main** - ALL changes MUST go through a pull request
-- **CRITICAL: NEVER push directly to main** - Always work in a feature branch
+- **CRITICAL: NEVER push code directly to main** - Always work in a feature branch
 - Create PR when work is complete, wait for review and approval before merging
 - CI/CD automatically deploys from main, so main must only contain reviewed code
 - When finishing up a project milestone, with a code base that is clean and functional, suggest we set a release flag to easily find it and mark our progress
+
+**What CAN be pushed to main without a PR:**
+- Documentation-only changes (CLAUDE.md, README.md, SPECIFICATIONS/*.md)
+- .gitignore updates
+- Non-code configuration files
+- Emergency hotfixes (but create a retroactive PR immediately after)
+
+**If unsure whether your change needs a branch, the answer is YES, create a branch.**
 
 **Commit message style:**
 - First line: brief summary of what changed
