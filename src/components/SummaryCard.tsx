@@ -15,7 +15,9 @@ interface SummaryCardProps {
   author?: string;
   wordCount?: number;
   contentTruncated: boolean;
+  documentNote?: string | null;
   onArchive: (id: string) => void;
+  onSaveNote: (id: string, note: string) => Promise<void>;
 }
 
 export default function SummaryCard({
@@ -27,9 +29,81 @@ export default function SummaryCard({
   author,
   wordCount,
   contentTruncated,
+  documentNote,
   onArchive,
+  onSaveNote,
 }: SummaryCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [savedNote, setSavedNote] = useState<string | null>(
+    documentNote || null
+  );
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [noteError, setNoteError] = useState<string | null>(null);
+
+  // Note handlers
+  const handleAddEditNote = () => {
+    setIsEditingNote(true);
+    setNoteText(savedNote || '');
+    setNoteError(null);
+  };
+
+  const handleCancelNote = () => {
+    // Confirm if there are unsaved changes
+    if (noteText.trim() !== (savedNote || '').trim()) {
+      if (
+        !window.confirm(
+          'You have unsaved changes. Are you sure you want to cancel?'
+        )
+      ) {
+        return;
+      }
+    }
+    setIsEditingNote(false);
+    setNoteText('');
+    setNoteError(null);
+  };
+
+  const handleSaveNote = async () => {
+    const trimmedNote = noteText.trim();
+
+    if (trimmedNote.length === 0) {
+      setNoteError('Note cannot be empty');
+      return;
+    }
+
+    if (trimmedNote.length > 10000) {
+      setNoteError('Note must be under 10,000 characters');
+      return;
+    }
+
+    setIsSavingNote(true);
+    setNoteError(null);
+
+    try {
+      await onSaveNote(id, trimmedNote);
+      setSavedNote(trimmedNote);
+      setIsEditingNote(false);
+      setNoteText('');
+    } catch (error) {
+      setNoteError(
+        error instanceof Error ? error.message : 'Failed to save note'
+      );
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      handleSaveNote();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancelNote();
+    }
+  };
 
   // Truncate summary to ~3-4 lines (roughly 200 chars)
   const shouldTruncate = summary.length > 200;
@@ -190,7 +264,149 @@ export default function SummaryCard({
             Collapse
           </button>
         )}
+
+        {/* Note link */}
+        {!isEditingNote && (
+          <button
+            onClick={handleAddEditNote}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#0d6efd',
+              cursor: 'pointer',
+              padding: 0,
+              marginTop: '4px',
+              fontSize: 'inherit',
+              display: 'inline-block',
+              marginLeft: shouldTruncate || isExpanded ? '8px' : '0',
+            }}
+          >
+            {savedNote ? 'Edit Note' : 'Add Note'}
+          </button>
+        )}
       </div>
+
+      {/* Note editing form */}
+      {isEditingNote && (
+        <div style={{ marginTop: '12px' }}>
+          <textarea
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Add your thoughts about this article..."
+            autoFocus={window.innerWidth > 768}
+            style={{
+              width: '100%',
+              minHeight: '80px',
+              padding: '12px',
+              border: '1px solid #ced4da',
+              borderRadius: '4px',
+              fontSize: '0.9em',
+              fontFamily: 'inherit',
+              lineHeight: 1.5,
+              resize: 'vertical',
+              boxSizing: 'border-box',
+            }}
+          />
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: '8px',
+            }}
+          >
+            <span
+              style={{
+                fontSize: '0.85em',
+                color: noteText.length > 9900 ? '#e65100' : '#6c757d',
+              }}
+            >
+              {noteText.length} / 10,000 characters
+            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={handleCancelNote}
+                disabled={isSavingNote}
+                style={{
+                  background: '#6c757d',
+                  color: '#fff',
+                  padding: '6px 16px',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: isSavingNote ? 'not-allowed' : 'pointer',
+                  fontSize: '0.85em',
+                  fontWeight: 500,
+                  opacity: isSavingNote ? 0.6 : 1,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveNote}
+                disabled={isSavingNote}
+                style={{
+                  background: isSavingNote ? '#6c757d' : '#007bff',
+                  color: '#fff',
+                  padding: '6px 16px',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: isSavingNote ? 'not-allowed' : 'pointer',
+                  fontSize: '0.85em',
+                  fontWeight: 500,
+                }}
+              >
+                {isSavingNote ? 'Saving...' : 'Save Note'}
+              </button>
+            </div>
+          </div>
+          {noteError && (
+            <div
+              style={{
+                marginTop: '8px',
+                padding: '8px 12px',
+                background: '#f8d7da',
+                color: '#dc3545',
+                borderRadius: '4px',
+                fontSize: '0.85em',
+              }}
+            >
+              {noteError}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Saved note display */}
+      {!isEditingNote && savedNote && (
+        <div style={{ marginTop: '12px' }}>
+          <div
+            style={{
+              fontSize: '0.85em',
+              color: '#495057',
+              fontWeight: 600,
+              marginBottom: '6px',
+            }}
+          >
+            📝 Your note:
+          </div>
+          <div
+            style={{
+              background: '#f8f9fa',
+              border: '1px solid #e9ecef',
+              borderRadius: '4px',
+              padding: '12px',
+              fontSize: '0.9em',
+              color: '#495057',
+              lineHeight: 1.5,
+              whiteSpace: 'pre-wrap',
+              wordWrap: 'break-word',
+            }}
+          >
+            {savedNote}
+          </div>
+        </div>
+      )}
 
       {/* Tags */}
       {tags && tags.length > 0 && (

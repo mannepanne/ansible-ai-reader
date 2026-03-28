@@ -20,6 +20,7 @@ interface ReaderItem {
   tags: string[];
   perplexity_model: string | null;
   content_truncated: boolean;
+  document_note: string | null;
   created_at: string;
 }
 
@@ -259,6 +260,61 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
     }
   }
 
+  async function handleSaveNote(itemId: string, note: string) {
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await fetch('/api/reader/note', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ itemId, note }),
+      });
+
+      const data = (await response.json()) as {
+        success?: boolean;
+        note?: string;
+        error?: string;
+        details?: string;
+      };
+
+      if (!response.ok) {
+        // Handle partial success (502 - saved locally but Reader sync failed)
+        if (response.status === 502) {
+          setSuccessMessage('Note saved (Reader sync will retry later)');
+          // Update local state even though Reader sync failed
+          setItems((prev) =>
+            prev.map((item) =>
+              item.id === itemId ? { ...item, document_note: note } : item
+            )
+          );
+          return;
+        }
+
+        throw new Error(data.error || 'Failed to save note');
+      }
+
+      // Update items list with the saved note
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === itemId ? { ...item, document_note: data.note || note } : item
+        )
+      );
+
+      setSuccessMessage('Note saved successfully');
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 3000);
+    } catch (err) {
+      console.error('Save note error:', err);
+      throw err; // Re-throw so SummaryCard can handle the error
+    }
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#f8f9fa' }}>
       {/* Header */}
@@ -470,7 +526,9 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
                 author={item.author || undefined}
                 wordCount={item.word_count || undefined}
                 contentTruncated={item.content_truncated}
+                documentNote={item.document_note}
                 onArchive={handleArchive}
+                onSaveNote={handleSaveNote}
               />
             ))}
           </div>
