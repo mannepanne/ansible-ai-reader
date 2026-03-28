@@ -1,9 +1,19 @@
 // ABOUT: API endpoint for saving document notes
 // ABOUT: Saves notes locally and syncs to Readwise Reader
+//
+// ARCHITECTURE DECISION: Inline sync vs queue-based sync
+// This endpoint uses inline/synchronous sync to Reader API (not queue-based like archives).
+// Rationale:
+//   - User expects immediate feedback when saving notes (UX priority)
+//   - Notes are small payloads (<10k chars) with fast sync time
+//   - Failure case is acceptable: user sees error and can retry manually
+//   - Archives use queues because: bulk operations, higher failure tolerance, async OK
+// Trade-off: User waits ~500ms for Reader API vs instant response with background queue
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { z } from 'zod';
+import { updateNote, ReaderAPIError } from '@/lib/reader-api';
 
 const NoteSchema = z.object({
   itemId: z.string().uuid('Invalid item ID'),
@@ -97,7 +107,7 @@ export async function POST(request: NextRequest) {
 
     console.log('[Note] Note saved successfully for item:', itemId);
 
-    // 5. Sync to Reader API (non-blocking error handling)
+    // 5. Sync to Reader API using shared client (inline sync for immediate feedback)
     const readerToken = process.env.READER_API_TOKEN;
     if (!readerToken) {
       console.error('[Note] Reader API token not configured');
@@ -111,39 +121,22 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const readerResponse = await fetch(
-        `https://readwise.io/api/v3/update/${item.reader_id}/`,
-        {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Token ${readerToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            notes: note,
-          }),
-        }
-      );
+      await updateNote(readerToken, item.reader_id, note);
+      console.log('[Note] Note synced to Reader successfully');
+    } catch (readerError) {
+      console.error('[Note] Reader API request failed:', readerError);
 
-      if (!readerResponse.ok) {
-        const errorText = await readerResponse.text();
-        console.error('[Note] Reader API sync failed:', {
-          status: readerResponse.status,
-          error: errorText,
-        });
-
+      // Handle specific Reader API errors
+      if (readerError instanceof ReaderAPIError) {
         return NextResponse.json(
           {
             error: 'Note saved locally but failed to sync to Reader',
-            details: `Reader API returned ${readerResponse.status}`,
+            details: readerError.message,
           },
           { status: 502 }
         );
       }
 
-      console.log('[Note] Note synced to Reader successfully');
-    } catch (readerError) {
-      console.error('[Note] Reader API request failed:', readerError);
       return NextResponse.json(
         {
           error: 'Note saved locally but failed to sync to Reader',

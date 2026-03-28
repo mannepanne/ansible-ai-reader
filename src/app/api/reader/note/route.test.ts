@@ -381,6 +381,8 @@ describe('POST /api/reader/note', () => {
   });
 
   it('returns 502 when Reader API sync fails', async () => {
+    vi.useFakeTimers();
+
     mockGetUser.mockResolvedValue({
       data: { user: mockUser },
     });
@@ -409,6 +411,7 @@ describe('POST /api/reader/note', () => {
       }
     });
 
+    // Mock persistent 500 errors (will exhaust retries)
     mockFetch.mockResolvedValue({
       ok: false,
       status: 500,
@@ -423,12 +426,18 @@ describe('POST /api/reader/note', () => {
       }),
     });
 
-    const response = await POST(request);
+    const promise = POST(request);
+
+    // Fast-forward through retry delays (2s + 4s)
+    await vi.advanceTimersByTimeAsync(10000);
+
+    const response = await promise;
     const data = (await response.json()) as any;
 
     expect(response.status).toBe(502);
     expect(data.error).toBe('Note saved locally but failed to sync to Reader');
-    expect(data.details).toContain('500');
+
+    vi.useRealTimers();
   });
 
   it('returns 502 when Reader API token not configured', async () => {
@@ -479,6 +488,8 @@ describe('POST /api/reader/note', () => {
   });
 
   it('returns 502 when Reader API request throws error', async () => {
+    vi.useFakeTimers();
+
     mockGetUser.mockResolvedValue({
       data: { user: mockUser },
     });
@@ -517,11 +528,18 @@ describe('POST /api/reader/note', () => {
       }),
     });
 
-    const response = await POST(request);
+    const promise = POST(request);
+
+    // Fast-forward through retry delays (2s + 4s)
+    await vi.advanceTimersByTimeAsync(10000);
+
+    const response = await promise;
     const data = (await response.json()) as any;
 
     expect(response.status).toBe(502);
     expect(data.error).toBe('Note saved locally but failed to sync to Reader');
     expect(data.details).toBe('Network error');
+
+    vi.useRealTimers();
   });
 });

@@ -1,8 +1,8 @@
 # Phase 5: Notes, Rating & Polish
 
-**Status**: Not Started
-**Last Updated**: 2026-03-07
-**Dependencies**: Phase 4 (Perplexity Integration)
+**Status**: In Progress (Document Notes Complete)
+**Last Updated**: 2026-03-28
+**Dependencies**: Phase 4 (Perplexity Integration) ✅
 **Estimated Effort**: Week 4-5
 
 ---
@@ -26,11 +26,11 @@ Add document notes (synced to Reader), interest ratings, customizable summary pr
 - [ ] Support retry for failed summaries via UI button
 
 **Phase 5 Original Scope**:
-- [ ] Implement automated scheduled syncing (Cloudflare Cron + user-configurable intervals)
-- [ ] Implement input validation with Zod and DOMPurify
-- [ ] Implement document notes UI (add/edit note field)
-- [ ] Validate and sanitize notes (XSS prevention, max 10k chars)
-- [ ] Sync notes to Reader API (PATCH `/api/v3/update/:id`)
+- [x] Implement automated scheduled syncing (Cloudflare Cron + user-configurable intervals)
+- [x] Implement input validation with Zod (plain text for v1)
+- [x] Implement document notes UI (add/edit note field)
+- [x] Validate and sanitize notes (plain text, XSS-safe, max 10k chars)
+- [x] Sync notes to Reader API (PATCH `/api/v3/update/:id`)
 - [ ] Implement rating system (0-5 stars with validation)
 - [ ] Create settings page (editable summary prompt + sync interval)
 - [ ] Validate summary prompts (prevent injection, max 2k chars)
@@ -56,33 +56,44 @@ Add document notes (synced to Reader), interest ratings, customizable summary pr
 
 **Security**: Prevent XSS attacks via malicious notes
 
-**Validation rules**:
+**v1 Implementation (Plain Text Only)**:
 ```typescript
-import DOMPurify from 'isomorphic-dompurify';
 import { z } from 'zod';
 
-const DocumentNoteSchema = z.string()
-  .max(10000, 'Notes must be under 10,000 characters')
-  .transform(note => DOMPurify.sanitize(note, {
-    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'p', 'br', 'ul', 'ol', 'li'],
-    ALLOWED_ATTR: [],
-  }));
+const DocumentNoteSchema = z.object({
+  itemId: z.string().uuid('Invalid item ID'),
+  note: z
+    .string()
+    .max(10000, 'Note must be under 10,000 characters')
+    .transform((note) => note.trim())
+    .refine((note) => note.length > 0, {
+      message: 'Note cannot be empty',
+    }),
+});
 
 // Usage
 function saveNote(rawNote: string) {
-  const sanitized = DocumentNoteSchema.parse(rawNote);
-  // Safe to store and display
+  const validated = DocumentNoteSchema.parse({ itemId, note: rawNote });
+  // Safe to store and display (plain text, no XSS risk)
 }
 ```
 
-**What we allow**:
-- Basic formatting: bold, italic, lists
+**What we allow (v1)**:
+- Plain text only (no HTML formatting)
 - Max length: 10,000 characters
-- **What we block**: `<script>`, `<iframe>`, `onclick`, `onerror`, etc.
+- Whitespace preserved with `whiteSpace: 'pre-wrap'`
+
+**Why plain text for v1**:
+- **Security**: Eliminates XSS risk entirely (no HTML parsing needed)
+- **Simplicity**: No need for DOMPurify, no sanitization complexity
+- **Adequate**: Plain text is sufficient for personal notes and annotations
 
 **Display safety**:
-- React automatically escapes JSX content
-- Never use `dangerouslySetInnerHTML` for notes
+- Plain text rendered with `whiteSpace: 'pre-wrap'` to preserve line breaks
+- React automatically escapes text content (XSS-safe by default)
+- No `dangerouslySetInnerHTML` used
+
+**Future (v2)**: Rich text formatting with DOMPurify sanitization can be added later if needed
 
 ### Rating Validation
 
