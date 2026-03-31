@@ -16,36 +16,45 @@ A binary rating system that lets users mark items as "Interesting" (💡) or "No
 
 ### Rating an Item
 
-1. User clicks 💡 "Interesting" or 🤷 "Not interesting" button
-2. UI updates immediately (optimistic update)
-3. Button highlights in color (yellow for interesting, red for not interesting)
-4. Hint text appears: "(click again to unrate)"
+1. User hovers over emoji buttons to see tooltip ("Interesting" or "Not interesting")
+2. User clicks 💡 or 🤷 button
+3. UI updates immediately (optimistic update)
+4. Button becomes fully opaque and shows colored background highlight
 5. API call persists rating in background
 
 ### Unrating an Item
 
-1. User clicks the same rating button again
-2. UI removes highlight immediately
-3. Hint text disappears
-4. API call sets rating to `null` in database
+1. User clicks the same rating button again (toggle behavior)
+2. UI removes highlight and returns button to semi-transparent state
+3. API call sets rating to `null` in database
+
+### Button Placement
+
+Rating buttons are **inline with other action links** below the summary:
+- Placed after "Expand/Collapse" and "Add note" links
+- Separated by pipe (`|`) characters
+- Part of the same row with consistent text link styling
+- Emoji-only design keeps visual weight low
 
 ### Visual States
 
 **Unrated (null):**
-- Both buttons show in neutral gray
-- No hint text
+- Both emoji buttons visible inline with action links
+- Transparent background
+- Semi-transparent (opacity: 0.5)
+- Tooltip shows on hover
 
 **Rated as Interesting (4):**
-- 💡 button highlighted in yellow (`#fff3cd` background)
-- Border becomes more prominent (`2px solid #ffc107`)
-- Font weight increases to 600
-- Hint text shown
+- 💡 button highlighted with yellow background (`#fff3cd`)
+- Fully opaque (opacity: 1.0)
+- No border (minimal styling)
+- Tooltip: "Interesting"
 
 **Rated as Not Interesting (1):**
-- 🤷 button highlighted in red (`#f8d7da` background)
-- Border becomes more prominent (`2px solid #dc3545`)
-- Font weight increases to 600
-- Hint text shown
+- 🤷 button highlighted with red background (`#f8d7da`)
+- Fully opaque (opacity: 1.0)
+- No border (minimal styling)
+- Tooltip: "Not interesting"
 
 **Saving (disabled):**
 - Both buttons disabled
@@ -204,13 +213,13 @@ const handleRatingClick = async (targetRating: number) => {
 - Edge cases (item not found, DB errors)
 - 96.75% test coverage
 
-**Component tests (13 tests):**
+**Component tests (11 tests):**
 - Button rendering and click behavior
 - Toggle functionality (click to rate, click again to unrate)
 - Optimistic UI updates
 - Disabled state during save
 - Error handling and rollback
-- Visual feedback (highlights, hint text)
+- Visual feedback (highlights, opacity transitions)
 - Prevents double-clicks
 
 ## Related Documentation
