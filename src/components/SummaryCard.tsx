@@ -321,6 +321,7 @@ export default function SummaryCard({
                   onClick={() => handleRatingClick(4)}
                   disabled={isSavingRating}
                   title="Interesting"
+                  aria-label="Mark as interesting"
                   style={{
                     background: currentRating === 4 ? '#fff3cd' : 'transparent',
                     border: 'none',
@@ -338,6 +339,7 @@ export default function SummaryCard({
                   onClick={() => handleRatingClick(1)}
                   disabled={isSavingRating}
                   title="Not interesting"
+                  aria-label="Mark as not interesting"
                   style={{
                     background: currentRating === 1 ? '#f8d7da' : 'transparent',
                     border: 'none',
