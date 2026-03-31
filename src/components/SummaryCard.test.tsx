@@ -390,7 +390,7 @@ describe('SummaryCard', () => {
     });
 
     it('disables buttons while saving rating', async () => {
-      const mockOnSaveRating = vi.fn(() => new Promise(resolve => setTimeout(resolve, 100)));
+      const mockOnSaveRating = vi.fn(() => new Promise<void>(resolve => setTimeout(resolve, 100)));
       render(<SummaryCard {...defaultProps} onSaveRating={mockOnSaveRating} />);
 
       const interestingButton = screen.getByTitle('Mark as interesting');
@@ -424,7 +424,7 @@ describe('SummaryCard', () => {
     });
 
     it('updates UI optimistically before API call completes', () => {
-      const mockOnSaveRating = vi.fn(() => new Promise(resolve => setTimeout(resolve, 100)));
+      const mockOnSaveRating = vi.fn(() => new Promise<void>(resolve => setTimeout(resolve, 100)));
       render(<SummaryCard {...defaultProps} rating={null} onSaveRating={mockOnSaveRating} />);
 
       const interestingButton = screen.getByTitle('Mark as interesting');
@@ -437,7 +437,7 @@ describe('SummaryCard', () => {
     });
 
     it('prevents multiple clicks while saving', async () => {
-      const mockOnSaveRating = vi.fn(() => new Promise(resolve => setTimeout(resolve, 100)));
+      const mockOnSaveRating = vi.fn(() => new Promise<void>(resolve => setTimeout(resolve, 100)));
       render(<SummaryCard {...defaultProps} onSaveRating={mockOnSaveRating} />);
 
       const interestingButton = screen.getByTitle('Mark as interesting');

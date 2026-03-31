@@ -24,6 +24,7 @@ How-it-works documentation for user-facing features.
 ### User Preferences & Annotations
 - **[settings.md](./settings.md)** - User settings API and UI (sync intervals 0-24h, custom summary prompts)
 - **[document-notes.md](./document-notes.md)** - Personal note-taking system that syncs to Readwise Reader
+- **[ratings.md](./ratings.md)** - Binary rating system (Interesting/Not interesting) with optimistic UI updates
 
 ## Common Questions
 - **"How does Reader sync work?"** → [reader-sync.md](./reader-sync.md)
@@ -32,6 +33,7 @@ How-it-works documentation for user-facing features.
 - **"How do users configure settings?"** → [settings.md](./settings.md)
 - **"How are tags generated?"** → [tags.md](./tags.md)
 - **"How do document notes work?"** → [document-notes.md](./document-notes.md)
+- **"How does the rating system work?"** → [ratings.md](./ratings.md)
 
 ## Related Documentation
 - [Architecture Overview](../architecture/overview.md) - System design
