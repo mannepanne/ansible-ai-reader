@@ -213,13 +213,13 @@ const handleRatingClick = async (targetRating: number) => {
 - Edge cases (item not found, DB errors)
 - 96.75% test coverage
 
-**Component tests (13 tests):**
+**Component tests (11 tests):**
 - Button rendering and click behavior
 - Toggle functionality (click to rate, click again to unrate)
 - Optimistic UI updates
 - Disabled state during save
 - Error handling and rollback
-- Visual feedback (highlights, hint text)
+- Visual feedback (highlights, opacity transitions)
 - Prevents double-clicks
 
 ## Related Documentation
