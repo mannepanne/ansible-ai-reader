@@ -17,8 +17,10 @@ interface SummaryCardProps {
   wordCount?: number;
   contentTruncated: boolean;
   documentNote?: string | null;
+  rating?: number | null;
   onArchive: (id: string) => void;
   onSaveNote: (id: string, note: string) => Promise<void>;
+  onSaveRating: (id: string, rating: number | null) => Promise<void>;
 }
 
 export default function SummaryCard({
@@ -31,8 +33,10 @@ export default function SummaryCard({
   wordCount,
   contentTruncated,
   documentNote,
+  rating,
   onArchive,
   onSaveNote,
+  onSaveRating,
 }: SummaryCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditingNote, setIsEditingNote] = useState(false);
@@ -42,6 +46,10 @@ export default function SummaryCard({
   );
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [noteError, setNoteError] = useState<string | null>(null);
+
+  // Rating state
+  const [currentRating, setCurrentRating] = useState<number | null>(rating || null);
+  const [isSavingRating, setIsSavingRating] = useState(false);
 
   // Note handlers
   const handleAddEditNote = () => {
@@ -103,6 +111,29 @@ export default function SummaryCard({
     } else if (e.key === 'Escape') {
       e.preventDefault();
       handleCancelNote();
+    }
+  };
+
+  // Rating handlers
+  const handleRatingClick = async (targetRating: number) => {
+    if (isSavingRating) return; // Prevent double-clicks
+
+    // Toggle: if clicking the same rating, unrate (set to null)
+    const newRating = currentRating === targetRating ? null : targetRating;
+
+    // Optimistic UI update
+    const previousRating = currentRating;
+    setCurrentRating(newRating);
+    setIsSavingRating(true);
+
+    try {
+      await onSaveRating(id, newRating);
+    } catch (error) {
+      // Revert on error
+      setCurrentRating(previousRating);
+      console.error('Failed to save rating:', error);
+    } finally {
+      setIsSavingRating(false);
     }
   };
 
@@ -407,6 +438,67 @@ export default function SummaryCard({
           </div>
         </div>
       )}
+
+      {/* Rating widget */}
+      <div style={{ marginTop: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <button
+          onClick={() => handleRatingClick(4)}
+          disabled={isSavingRating}
+          style={{
+            background: currentRating === 4 ? '#fff3cd' : '#f8f9fa',
+            border: currentRating === 4 ? '2px solid #ffc107' : '1px solid #ced4da',
+            borderRadius: '4px',
+            padding: '6px 12px',
+            cursor: isSavingRating ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '0.9em',
+            fontWeight: currentRating === 4 ? 600 : 400,
+            opacity: isSavingRating ? 0.6 : 1,
+            transition: 'all 0.2s',
+          }}
+          title="Mark as interesting"
+        >
+          <span style={{ fontSize: '1.2em' }}>💡</span>
+          <span>Interesting</span>
+        </button>
+
+        <button
+          onClick={() => handleRatingClick(1)}
+          disabled={isSavingRating}
+          style={{
+            background: currentRating === 1 ? '#f8d7da' : '#f8f9fa',
+            border: currentRating === 1 ? '2px solid #dc3545' : '1px solid #ced4da',
+            borderRadius: '4px',
+            padding: '6px 12px',
+            cursor: isSavingRating ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '0.9em',
+            fontWeight: currentRating === 1 ? 600 : 400,
+            opacity: isSavingRating ? 0.6 : 1,
+            transition: 'all 0.2s',
+          }}
+          title="Mark as not interesting"
+        >
+          <span style={{ fontSize: '1.2em' }}>🤷</span>
+          <span>Not interesting</span>
+        </button>
+
+        {currentRating !== null && (
+          <span
+            style={{
+              fontSize: '0.75em',
+              color: '#6c757d',
+              marginLeft: '4px',
+            }}
+          >
+            (click again to unrate)
+          </span>
+        )}
+      </div>
 
       {/* Tags */}
       {tags && tags.length > 0 && (

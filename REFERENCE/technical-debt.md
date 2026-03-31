@@ -70,7 +70,24 @@ VALUES ('<user-id-from-above>', '<email>', NOW());
 
 ---
 
-### Example Format: TD-004: Description
+### TD-004: Missing Custom Summary Prompt UI
+- **Location:** `src/app/settings/page.tsx` - Settings page only shows sync interval, not prompt editor
+- **Issue:** API fully supports custom summary prompts (`PATCH /api/settings` with Zod validation), but Settings page UI doesn't expose this capability. Users cannot customize AI summary behavior via UI.
+- **Why accepted:** Automated sync settings were higher priority. API implementation was completed to validate the pattern, but UI was deferred.
+- **Risk:** **Low** - Users can still get summaries with system default prompt. Custom prompts are a nice-to-have for personalization, not critical for core workflow.
+- **Future fix:** Add to Settings page:
+  1. Textarea for custom prompt editing
+  2. Display default prompt as placeholder
+  3. Character counter (10-2000 chars)
+  4. Info text explaining how prompts affect summaries
+  5. "Reset to default" button
+- **Phase introduced:** Phase 5 (Notes & Rating) - API completed, UI deferred
+- **Specification:** `SPECIFICATIONS/05-notes-rating-polish.md` lines 118-150, 212-234
+- **Database:** `users.summary_prompt TEXT` field exists and is used by Perplexity API when not null
+
+---
+
+### Example Format: TD-006: Description
 - **Location:** `src/path/to/file.ts` - `functionName()`
 - **Issue:** Clear description of the limitation or shortcut
 - **Why accepted:** Reason for accepting this debt (e.g., runtime constraints, time pressure, lack of alternative)

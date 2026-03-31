@@ -16,7 +16,7 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 **Core workflow:**
 1. Sync unread items from Readwise Reader
 2. Generate AI summaries via Perplexity API
-3. Review summaries, add notes, and rate interest (0-5)
+3. Review summaries, add notes, and rate items (interesting/not interesting)
 4. Archive items (syncs back to Reader) or read in full
 
 **Full specification:** [ansible-outline.md](./SPECIFICATIONS/ORIGINAL_IDEA/ansible-outline.md)
@@ -156,7 +156,7 @@ npm run test:coverage     # Coverage report
 
 **Coverage target:** 95%+ lines/functions/statements, 90%+ branches
 
-**Current status:** 237 tests passing
+**Current status:** 344 tests passing
 
 **See:** [REFERENCE/development/testing-strategy.md](./REFERENCE/development/testing-strategy.md)
 
