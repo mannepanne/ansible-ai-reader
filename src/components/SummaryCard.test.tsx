@@ -15,6 +15,7 @@ describe('SummaryCard', () => {
     contentTruncated: false,
     onArchive: vi.fn(),
     onSaveNote: vi.fn(),
+    onSaveRating: vi.fn(),
   };
 
   it('renders article title', () => {
@@ -120,9 +121,9 @@ describe('SummaryCard', () => {
   it('does not render tags section when no tags', () => {
     const { container } = render(<SummaryCard {...defaultProps} tags={[]} />);
 
-    // Tags are in a div with gap styling - if no tags, that div shouldn't exist
-    const tagsContainer = container.querySelector('[style*="gap: 6px"]');
-    expect(tagsContainer).not.toBeInTheDocument();
+    // Tags have specific border-radius (12px) - check no tag badges are present
+    const tagBadges = container.querySelectorAll('[style*="border-radius: 12px"]');
+    expect(tagBadges.length).toBe(0);
   });
 
   it('renders author when provided', () => {
@@ -232,6 +233,7 @@ describe('SummaryCard', () => {
         contentTruncated={true}
         onArchive={vi.fn()}
         onSaveNote={vi.fn()}
+        onSaveRating={vi.fn()}
       />
     );
 
@@ -313,6 +315,151 @@ describe('SummaryCard', () => {
 
       const liElements = container.querySelectorAll('li');
       expect(liElements.length).toBeGreaterThan(10);
+    });
+  });
+
+  describe('Rating widget', () => {
+    it('renders rating buttons', () => {
+      render(<SummaryCard {...defaultProps} />);
+
+      expect(screen.getByTitle('Mark as interesting')).toBeInTheDocument();
+      expect(screen.getByTitle('Mark as not interesting')).toBeInTheDocument();
+    });
+
+    it('calls onSaveRating with 4 when Interesting button clicked', async () => {
+      const mockOnSaveRating = vi.fn().mockResolvedValue(undefined);
+      render(<SummaryCard {...defaultProps} onSaveRating={mockOnSaveRating} />);
+
+      const interestingButton = screen.getByTitle('Mark as interesting');
+      fireEvent.click(interestingButton);
+
+      expect(mockOnSaveRating).toHaveBeenCalledWith('item-1', 4);
+    });
+
+    it('calls onSaveRating with 1 when Not interesting button clicked', async () => {
+      const mockOnSaveRating = vi.fn().mockResolvedValue(undefined);
+      render(<SummaryCard {...defaultProps} onSaveRating={mockOnSaveRating} />);
+
+      const notInterestingButton = screen.getByTitle('Mark as not interesting');
+      fireEvent.click(notInterestingButton);
+
+      expect(mockOnSaveRating).toHaveBeenCalledWith('item-1', 1);
+    });
+
+    it('unrates when clicking the same rating button again (toggle off)', async () => {
+      const mockOnSaveRating = vi.fn().mockResolvedValue(undefined);
+      render(<SummaryCard {...defaultProps} rating={4} onSaveRating={mockOnSaveRating} />);
+
+      // Click Interesting button (currently rated 4)
+      const interestingButton = screen.getByTitle('Mark as interesting');
+      fireEvent.click(interestingButton);
+
+      // Should call with null to unrate
+      expect(mockOnSaveRating).toHaveBeenCalledWith('item-1', null);
+    });
+
+    it('shows hint text when a rating is active', () => {
+      render(<SummaryCard {...defaultProps} rating={4} />);
+
+      expect(screen.getByText(/click again to unrate/i)).toBeInTheDocument();
+    });
+
+    it('does not show hint text when no rating', () => {
+      render(<SummaryCard {...defaultProps} rating={null} />);
+
+      expect(screen.queryByText(/click again to unrate/i)).not.toBeInTheDocument();
+    });
+
+    it('highlights Interesting button when rated 4', () => {
+      const { container } = render(<SummaryCard {...defaultProps} rating={4} />);
+
+      const interestingButton = screen.getByTitle('Mark as interesting');
+      const buttonStyle = window.getComputedStyle(interestingButton);
+
+      // Check for highlighted styling (background color)
+      expect(interestingButton).toHaveStyle({ background: '#fff3cd' });
+    });
+
+    it('highlights Not interesting button when rated 1', () => {
+      const { container } = render(<SummaryCard {...defaultProps} rating={1} />);
+
+      const notInterestingButton = screen.getByTitle('Mark as not interesting');
+
+      // Check for highlighted styling (background color)
+      expect(notInterestingButton).toHaveStyle({ background: '#f8d7da' });
+    });
+
+    it('disables buttons while saving rating', async () => {
+      const mockOnSaveRating = vi.fn(() => new Promise(resolve => setTimeout(resolve, 100)));
+      render(<SummaryCard {...defaultProps} onSaveRating={mockOnSaveRating} />);
+
+      const interestingButton = screen.getByTitle('Mark as interesting');
+      const notInterestingButton = screen.getByTitle('Mark as not interesting');
+
+      fireEvent.click(interestingButton);
+
+      // Buttons should be disabled immediately
+      expect(interestingButton).toBeDisabled();
+      expect(notInterestingButton).toBeDisabled();
+    });
+
+    it('reverts rating on save error (optimistic UI rollback)', async () => {
+      const mockOnSaveRating = vi.fn().mockRejectedValue(new Error('API error'));
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      render(<SummaryCard {...defaultProps} rating={null} onSaveRating={mockOnSaveRating} />);
+
+      const interestingButton = screen.getByTitle('Mark as interesting');
+
+      // Click to rate
+      fireEvent.click(interestingButton);
+
+      // Wait for async state updates
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Rating should be reverted to null (no highlight)
+      expect(interestingButton).not.toHaveStyle({ background: '#fff3cd' });
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('updates UI optimistically before API call completes', () => {
+      const mockOnSaveRating = vi.fn(() => new Promise(resolve => setTimeout(resolve, 100)));
+      render(<SummaryCard {...defaultProps} rating={null} onSaveRating={mockOnSaveRating} />);
+
+      const interestingButton = screen.getByTitle('Mark as interesting');
+
+      fireEvent.click(interestingButton);
+
+      // UI should update immediately (optimistic)
+      expect(interestingButton).toHaveStyle({ background: '#fff3cd' });
+      expect(screen.getByText(/click again to unrate/i)).toBeInTheDocument();
+    });
+
+    it('prevents multiple clicks while saving', async () => {
+      const mockOnSaveRating = vi.fn(() => new Promise(resolve => setTimeout(resolve, 100)));
+      render(<SummaryCard {...defaultProps} onSaveRating={mockOnSaveRating} />);
+
+      const interestingButton = screen.getByTitle('Mark as interesting');
+
+      // Click multiple times rapidly
+      fireEvent.click(interestingButton);
+      fireEvent.click(interestingButton);
+      fireEvent.click(interestingButton);
+
+      // Should only call once
+      expect(mockOnSaveRating).toHaveBeenCalledTimes(1);
+    });
+
+    it('allows rating to be changed from one value to another', async () => {
+      const mockOnSaveRating = vi.fn().mockResolvedValue(undefined);
+      render(<SummaryCard {...defaultProps} rating={4} onSaveRating={mockOnSaveRating} />);
+
+      const notInterestingButton = screen.getByTitle('Mark as not interesting');
+      fireEvent.click(notInterestingButton);
+
+      // Should change from 4 to 1
+      expect(mockOnSaveRating).toHaveBeenCalledWith('item-1', 1);
     });
   });
 });
