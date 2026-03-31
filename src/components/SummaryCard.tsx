@@ -262,9 +262,9 @@ export default function SummaryCard({
         >
           {displaySummary}
         </ReactMarkdown>
-        {/* Action links: Expand/Collapse | Add/Edit note */}
+        {/* Action links: Expand/Collapse | Add/Edit note | Rating */}
         {(shouldTruncate || isExpanded || !isEditingNote) && (
-          <div style={{ marginTop: '4px', fontSize: 'inherit' }}>
+          <div style={{ marginTop: '4px', fontSize: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}>
             {shouldTruncate && !isExpanded && (
               <button
                 onClick={() => setIsExpanded(true)}
@@ -296,7 +296,7 @@ export default function SummaryCard({
               </button>
             )}
             {(shouldTruncate || isExpanded) && !isEditingNote && (
-              <span style={{ color: '#6c757d', margin: '0 8px' }}>|</span>
+              <span style={{ color: '#6c757d', margin: '0' }}>|</span>
             )}
             {!isEditingNote && (
               <button
@@ -312,6 +312,46 @@ export default function SummaryCard({
               >
                 {savedNote ? 'Edit note' : 'Add note'}
               </button>
+            )}
+            {/* Rating buttons - icon only */}
+            {!isEditingNote && (
+              <>
+                <span style={{ color: '#6c757d', margin: '0' }}>|</span>
+                <button
+                  onClick={() => handleRatingClick(4)}
+                  disabled={isSavingRating}
+                  title="Interesting"
+                  style={{
+                    background: currentRating === 4 ? '#fff3cd' : 'transparent',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '2px 4px',
+                    cursor: isSavingRating ? 'not-allowed' : 'pointer',
+                    fontSize: '1.1em',
+                    opacity: isSavingRating ? 0.6 : currentRating === 4 ? 1 : 0.5,
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  💡
+                </button>
+                <button
+                  onClick={() => handleRatingClick(1)}
+                  disabled={isSavingRating}
+                  title="Not interesting"
+                  style={{
+                    background: currentRating === 1 ? '#f8d7da' : 'transparent',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '2px 4px',
+                    cursor: isSavingRating ? 'not-allowed' : 'pointer',
+                    fontSize: '1.1em',
+                    opacity: isSavingRating ? 0.6 : currentRating === 1 ? 1 : 0.5,
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  🤷
+                </button>
+              </>
             )}
           </div>
         )}
@@ -439,66 +479,6 @@ export default function SummaryCard({
         </div>
       )}
 
-      {/* Rating widget */}
-      <div style={{ marginTop: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-        <button
-          onClick={() => handleRatingClick(4)}
-          disabled={isSavingRating}
-          style={{
-            background: currentRating === 4 ? '#fff3cd' : '#f8f9fa',
-            border: currentRating === 4 ? '2px solid #ffc107' : '1px solid #ced4da',
-            borderRadius: '4px',
-            padding: '6px 12px',
-            cursor: isSavingRating ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '0.9em',
-            fontWeight: currentRating === 4 ? 600 : 400,
-            opacity: isSavingRating ? 0.6 : 1,
-            transition: 'all 0.2s',
-          }}
-          title="Mark as interesting"
-        >
-          <span style={{ fontSize: '1.2em' }}>💡</span>
-          <span>Interesting</span>
-        </button>
-
-        <button
-          onClick={() => handleRatingClick(1)}
-          disabled={isSavingRating}
-          style={{
-            background: currentRating === 1 ? '#f8d7da' : '#f8f9fa',
-            border: currentRating === 1 ? '2px solid #dc3545' : '1px solid #ced4da',
-            borderRadius: '4px',
-            padding: '6px 12px',
-            cursor: isSavingRating ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '0.9em',
-            fontWeight: currentRating === 1 ? 600 : 400,
-            opacity: isSavingRating ? 0.6 : 1,
-            transition: 'all 0.2s',
-          }}
-          title="Mark as not interesting"
-        >
-          <span style={{ fontSize: '1.2em' }}>🤷</span>
-          <span>Not interesting</span>
-        </button>
-
-        {currentRating !== null && (
-          <span
-            style={{
-              fontSize: '0.75em',
-              color: '#6c757d',
-              marginLeft: '4px',
-            }}
-          >
-            (click again to unrate)
-          </span>
-        )}
-      </div>
 
       {/* Tags */}
       {tags && tags.length > 0 && (
