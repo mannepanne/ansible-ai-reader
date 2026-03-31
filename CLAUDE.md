@@ -16,7 +16,7 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 **Core workflow:**
 1. Sync unread items from Readwise Reader
 2. Generate AI summaries via Perplexity API
-3. Review summaries, add notes, and rate interest (0-5)
+3. Review summaries and add personal notes (syncs to Reader)
 4. Archive items (syncs back to Reader) or read in full
 
 **Full specification:** [ansible-outline.md](./SPECIFICATIONS/ORIGINAL_IDEA/ansible-outline.md)

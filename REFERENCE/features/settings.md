@@ -5,8 +5,8 @@ User settings system for configuring sync intervals and AI summary prompts.
 
 ## What Is This?
 User preferences page where users can:
-- Configure automated sync frequency (0-24 hours)
-- Customize AI summary prompt (10-2000 characters)
+- Configure automated sync frequency (0-24 hours) ✅ **UI Available**
+- Customize AI summary prompt (10-2000 characters) ⚠️ **API Only** (no UI yet)
 
 ## Settings API (`/api/settings`)
 
@@ -87,10 +87,14 @@ See: [Service Role Pattern](../patterns/service-role-client.md)
 ## UI Implementation
 
 ### Settings Page (`/settings`)
-- Sync interval slider (0-24 hours)
-- Custom prompt textarea
-- Save button
-- Success/error notifications
+
+**Currently Implemented:**
+- ✅ Sync interval dropdown (0-24 hours)
+- ✅ Save button
+- ✅ Success/error notifications
+
+**Not Yet Implemented:**
+- ❌ Custom prompt textarea (API supports it, UI missing)
 
 ### Form Handling
 ```typescript

@@ -70,7 +70,43 @@ VALUES ('<user-id-from-above>', '<email>', NOW());
 
 ---
 
-### Example Format: TD-004: Description
+### TD-004: Missing Rating System UI and API
+- **Location:** Database field exists (`reader_items.rating integer`), but no UI or API implementation
+- **Issue:** Rating system (0-5 stars) was planned in Phase 5 but not yet implemented. Database schema is ready, but there's no:
+  - Star rating widget in `SummaryCard.tsx`
+  - API endpoint (`POST /api/reader/rating`)
+  - Validation logic
+  - Visual indication of ratings in UI
+- **Why accepted:** Prioritized document notes and automated sync features first. Rating system is important for v2 learning features but not critical for v1 MVP usage.
+- **Risk:** **Medium** - Missing core Phase 5 feature. Ratings are foundational for v2's learning system (adjusting summaries based on interest patterns). Without capturing ratings now, no training data for future features.
+- **Future fix:** Implement rating system with:
+  1. Star rating widget (0-5) in SummaryCard component
+  2. API endpoint with Zod validation (integer 0-5)
+  3. Optimistic UI updates
+  4. Visual indication of current rating
+- **Phase introduced:** Phase 5 (Notes & Rating) - deferred during notes implementation
+- **Specification:** `SPECIFICATIONS/05-notes-rating-polish.md` lines 98-111, 199-211, 295-302
+
+---
+
+### TD-005: Missing Custom Summary Prompt UI
+- **Location:** `src/app/settings/page.tsx` - Settings page only shows sync interval, not prompt editor
+- **Issue:** API fully supports custom summary prompts (`PATCH /api/settings` with Zod validation), but Settings page UI doesn't expose this capability. Users cannot customize AI summary behavior via UI.
+- **Why accepted:** Automated sync settings were higher priority. API implementation was completed to validate the pattern, but UI was deferred.
+- **Risk:** **Low** - Users can still get summaries with system default prompt. Custom prompts are a nice-to-have for personalization, not critical for core workflow.
+- **Future fix:** Add to Settings page:
+  1. Textarea for custom prompt editing
+  2. Display default prompt as placeholder
+  3. Character counter (10-2000 chars)
+  4. Info text explaining how prompts affect summaries
+  5. "Reset to default" button
+- **Phase introduced:** Phase 5 (Notes & Rating) - API completed, UI deferred
+- **Specification:** `SPECIFICATIONS/05-notes-rating-polish.md` lines 118-150, 212-234
+- **Database:** `users.summary_prompt TEXT` field exists and is used by Perplexity API when not null
+
+---
+
+### Example Format: TD-006: Description
 - **Location:** `src/path/to/file.ts` - `functionName()`
 - **Issue:** Clear description of the limitation or shortcut
 - **Why accepted:** Reason for accepting this debt (e.g., runtime constraints, time pressure, lack of alternative)
