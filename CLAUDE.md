@@ -156,7 +156,7 @@ npm run test:coverage     # Coverage report
 
 **Coverage target:** 95%+ lines/functions/statements, 90%+ branches
 
-**Current status:** 237 tests passing
+**Current status:** 344 tests passing
 
 **See:** [REFERENCE/development/testing-strategy.md](./REFERENCE/development/testing-strategy.md)
 

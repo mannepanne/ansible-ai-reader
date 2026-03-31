@@ -31,7 +31,7 @@ Add document notes (synced to Reader), interest ratings, customizable summary pr
 - [x] ✅ Implement document notes UI (add/edit note field) - **Completed 2026-03-28**
 - [x] ✅ Validate and sanitize notes (plain text, XSS-safe, max 10k chars)
 - [x] ✅ Sync notes to Reader API (PATCH `/api/v3/update/:id`)
-- [ ] ❌ Implement rating system (0-5 stars with validation) - **See TD-004**
+- [x] ✅ Implement rating system (binary: 1 or 4) - **PR #59 (simplified to binary)**
 - [x] ⚠️ Create settings page (sync interval ✅, summary prompt ❌) - **PR #35, UI partial**
 - [x] ✅ Validate summary prompts (prevent injection, max 2k chars) - **API level, no UI**
 - [x] ✅ Add "Read in Reader" link (opens Reader URL)
