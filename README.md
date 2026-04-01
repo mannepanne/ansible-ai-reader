@@ -19,7 +19,7 @@ Together: instant access to distilled knowledge from your reading list.
 - **UI**: ReactMarkdown for formatted summaries
 - **AI**: Perplexity API (sonar-pro model)
 - **Integrations**: Readwise Reader API, Resend (magic link emails)
-- **Testing**: Vitest, React Testing Library (237 tests, 95%+ coverage)
+- **Testing**: Vitest, React Testing Library (360 tests, 95%+ coverage)
 - **CI/CD**: GitHub Actions
 
 ## Overview
@@ -166,5 +166,5 @@ npm run deploy
 This project was built with [Claude Code](https://claude.com/claude-code) using:
 - Test-driven development (TDD) workflow
 - Agent teams for collaborative PR reviews
-- 237 tests with 95%+ coverage
+- 360 tests with 95%+ coverage
 - Full traceability from specs to implementation
