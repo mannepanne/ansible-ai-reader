@@ -122,10 +122,10 @@ Create `REFERENCE/user-guide.md` with:
 ### Developer Documentation
 
 Update existing docs:
-- [ ] [environment-setup.md](../REFERENCE/environment-setup.md) - Complete API key setup
-- [ ] [testing-strategy.md](../REFERENCE/testing-strategy.md) - Add real-world examples
+- [ ] [environment-setup.md](../REFERENCE/operations/environment-setup.md) - Complete API key setup
+- [ ] [testing-strategy.md](../REFERENCE/development/testing-strategy.md) - Add real-world examples
 - [ ] [technical-debt.md](../REFERENCE/technical-debt.md) - Document known limitations
-- [ ] [troubleshooting.md](../REFERENCE/troubleshooting.md) - Common issues and solutions
+- [ ] [troubleshooting.md](../REFERENCE/operations/troubleshooting.md) - Common issues and solutions
 
 ### Project README
 
@@ -358,7 +358,7 @@ Phase 6 is complete when:
 ## Reference Documentation
 
 - **Main spec**: [ansible-outline.md](./ORIGINAL_IDEA/ansible-outline.md)
-- **Testing strategy**: [testing-strategy.md](../REFERENCE/testing-strategy.md)
-- **Environment setup**: [environment-setup.md](../REFERENCE/environment-setup.md)
+- **Testing strategy**: [testing-strategy.md](../REFERENCE/development/testing-strategy.md)
+- **Environment setup**: [environment-setup.md](../REFERENCE/operations/environment-setup.md)
 - **Technical debt**: [technical-debt.md](../REFERENCE/technical-debt.md)
-- **Troubleshooting**: [troubleshooting.md](../REFERENCE/troubleshooting.md)
+- **Troubleshooting**: [troubleshooting.md](../REFERENCE/operations/troubleshooting.md)

@@ -4,7 +4,7 @@ Auto-loaded when working with files in this directory. Forward-looking plans for
 
 ## Active Implementation Phases
 
-Development followed 6 sequential phases (all complete). Active work is now feature-by-feature.
+Development followed 5 sequential phases (all complete). Active work is now feature-by-feature.
 
 **Completed phases:**
 - ✅ **Phase 1: Foundation** - [ARCHIVE/01-foundation.md](./ARCHIVE/01-foundation.md) (Mar 10, 2026)

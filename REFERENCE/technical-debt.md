@@ -4,8 +4,8 @@
 
 **Related Documents:**
 - [CLAUDE.md](./../CLAUDE.md) - Project navigation index
-- [testing-strategy.md](./testing-strategy.md) - Testing strategy
-- [troubleshooting.md](./troubleshooting.md) - Common issues and solutions
+- [testing-strategy.md](./development/testing-strategy.md) - Testing strategy
+- [troubleshooting.md](./operations/troubleshooting.md) - Common issues and solutions
 
 ---
 
