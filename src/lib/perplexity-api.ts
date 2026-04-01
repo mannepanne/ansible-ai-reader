@@ -317,7 +317,7 @@ export async function generateSummary(
         {
           role: 'system',
           content:
-            'You are a helpful assistant that creates concise summaries. Focus on practical takeaways and novel applications.',
+            'You are summarising content for a person who is evidence-driven and time-poor. Focus on key take aways and novel discoveries. Prioritise signal over noise.',
         },
         {
           role: 'user',
