@@ -35,7 +35,7 @@ const SummaryPromptSchema = z
 
 const settingsSchema = z.object({
   sync_interval: z.number().int().min(0).max(24).optional(),
-  summary_prompt: SummaryPromptSchema.optional(),
+  summary_prompt: SummaryPromptSchema.nullable().optional(),
 });
 
 /**

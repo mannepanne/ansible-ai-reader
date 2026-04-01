@@ -205,7 +205,7 @@ async function processSummaryGeneration(
         .single();
       customPrompt = userSettings?.summary_prompt ?? undefined;
     } catch {
-      console.log('[Queue Consumer] Could not fetch user prompt, using default');
+      console.warn('[Queue Consumer] Could not fetch user prompt, using default');
     }
 
     // 5. Generate summary via Perplexity API

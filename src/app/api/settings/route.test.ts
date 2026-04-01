@@ -215,6 +215,42 @@ describe('PATCH /api/settings', () => {
     );
   });
 
+  it('accepts null for summary_prompt (reset to default)', async () => {
+    const mockSupabase = {
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: mockSession.user },
+        }),
+      },
+    };
+
+    const mockServiceClient = {
+      from: vi.fn().mockReturnThis(),
+      upsert: vi.fn().mockResolvedValue({ error: null }),
+    };
+
+    vi.mocked(createClient).mockResolvedValue(mockSupabase as any);
+    vi.mocked(createServiceRoleClient).mockReturnValue(mockServiceClient as any);
+
+    const response = await PATCH(
+      mockRequest({ sync_interval: 2, summary_prompt: null })
+    );
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data).toEqual({ success: true });
+
+    expect(mockServiceClient.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'user-123',
+        email: 'test@example.com',
+        sync_interval: 2,
+        summary_prompt: null,
+      }),
+      { onConflict: 'id' }
+    );
+  });
+
   it('returns 401 when not authenticated', async () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: {
