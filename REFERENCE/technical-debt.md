@@ -70,6 +70,21 @@ VALUES ('<user-id-from-above>', '<email>', NOW());
 
 ---
 
+### TD-005: No Cost Monitoring for Perplexity API
+- **Location:** No implementation exists — deferred from Phase 4, carried through Phase 5
+- **Issue:** There is no cost tracking for Perplexity API usage. Token counts are not logged, there is no cost report endpoint, and no billing alerts. The only visibility into API spend is the Perplexity dashboard directly.
+- **Why accepted:** Single-user MVP with low item counts. Perplexity spend is small ($3-15/month estimated) and manually checkable. Cost tracking adds complexity without near-term payoff.
+- **Risk:** **Low** - No financial risk for a single user at current scale. Becomes higher risk if usage grows significantly or multiple users are added.
+- **Future fix:** If costs become material, implement:
+  1. Log token usage per request to `sync_log` table
+  2. `GET /api/cost-report` endpoint with daily/monthly aggregates
+  3. Billing alerts at configurable thresholds ($20, $50, $100/month)
+  4. Cost summary UI in Settings or a dedicated dashboard
+- **Phase introduced:** Deferred from Phase 4, carried through Phase 5
+- **Related spec items:** `SPECIFICATIONS/ARCHIVE/05-notes-rating-polish.md` (original scope)
+
+---
+
 ### TD-004: Missing Custom Summary Prompt UI
 - **Location:** `src/app/settings/page.tsx` - Settings page only shows sync interval, not prompt editor
 - **Issue:** API fully supports custom summary prompts (`PATCH /api/settings` with Zod validation), but Settings page UI doesn't expose this capability. Users cannot customize AI summary behavior via UI.
@@ -82,7 +97,7 @@ VALUES ('<user-id-from-above>', '<email>', NOW());
   4. Info text explaining how prompts affect summaries
   5. "Reset to default" button
 - **Phase introduced:** Phase 5 (Notes & Rating) - API completed, UI deferred
-- **Specification:** `SPECIFICATIONS/05-notes-rating-polish.md` lines 118-150, 212-234
+- **Specification:** `SPECIFICATIONS/07-summary-prompt-ui.md` (active spec for implementation)
 - **Database:** `users.summary_prompt TEXT` field exists and is used by Perplexity API when not null
 
 ---
