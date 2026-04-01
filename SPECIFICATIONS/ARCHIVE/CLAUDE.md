@@ -17,10 +17,10 @@ Auto-loaded when working with files in this directory. Completed implementation 
 - Production deployment at ansible.hultberg.org
 
 **Implementation docs:**
-- [phase-1-1-implementation.md](../../REFERENCE/phase-1-1-implementation.md) - Next.js scaffolding
-- [phase-1-2-implementation.md](../../REFERENCE/phase-1-2-implementation.md) - Database setup
-- [phase-1-3-1-implementation.md](../../REFERENCE/phase-1-3-1-implementation.md) - Cloudflare deployment
-- [phase-1-3-2-implementation.md](../../REFERENCE/phase-1-3-2-implementation.md) - Queues infrastructure
+- [phase-1-1-implementation.md](./implementation/phase-1-1-implementation.md) - Next.js scaffolding
+- [phase-1-2-implementation.md](./implementation/phase-1-2-implementation.md) - Database setup
+- [phase-1-3-1-implementation.md](./implementation/phase-1-3-1-implementation.md) - Cloudflare deployment
+- [phase-1-3-2-implementation.md](./implementation/phase-1-3-2-implementation.md) - Queues infrastructure
 
 ### Phase 2: Authentication
 **File:** [02-authentication.md](./02-authentication.md)
@@ -35,7 +35,7 @@ Auto-loaded when working with files in this directory. Completed implementation 
 - Testing: 22 new tests (64 total passing)
 
 **Implementation docs:**
-- [phase-2-implementation.md](../../REFERENCE/phase-2-implementation.md) - Authentication architecture, clients, middleware, session management
+- [phase-2-implementation.md](./implementation/phase-2-implementation.md) - Authentication architecture, clients, middleware, session management
 
 ---
 

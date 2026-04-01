@@ -171,16 +171,17 @@ npm run test:coverage     # Coverage report
 
 ## Implementation Phases
 
-Development followed 6 sequential phases (all completed or in progress):
+Development followed 5 sequential phases (all complete). Active work is now feature-by-feature.
 
 1. ✅ **Phase 1: Foundation** - [Archived](./SPECIFICATIONS/ARCHIVE/01-foundation.md) (Mar 10, 2026)
 2. ✅ **Phase 2: Authentication** - [Archived](./SPECIFICATIONS/ARCHIVE/02-authentication.md) (Mar 12, 2026)
 3. ✅ **Phase 3: Reader Integration** - [Archived](./SPECIFICATIONS/ARCHIVE/03-reader-integration.md) (Mar 14, 2026)
 4. ✅ **Phase 4: Perplexity Integration** - [Archived](./SPECIFICATIONS/ARCHIVE/04-perplexity-integration.md) (Mar 15, 2026)
-5. 🚧 **Phase 5: Notes & Rating** - [05-notes-rating-polish.md](./SPECIFICATIONS/05-notes-rating-polish.md)
-6. 📋 **Phase 6: Launch** - [06-launch.md](./SPECIFICATIONS/06-launch.md)
+5. ✅ **Phase 5: Notes & Rating** - [Archived](./SPECIFICATIONS/ARCHIVE/05-notes-rating-polish.md) (Apr 1, 2026)
 
-**Implementation details:** [SPECIFICATIONS/ARCHIVE/implementation/](./SPECIFICATIONS/ARCHIVE/implementation/) (historical phase-based docs)
+**Active features:** [SPECIFICATIONS/](./SPECIFICATIONS/) - Feature specs (numbered 07+)
+**On hold:** [future-launch.md](./SPECIFICATIONS/future-launch.md) - Formal launch checklist
+**Implementation history:** [SPECIFICATIONS/ARCHIVE/implementation/](./SPECIFICATIONS/ARCHIVE/implementation/)
 
 ---
 
