@@ -140,9 +140,9 @@ describe('POST /api/reader/regenerate-tags', () => {
     const response = await POST();
 
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { count?: number; message?: string };
-    expect(body.count).toBe(2);
-    expect(body.message).toContain('Queued 2 items');
+    const body = (await response.json()) as { regenerateId?: string; totalItems?: number };
+    expect(body.regenerateId).toBeDefined();
+    expect(body.totalItems).toBe(2);
     expect(mockInsert).toHaveBeenCalledTimes(2);
     expect(mockSend).toHaveBeenCalledTimes(2);
   });
@@ -186,10 +186,10 @@ describe('POST /api/reader/regenerate-tags', () => {
     });
 
     const response = await POST();
-    const body = (await response.json()) as { count?: number; message?: string };
+    const body = (await response.json()) as { regenerateId?: string; totalItems?: number };
 
-    expect(body.count).toBe(3);
-    expect(body.message).toBe('Queued 3 items for tag regeneration');
+    expect(body.regenerateId).toBeDefined();
+    expect(body.totalItems).toBe(3);
   });
 
   it('returns message when no items need regeneration', async () => {
@@ -215,9 +215,10 @@ describe('POST /api/reader/regenerate-tags', () => {
     const response = await POST();
 
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { count?: number; message?: string };
+    const body = (await response.json()) as { regenerateId?: string; totalItems?: number; message?: string };
     expect(body.message).toBe('No items need tag regeneration');
-    expect(body.count).toBe(0);
+    expect(body.regenerateId).toBeDefined();
+    expect(body.totalItems).toBe(0);
   });
 
   it('handles database query errors', async () => {
@@ -283,12 +284,14 @@ describe('POST /api/reader/regenerate-tags', () => {
 
     const response = await POST();
     const body = (await response.json()) as {
-      count?: number;
+      regenerateId?: string;
+      totalItems?: number;
       errors?: Array<{ item_id: string; title: string; error: string }>;
     };
 
     // Should complete but report errors
-    expect(body.count).toBe(0);
+    expect(body.regenerateId).toBeDefined();
+    expect(body.totalItems).toBe(0);
     expect(body.errors).toBeDefined();
     expect(body.errors?.length).toBe(1);
   });
@@ -334,10 +337,11 @@ describe('POST /api/reader/regenerate-tags', () => {
     });
 
     const response = await POST();
-    const body = (await response.json()) as { count?: number };
+    const body = (await response.json()) as { regenerateId?: string; totalItems?: number };
 
     // Should create job but not send to queue
-    expect(body.count).toBe(1);
+    expect(body.regenerateId).toBeDefined();
+    expect(body.totalItems).toBe(1);
     expect(mockSend).not.toHaveBeenCalled();
   });
 

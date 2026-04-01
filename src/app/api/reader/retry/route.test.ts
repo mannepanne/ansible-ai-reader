@@ -200,7 +200,7 @@ describe('POST /api/reader/retry', () => {
     const data = (await response.json()) as any;
 
     expect(response.status).toBe(400);
-    expect(data.error).toBe('Missing syncId parameter');
+    expect(data.error).toBe('Missing syncId or regenerateId parameter');
   });
 
   it('returns 404 when sync not found', async () => {

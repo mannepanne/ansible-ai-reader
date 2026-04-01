@@ -27,28 +27,75 @@ See: [AI Summaries](./ai-summaries.md)
 ## Tag Regeneration
 
 ### Use Case
-User wants different tags (e.g., more specific, different categories).
+User wants different tags (e.g., more specific, different categories) for items that have summaries but no tags.
 
 ### Endpoint
 ```typescript
 POST /api/reader/regenerate-tags
 
-Body: { itemIds: ["uuid1", "uuid2"] }
-
 Response: {
-  sync_id: "uuid",
-  jobs_created: 2
+  regenerateId: "uuid",  // Batch ID for tracking this regeneration operation
+  totalItems: 2,         // Number of items queued for regeneration
+  errors?: Array<{       // Optional: items that failed to queue
+    item_id: string,
+    title: string,
+    error: string
+  }>
 }
 ```
 
-### Process
-1. Create new jobs for selected items
-2. Enqueue to processing queue
-3. Consumer re-fetches content
-4. Perplexity generates new summary + tags
-5. Overwrites existing data
+**Note:** Automatically finds all items with summaries but missing tags. No request body needed.
 
-**Note:** Regenerates both summary AND tags (can't regenerate tags alone).
+### Progress Tracking
+
+**Status Endpoint:**
+```typescript
+GET /api/reader/regenerate-tags-status?regenerateId=<uuid>
+
+Response: {
+  regenerateId: "uuid",
+  totalJobs: 10,
+  completedJobs: 7,
+  failedJobs: 1,
+  inProgressJobs: 1,
+  pendingJobs: 1,
+  status: 'processing',  // 'pending' | 'processing' | 'completed' | 'partial_failure' | 'failed'
+  failedItems?: Array<{
+    itemId: string,
+    title: string,
+    error: string
+  }>
+}
+```
+
+**Frontend polls status every 2 seconds** to update progress bar.
+
+### Process
+1. Endpoint finds items with summaries but `tags` is `null` or `[]`
+2. Creates jobs with `regenerate_batch_id` for tracking
+3. Enqueues to processing queue
+4. Frontend polls status endpoint for progress updates
+5. Consumer re-fetches content from Reader API
+6. Perplexity generates new summary + tags
+7. Overwrites existing summary and tags in database
+8. Progress bar shows "X / Y items" with visual indicator
+9. Completion message shown (green/yellow/red based on status)
+
+**Database Tracking:**
+- Each job gets `regenerate_batch_id` (TEXT, indexed)
+- Enables querying progress for specific regeneration operation
+- Independent from sync operations (uses `sync_log_id` for sync)
+
+**Note:** Regenerates both summary AND tags (can't regenerate tags alone). This is a known limitation tracked in technical debt (TD-002).
+
+### UX Flow
+1. User clicks "Regenerate Tags" button in header
+2. Progress bar appears: "Tag Regeneration Progress: 0 / 10"
+3. Bar updates every 2 seconds as jobs complete
+4. Completion message: "✅ Successfully regenerated tags for 10 items"
+5. Items list refreshes automatically with new tags
+
+**No confirmation popup** - operation starts immediately with silent background processing.
 
 ## UI Display
 
@@ -61,8 +108,11 @@ Response: {
 ))}
 ```
 
-### Regenerate Button
-Located in header, triggers regeneration for visible items.
+### Regenerate Tags Button
+- **Location:** Header (orange button, before Sync)
+- **Label:** "Regenerate Tags" (desktop) / "Tags" (mobile ≤640px)
+- **Triggers:** Batch regeneration for all items needing tags
+- **Shows progress bar** while processing (same UX as Sync button)
 
 ## Future Enhancements
 - Filter items by tag

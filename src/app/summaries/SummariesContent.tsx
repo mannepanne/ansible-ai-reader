@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import SummaryCard from '@/components/SummaryCard';
 import EmptyState from '@/components/EmptyState';
+import ProgressBar from '@/components/ProgressBar';
 
 interface ReaderItem {
   id: string;
@@ -40,6 +41,22 @@ interface SyncStatus {
   }>;
 }
 
+// Regenerate status uses same structure as SyncStatus but with regenerateId
+interface RegenerateStatus {
+  regenerateId: string;
+  totalJobs: number;
+  completedJobs: number;
+  failedJobs: number;
+  inProgressJobs: number;
+  pendingJobs: number;
+  status: 'pending' | 'processing' | 'completed' | 'partial_failure' | 'failed';
+  failedItems?: Array<{
+    itemId: string;
+    title: string;
+    error: string;
+  }>;
+}
+
 interface SummariesContentProps {
   userEmail: string;
 }
@@ -49,9 +66,10 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+  const [regenerating, setRegenerating] = useState(false);
+  const [regenerateStatus, setRegenerateStatus] = useState<RegenerateStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [regenerating, setRegenerating] = useState(false);
 
   // Load items on mount
   useEffect(() => {
@@ -94,6 +112,43 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
 
     return () => clearInterval(pollInterval);
   }, [syncing, syncStatus]);
+
+  // Poll regenerate tags status when regenerating
+  useEffect(() => {
+    if (!regenerating || !regenerateStatus) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(
+          `/api/reader/regenerate-tags-status?regenerateId=${regenerateStatus.regenerateId}`
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch regenerate status');
+        }
+
+        const status: RegenerateStatus = await response.json();
+        setRegenerateStatus(status);
+
+        // Stop polling when regeneration is complete
+        if (
+          status.totalJobs === 0 ||
+          status.status === 'completed' ||
+          status.status === 'partial_failure' ||
+          status.status === 'failed'
+        ) {
+          setRegenerating(false);
+          loadItems(); // Reload items to show new tags
+        }
+      } catch (err) {
+        console.error('Regenerate status polling error:', err);
+        setError(err instanceof Error ? err.message : 'Unknown error');
+        setRegenerating(false);
+      }
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [regenerating, regenerateStatus]);
 
   async function loadItems() {
     setLoading(true);
@@ -226,10 +281,48 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
     }
   }
 
+  async function handleRetryRegenerateTags() {
+    if (!regenerateStatus) return;
+
+    setError(null);
+    setSuccessMessage(null);
+    setRegenerating(true);
+
+    try {
+      const response = await fetch('/api/reader/retry', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ regenerateId: regenerateStatus.regenerateId }),
+      });
+
+      if (!response.ok) {
+        const errorData = (await response.json()) as { error?: string };
+        throw new Error(errorData.error || 'Retry failed');
+      }
+
+      const data = (await response.json()) as { retriedCount: number };
+
+      // Reset regenerate status to start polling again
+      setRegenerateStatus({
+        ...regenerateStatus,
+        failedJobs: regenerateStatus.failedJobs - data.retriedCount,
+        pendingJobs: regenerateStatus.pendingJobs + data.retriedCount,
+        status: 'processing',
+      });
+    } catch (err) {
+      console.error('Retry regenerate tags error:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      setRegenerating(false);
+    }
+  }
+
   async function handleRegenerateTags() {
     setError(null);
     setSuccessMessage(null);
     setRegenerating(true);
+    setRegenerateStatus(null);
 
     try {
       const response = await fetch('/api/reader/regenerate-tags', {
@@ -242,21 +335,23 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
       }
 
       const data = (await response.json()) as {
-        message: string;
-        count: number;
+        regenerateId: string;
+        totalItems: number;
       };
 
-      // Show success message
-      alert(`${data.message}. Items will be reprocessed in the background.`);
-
-      // Optionally reload items after a delay
-      setTimeout(() => {
-        loadItems();
-      }, 3000);
+      // Initialize status tracking (no alert - progress bar will show)
+      setRegenerateStatus({
+        regenerateId: data.regenerateId,
+        totalJobs: data.totalItems,
+        completedJobs: 0,
+        failedJobs: 0,
+        inProgressJobs: 0,
+        pendingJobs: data.totalItems,
+        status: 'pending',
+      });
     } catch (err) {
       console.error('Regenerate tags error:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
       setRegenerating(false);
     }
   }
@@ -404,55 +499,22 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
 
         {/* Sync progress */}
         {syncStatus && syncing && (
-          <div
-            style={{
-              padding: '16px',
-              background: '#d1ecf1',
-              border: '1px solid #bee5eb',
-              borderRadius: '4px',
-              marginBottom: '20px',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                marginBottom: '8px',
-              }}
-            >
-              <span style={{ fontWeight: 600, color: '#0c5460' }}>
-                Sync Progress
-              </span>
-              <span style={{ color: '#0c5460' }}>
-                {syncStatus.completedJobs + syncStatus.failedJobs} /{' '}
-                {syncStatus.totalJobs}
-              </span>
-            </div>
-            <div
-              style={{
-                width: '100%',
-                background: '#bee5eb',
-                borderRadius: '4px',
-                height: '8px',
-              }}
-            >
-              <div
-                style={{
-                  width: `${
-                    syncStatus.totalJobs > 0
-                      ? ((syncStatus.completedJobs + syncStatus.failedJobs) /
-                          syncStatus.totalJobs) *
-                        100
-                      : 0
-                  }%`,
-                  background: '#17a2b8',
-                  height: '8px',
-                  borderRadius: '4px',
-                  transition: 'width 0.3s',
-                }}
-              />
-            </div>
-          </div>
+          <ProgressBar
+            title="Sync Progress"
+            completed={syncStatus.completedJobs}
+            failed={syncStatus.failedJobs}
+            total={syncStatus.totalJobs}
+          />
+        )}
+
+        {/* Regenerate tags progress */}
+        {regenerateStatus && regenerating && (
+          <ProgressBar
+            title="Tag Regeneration Progress"
+            completed={regenerateStatus.completedJobs}
+            failed={regenerateStatus.failedJobs}
+            total={regenerateStatus.totalJobs}
+          />
         )}
 
         {/* Completion status */}
@@ -530,6 +592,108 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
                 </p>
                 <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.9em' }}>
                   {syncStatus.failedItems.map((item) => (
+                    <li key={item.itemId}>
+                      {item.title}: {item.error}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Regenerate tags completion status */}
+        {regenerateStatus && !regenerating && (
+          <div
+            style={{
+              padding: '16px',
+              borderRadius: '4px',
+              marginBottom: '20px',
+              background:
+                regenerateStatus.status === 'completed'
+                  ? '#d4edda'
+                  : regenerateStatus.status === 'partial_failure'
+                  ? '#fff3cd'
+                  : '#f8d7da',
+              color:
+                regenerateStatus.status === 'completed'
+                  ? '#155724'
+                  : regenerateStatus.status === 'partial_failure'
+                  ? '#856404'
+                  : '#721c24',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '16px',
+              }}
+            >
+              <p style={{ margin: 0, fontWeight: 600 }}>
+                {regenerateStatus.status === 'completed' && regenerateStatus.totalJobs === 0 &&
+                  `✅ No items need tag regeneration.`}
+                {regenerateStatus.status === 'completed' && regenerateStatus.totalJobs > 0 &&
+                  `✅ Successfully regenerated tags for ${regenerateStatus.completedJobs} items.`}
+                {regenerateStatus.status === 'partial_failure' &&
+                  `⚠️ Tag regeneration completed with ${regenerateStatus.failedJobs} failures. ${regenerateStatus.completedJobs} items processed successfully.`}
+                {regenerateStatus.status === 'failed' &&
+                  `❌ Tag regeneration failed. ${regenerateStatus.failedJobs} items failed to process.`}
+              </p>
+
+              <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                {/* Retry button */}
+                {regenerateStatus.failedJobs > 0 && (
+                  <button
+                    onClick={handleRetryRegenerateTags}
+                    style={{
+                      background: '#ffc107',
+                      color: '#fff',
+                      padding: '6px 16px',
+                      borderRadius: '4px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '0.9em',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Retry Failed ({regenerateStatus.failedJobs})
+                  </button>
+                )}
+
+                {/* Close button */}
+                <button
+                  onClick={() => setRegenerateStatus(null)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'inherit',
+                    cursor: 'pointer',
+                    fontSize: '1.2em',
+                    padding: '4px 8px',
+                  }}
+                  aria-label="Dismiss"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Failed items list */}
+            {regenerateStatus.failedItems && regenerateStatus.failedItems.length > 0 && (
+              <div style={{ marginTop: '12px' }}>
+                <p
+                  style={{
+                    margin: '0 0 8px 0',
+                    fontWeight: 600,
+                    fontSize: '0.9em',
+                  }}
+                >
+                  Failed items:
+                </p>
+                <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.9em' }}>
+                  {regenerateStatus.failedItems.map((item) => (
                     <li key={item.itemId}>
                       {item.title}: {item.error}
                     </li>

@@ -1,5 +1,5 @@
 // ABOUT: API endpoint to retry failed processing jobs
-// ABOUT: Re-enqueues failed jobs for a given sync operation
+// ABOUT: Re-enqueues failed jobs for sync or tag regeneration operations
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
@@ -8,19 +8,21 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 /**
  * POST /api/reader/retry
  *
- * Retries failed processing jobs from a sync operation.
+ * Retries failed processing jobs from a sync or regenerate tags operation.
  * Resets job status to 'pending' and re-enqueues to PROCESSING_QUEUE.
  *
  * Authentication: Required (session check)
  *
  * Request body:
- * - syncId: UUID of the sync operation
+ * - syncId?: UUID of the sync operation
+ * - regenerateId?: UUID of the regenerate tags operation
+ * (Exactly one must be provided)
  *
  * Response:
  * - 200: { retriedCount: number }
- * - 400: Missing or invalid syncId
+ * - 400: Missing or invalid parameters
  * - 401: Not authenticated
- * - 404: Sync not found
+ * - 404: Operation not found
  * - 500: Retry failed
  */
 export async function POST(request: NextRequest) {
@@ -38,35 +40,79 @@ export async function POST(request: NextRequest) {
     const userId = user.id;
 
     // Parse request body
-    const body = (await request.json()) as { syncId?: string };
-    const { syncId } = body;
+    const body = (await request.json()) as { syncId?: string; regenerateId?: string };
+    const { syncId, regenerateId } = body;
 
-    if (!syncId) {
+    if (!syncId && !regenerateId) {
       return NextResponse.json(
-        { error: 'Missing syncId parameter' },
+        { error: 'Missing syncId or regenerateId parameter' },
         { status: 400 }
       );
     }
 
-    // Verify sync belongs to user
-    const { data: syncLog, error: syncLogError } = await supabase
-      .from('sync_log')
-      .select('id')
-      .eq('id', syncId)
-      .eq('user_id', userId)
-      .single();
-
-    if (syncLogError || !syncLog) {
-      return NextResponse.json({ error: 'Sync not found' }, { status: 404 });
+    if (syncId && regenerateId) {
+      return NextResponse.json(
+        { error: 'Provide either syncId or regenerateId, not both' },
+        { status: 400 }
+      );
     }
 
-    // Get all failed jobs for this sync
-    const { data: failedJobs, error: jobsError } = await supabase
-      .from('processing_jobs')
-      .select('id, reader_item_id, job_type')
-      .eq('sync_log_id', syncId)
-      .eq('user_id', userId)
-      .eq('status', 'failed');
+    let failedJobs;
+    let jobsError;
+
+    // Handle sync retry
+    if (syncId) {
+      // Verify sync belongs to user
+      const { data: syncLog, error: syncLogError } = await supabase
+        .from('sync_log')
+        .select('id')
+        .eq('id', syncId)
+        .eq('user_id', userId)
+        .single();
+
+      if (syncLogError || !syncLog) {
+        return NextResponse.json({ error: 'Sync not found' }, { status: 404 });
+      }
+
+      // Get all failed jobs for this sync
+      const result = await supabase
+        .from('processing_jobs')
+        .select('id, reader_item_id, job_type')
+        .eq('sync_log_id', syncId)
+        .eq('user_id', userId)
+        .eq('status', 'failed');
+
+      failedJobs = result.data;
+      jobsError = result.error;
+    }
+    // Handle regenerate tags retry
+    else if (regenerateId) {
+      // Get all failed jobs for this regeneration batch
+      const result = await supabase
+        .from('processing_jobs')
+        .select('id, reader_item_id, job_type')
+        .eq('regenerate_batch_id', regenerateId)
+        .eq('user_id', userId)
+        .eq('status', 'failed');
+
+      failedJobs = result.data;
+      jobsError = result.error;
+
+      // Verify batch exists (at least some jobs found)
+      if (!failedJobs || failedJobs.length === 0) {
+        // Check if any jobs exist for this batch (to distinguish between "no failed jobs" vs "batch not found")
+        const { data: anyJobs } = await supabase
+          .from('processing_jobs')
+          .select('id')
+          .eq('regenerate_batch_id', regenerateId)
+          .eq('user_id', userId)
+          .limit(1);
+
+        if (!anyJobs || anyJobs.length === 0) {
+          return NextResponse.json({ error: 'Regeneration batch not found' }, { status: 404 });
+        }
+      }
+    }
 
     if (jobsError) {
       console.error('[Retry] Failed to fetch failed jobs:', jobsError);
@@ -132,7 +178,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(`[Retry] Successfully retried ${retriedCount} jobs for sync ${syncId}`);
+    const operationType = syncId ? `sync ${syncId}` : `regeneration ${regenerateId}`;
+    console.log(`[Retry] Successfully retried ${retriedCount} jobs for ${operationType}`);
     return NextResponse.json({ retriedCount });
   } catch (error) {
     console.error('[Retry] Unexpected error:', error);

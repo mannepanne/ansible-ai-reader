@@ -1,13 +1,18 @@
 // ABOUT: API endpoint to regenerate tags for items with summaries but missing tags
 // ABOUT: Finds items with summaries but empty/null tags and requeues them for processing
+// ABOUT: Returns a regenerateId for progress tracking via status endpoint
 
 import { createClient } from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
+import { randomUUID } from 'crypto';
 
 export async function POST() {
   try {
     const supabase = await createClient();
+
+    // Generate unique batch ID for tracking this regeneration operation
+    const regenerateId = randomUUID();
 
     // Check authentication
     const {
@@ -38,8 +43,9 @@ export async function POST() {
 
     if (!itemsWithoutTags || itemsWithoutTags.length === 0) {
       return NextResponse.json({
+        regenerateId,
+        totalItems: 0,
         message: 'No items need tag regeneration',
-        count: 0,
       });
     }
 
@@ -74,6 +80,7 @@ export async function POST() {
             sync_log_id: null, // Not part of a sync operation
             job_type: 'summary_generation', // Re-generates BOTH summary and tags (inefficient)
             status: 'pending',
+            regenerate_batch_id: regenerateId, // Link to this regeneration batch for progress tracking
           })
           .select()
           .single();
@@ -125,13 +132,13 @@ export async function POST() {
     }
 
     console.log(
-      `[RegenerateTags] Queued ${jobsCreated} items for tag regeneration` +
+      `[RegenerateTags] Queued ${jobsCreated} items for tag regeneration (batch: ${regenerateId})` +
         (errors.length > 0 ? ` (${errors.length} errors)` : '')
     );
 
     return NextResponse.json({
-      message: `Queued ${jobsCreated} items for tag regeneration`,
-      count: jobsCreated,
+      regenerateId,
+      totalItems: jobsCreated,
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {
