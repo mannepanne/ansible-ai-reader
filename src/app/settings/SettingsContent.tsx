@@ -266,20 +266,9 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
           >
             {activeTab === 'custom' && (
               <>
-                <label
-                  htmlFor="custom-prompt"
-                  style={{
-                    display: 'block',
-                    marginBottom: '8px',
-                    color: '#212529',
-                    fontWeight: 600,
-                    fontSize: '0.95rem',
-                  }}
-                >
-                  Custom Prompt
-                </label>
                 <textarea
                   id="custom-prompt"
+                  aria-label="Custom Prompt"
                   value={summaryPrompt}
                   onChange={(e) => setSummaryPrompt(e.target.value.slice(0, MAX_PROMPT_LENGTH))}
                   disabled={loading || saving}
