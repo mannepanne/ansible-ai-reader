@@ -99,6 +99,18 @@ describe('Queue Consumer', () => {
           insert: vi.fn().mockResolvedValue({ error: null }),
         };
       }
+      if (table === 'users') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { summary_prompt: null },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
     });
 
     const mockBatch = {
@@ -129,7 +141,7 @@ describe('Queue Consumer', () => {
       })
     );
 
-    // Verify Perplexity API was called
+    // Verify Perplexity API was called with no custom prompt (null → undefined)
     expect(mockGenerateSummary).toHaveBeenCalledWith(
       'test-perplexity-key',
       expect.objectContaining({
@@ -137,7 +149,8 @@ describe('Queue Consumer', () => {
         author: 'John Doe',
         content: expect.any(String),
         url: 'https://example.com/ai-software',
-      })
+      }),
+      undefined
     );
 
     // Verify message was acknowledged
@@ -638,4 +651,156 @@ describe('Queue Consumer', () => {
       })
     );
   });
+
+  it('passes custom summary prompt to generateSummary when user has one saved', async () => {
+    const mockAck = vi.fn();
+
+    (global.fetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [
+          {
+            id: 'reader-123',
+            title: 'Test Article',
+            author: 'Author',
+            html_content: '<p>Article content that is definitely long enough to pass the 100 character minimum requirement for processing in the queue consumer.</p>',
+            url: 'https://example.com/test',
+          },
+        ],
+      }),
+    });
+
+    mockGenerateSummary.mockResolvedValue({
+      summary: '- Point',
+      tags: ['ai'],
+      model: 'sonar',
+      usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 },
+      contentTruncated: false,
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'processing_jobs') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: { attempts: 0, max_attempts: 3 }, error: null }),
+            }),
+          }),
+          update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
+        };
+      }
+      if (table === 'users') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { summary_prompt: 'I am interested in AI and product management.' },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === 'reader_items') {
+        return { update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }) };
+      }
+      if (table === 'sync_log') {
+        return { insert: vi.fn().mockResolvedValue({ error: null }) };
+      }
+    });
+
+    const mockBatch = {
+      messages: [
+        {
+          body: { jobId: 'job-1', userId: 'user-1', readerItemId: 'item-1', readerId: 'reader-123', jobType: 'summary_generation' as const },
+          ack: mockAck,
+          retry: vi.fn(),
+        },
+      ],
+    };
+
+    await consumer.queue(mockBatch as any, mockEnv);
+
+    expect(mockGenerateSummary).toHaveBeenCalledWith(
+      'test-perplexity-key',
+      expect.objectContaining({ title: 'Test Article' }),
+      'I am interested in AI and product management.'
+    );
+  });
+
+  it('falls back to default prompt when user prompt query fails', async () => {
+    const mockAck = vi.fn();
+
+    (global.fetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [
+          {
+            id: 'reader-123',
+            title: 'Test Article',
+            author: 'Author',
+            html_content: '<p>Article content that is definitely long enough to pass the 100 character minimum requirement for processing in the queue consumer.</p>',
+            url: 'https://example.com/test',
+          },
+        ],
+      }),
+    });
+
+    mockGenerateSummary.mockResolvedValue({
+      summary: '- Point',
+      tags: ['ai'],
+      model: 'sonar',
+      usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 },
+      contentTruncated: false,
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'processing_jobs') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: { attempts: 0, max_attempts: 3 }, error: null }),
+            }),
+          }),
+          update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
+        };
+      }
+      if (table === 'users') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockRejectedValue(new Error('DB connection failed')),
+            }),
+          }),
+        };
+      }
+      if (table === 'reader_items') {
+        return { update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }) };
+      }
+      if (table === 'sync_log') {
+        return { insert: vi.fn().mockResolvedValue({ error: null }) };
+      }
+    });
+
+    const mockBatch = {
+      messages: [
+        {
+          body: { jobId: 'job-1', userId: 'user-1', readerItemId: 'item-1', readerId: 'reader-123', jobType: 'summary_generation' as const },
+          ack: mockAck,
+          retry: vi.fn(),
+        },
+      ],
+    };
+
+    await consumer.queue(mockBatch as any, mockEnv);
+
+    // Should still call generateSummary with undefined (fallback), not crash
+    expect(mockGenerateSummary).toHaveBeenCalledWith(
+      'test-perplexity-key',
+      expect.objectContaining({ title: 'Test Article' }),
+      undefined
+    );
+    expect(mockAck).toHaveBeenCalled();
+  });
+
 });

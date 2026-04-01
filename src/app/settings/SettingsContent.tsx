@@ -1,4 +1,4 @@
-// ABOUT: Settings page client component with sync interval configuration
+// ABOUT: Settings page client component with sync interval and summary prompt configuration
 // ABOUT: Fetches and updates user settings via API
 
 'use client';
@@ -12,9 +12,13 @@ interface SettingsContentProps {
 
 export default function SettingsContent({ userEmail }: SettingsContentProps) {
   const [syncInterval, setSyncInterval] = useState<number>(0);
+  const [summaryPrompt, setSummaryPrompt] = useState<string>('');
+  const [promptError, setPromptError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const MAX_PROMPT_LENGTH = 2000;
 
   // Load settings on mount
   useEffect(() => {
@@ -29,6 +33,7 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
           summary_prompt: string | null;
         };
         setSyncInterval(data.sync_interval);
+        setSummaryPrompt(data.summary_prompt ?? '');
       } catch (error) {
         setMessage({
           type: 'error',
@@ -42,7 +47,10 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
     loadSettings();
   }, []);
 
-  async function saveSettings() {
+  async function resetPromptToDefault() {
+    setSummaryPrompt('');
+    setPromptError(null);
+
     setSaving(true);
     setMessage(null);
 
@@ -50,7 +58,45 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
       const response = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sync_interval: syncInterval }),
+        body: JSON.stringify({ sync_interval: syncInterval, summary_prompt: null }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save settings');
+      }
+
+      setMessage({ type: 'success', text: 'Settings saved successfully!' });
+      setTimeout(() => setMessage(null), 3000);
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: 'Failed to save settings. Please try again.',
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveSettings() {
+    setPromptError(null);
+
+    // Validate prompt: non-empty prompts must be at least 10 characters
+    if (summaryPrompt.length > 0 && summaryPrompt.length < 10) {
+      setPromptError('Prompt must be at least 10 characters.');
+      return;
+    }
+
+    setSaving(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sync_interval: syncInterval,
+          summary_prompt: summaryPrompt.length > 0 ? summaryPrompt : null,
+        }),
       });
 
       if (!response.ok) {
@@ -155,6 +201,89 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
               ? 'Auto-sync is disabled. You will need to sync manually.'
               : `Ansible will automatically sync new items every ${syncInterval} hour${syncInterval > 1 ? 's' : ''}.`}
           </p>
+
+          {/* Summary Prompt */}
+          <label
+            htmlFor="summary-prompt"
+            style={{
+              display: 'block',
+              marginBottom: '8px',
+              color: '#212529',
+              fontWeight: 600,
+              fontSize: '0.95rem',
+              marginTop: '24px',
+            }}
+          >
+            Summary Prompt
+          </label>
+          <textarea
+            id="summary-prompt"
+            value={summaryPrompt}
+            onChange={(e) => setSummaryPrompt(e.target.value.slice(0, MAX_PROMPT_LENGTH))}
+            disabled={loading || saving}
+            placeholder="Describe your interests or focus areas to personalise AI summaries..."
+            rows={4}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              border: promptError ? '1px solid #dc3545' : '1px solid #ced4da',
+              borderRadius: '4px',
+              fontSize: '1em',
+              boxSizing: 'border-box',
+              resize: 'vertical',
+              fontFamily: 'inherit',
+              backgroundColor: loading || saving ? '#e9ecef' : '#fff',
+            }}
+          />
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              marginBottom: '8px',
+            }}
+          >
+            <div>
+              {promptError && (
+                <p style={{ color: '#dc3545', fontSize: '0.875em', margin: 0 }}>
+                  {promptError}
+                </p>
+              )}
+              <p style={{ fontSize: '0.875em', color: '#6c757d', margin: 0, marginTop: promptError ? '4px' : 0 }}>
+                This only affects new summaries — existing ones are unchanged.
+              </p>
+            </div>
+            <span
+              style={{
+                fontSize: '0.875em',
+                color: summaryPrompt.length > MAX_PROMPT_LENGTH * 0.9 ? '#dc3545' : '#6c757d',
+                whiteSpace: 'nowrap',
+                marginLeft: '8px',
+                flexShrink: 0,
+              }}
+            >
+              {summaryPrompt.length} / {MAX_PROMPT_LENGTH}
+            </span>
+          </div>
+
+          {summaryPrompt.length === 0 ? null : (
+            <button
+              onClick={resetPromptToDefault}
+              disabled={loading || saving}
+              style={{
+                background: 'none',
+                border: '1px solid #6c757d',
+                color: '#6c757d',
+                padding: '6px 12px',
+                borderRadius: '4px',
+                cursor: loading || saving ? 'not-allowed' : 'pointer',
+                fontSize: '0.9em',
+                marginBottom: '12px',
+              }}
+            >
+              Reset to Default
+            </button>
+          )}
 
           <button
             onClick={saveSettings}

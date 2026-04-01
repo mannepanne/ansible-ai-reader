@@ -297,7 +297,8 @@ export async function generateSummary(
     author?: string;
     content: string;
     url: string;
-  }
+  },
+  customPrompt?: string
 ): Promise<SummaryGenerationResult> {
   return perplexityQueue.add(async () => {
     // 1. Validate and truncate content
@@ -320,7 +321,7 @@ export async function generateSummary(
         },
         {
           role: 'user',
-          content: `Summarize this article in bullet points (max 2000 characters). Focus on key concepts and practical takeaways. Also provide 3-5 relevant tags.
+          content: `${customPrompt ? customPrompt + '\n\n' : ''}Summarize this article in bullet points (max 2000 characters). Focus on key concepts and practical takeaways. Also provide 3-5 relevant tags.
 
 Title: ${item.title}
 Author: ${item.author || 'Unknown'}

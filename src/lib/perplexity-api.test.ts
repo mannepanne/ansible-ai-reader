@@ -569,6 +569,72 @@ testing`,
 
       expect(userMessage.content).toContain('Author: Unknown');
     });
+
+    it('prepends customPrompt to user message when provided', async () => {
+      const mockResponse = {
+        id: 'resp-123',
+        model: 'sonar',
+        choices: [
+          {
+            index: 0,
+            message: { role: 'assistant', content: '## Summary\n- Point\n\n## Tags\nai' },
+            finish_reason: 'stop',
+          },
+        ],
+        usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 },
+      };
+
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      await generateSummary(
+        mockApiToken,
+        { title: 'Test Article', content: 'Content', url: 'https://example.com' },
+        'I am interested in AI and product management.'
+      );
+
+      const fetchCall = (global.fetch as any).mock.calls[0];
+      const requestBody = JSON.parse(fetchCall[1].body);
+      const userMessage = requestBody.messages.find((m: any) => m.role === 'user');
+
+      expect(userMessage.content).toContain('I am interested in AI and product management.');
+      expect(userMessage.content).toContain('Summarize this article');
+    });
+
+    it('uses default prompt when customPrompt is not provided', async () => {
+      const mockResponse = {
+        id: 'resp-123',
+        model: 'sonar',
+        choices: [
+          {
+            index: 0,
+            message: { role: 'assistant', content: '## Summary\n- Point\n\n## Tags\nai' },
+            finish_reason: 'stop',
+          },
+        ],
+        usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 },
+      };
+
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      await generateSummary(mockApiToken, {
+        title: 'Test Article',
+        content: 'Content',
+        url: 'https://example.com',
+      });
+
+      const fetchCall = (global.fetch as any).mock.calls[0];
+      const requestBody = JSON.parse(fetchCall[1].body);
+      const userMessage = requestBody.messages.find((m: any) => m.role === 'user');
+
+      expect(userMessage.content).toContain('Summarize this article');
+      expect(userMessage.content).not.toContain('undefined');
+    });
   });
 
   describe('PerplexityAPIError', () => {
