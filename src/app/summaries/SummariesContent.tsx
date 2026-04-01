@@ -70,6 +70,7 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
   const [regenerateStatus, setRegenerateStatus] = useState<RegenerateStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [dismissingItemId, setDismissingItemId] = useState<string | null>(null);
 
   // Load items on mount
   useEffect(() => {
@@ -321,6 +322,7 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
   async function handleDismissFailedItem(itemId: string) {
     setError(null);
     setSuccessMessage(null);
+    setDismissingItemId(itemId);
 
     try {
       const response = await fetch('/api/reader/dismiss-failed', {
@@ -358,6 +360,8 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
     } catch (err) {
       console.error('Dismiss failed item error:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setDismissingItemId(null);
     }
   }
 
@@ -641,19 +645,21 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
                       </span>
                       <button
                         onClick={() => handleDismissFailedItem(item.itemId)}
+                        disabled={dismissingItemId === item.itemId}
                         style={{
                           background: 'transparent',
                           border: '1px solid currentColor',
                           color: 'inherit',
                           padding: '2px 8px',
                           borderRadius: '4px',
-                          cursor: 'pointer',
+                          cursor: dismissingItemId === item.itemId ? 'not-allowed' : 'pointer',
                           fontSize: '0.85em',
                           flexShrink: 0,
+                          opacity: dismissingItemId === item.itemId ? 0.5 : 1,
                         }}
                         title="Dismiss this failed item"
                       >
-                        Dismiss
+                        {dismissingItemId === item.itemId ? 'Dismissing...' : 'Dismiss'}
                       </button>
                     </li>
                   ))}
@@ -761,19 +767,21 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
                       </span>
                       <button
                         onClick={() => handleDismissFailedItem(item.itemId)}
+                        disabled={dismissingItemId === item.itemId}
                         style={{
                           background: 'transparent',
                           border: '1px solid currentColor',
                           color: 'inherit',
                           padding: '2px 8px',
                           borderRadius: '4px',
-                          cursor: 'pointer',
+                          cursor: dismissingItemId === item.itemId ? 'not-allowed' : 'pointer',
                           fontSize: '0.85em',
                           flexShrink: 0,
+                          opacity: dismissingItemId === item.itemId ? 0.5 : 1,
                         }}
                         title="Dismiss this failed item"
                       >
-                        Dismiss
+                        {dismissingItemId === item.itemId ? 'Dismissing...' : 'Dismiss'}
                       </button>
                     </li>
                   ))}
