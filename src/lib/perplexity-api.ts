@@ -321,7 +321,7 @@ export async function generateSummary(
         },
         {
           role: 'user',
-          content: `${customPrompt ? customPrompt + '\n\n' : ''}Summarize this article in bullet points (max 2000 characters). Focus on key concepts and practical takeaways. Also provide 3-5 relevant tags.
+          content: `${customPrompt ? customPrompt + '\n\n' : ''}Summarize this article in bullet points (max 2000 characters). Also provide 3-5 relevant tags.
 
 Title: ${item.title}
 Author: ${item.author || 'Unknown'}
