@@ -2,7 +2,7 @@
 // ABOUT: Removes failed job from tracking to clean up UI
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { createClient, createServiceRoleClient } from '@/utils/supabase/server';
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -51,8 +51,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Delete all failed jobs for this item
-    const { error: deleteError } = await supabase
+    // 4. Delete all failed jobs for this item using service role client
+    // We've already verified authentication and item ownership above, so this is safe
+    const serviceClient = createServiceRoleClient();
+    const { error: deleteError } = await serviceClient
       .from('processing_jobs')
       .delete()
       .eq('reader_item_id', itemId)

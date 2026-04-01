@@ -8,6 +8,7 @@ import { NextRequest } from 'next/server';
 // Mock dependencies
 const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
+const mockServiceFrom = vi.fn();
 
 vi.mock('@/utils/supabase/server', () => ({
   createClient: vi.fn(async () => ({
@@ -15,6 +16,9 @@ vi.mock('@/utils/supabase/server', () => ({
       getUser: mockGetUser,
     },
     from: mockFrom,
+  })),
+  createServiceRoleClient: vi.fn(() => ({
+    from: mockServiceFrom,
   })),
 }));
 
@@ -32,6 +36,7 @@ describe('POST /api/reader/dismiss-failed', () => {
       data: { user: mockSession.user },
     });
 
+    // Mock standard client for auth and item ownership check
     mockFrom.mockImplementation((table: string) => {
       if (table === 'reader_items') {
         return {
@@ -47,6 +52,10 @@ describe('POST /api/reader/dismiss-failed', () => {
           }),
         };
       }
+    });
+
+    // Mock service role client for delete operation
+    mockServiceFrom.mockImplementation((table: string) => {
       if (table === 'processing_jobs') {
         return {
           delete: vi.fn().mockReturnValue({
@@ -153,6 +162,7 @@ describe('POST /api/reader/dismiss-failed', () => {
       data: { user: mockSession.user },
     });
 
+    // Mock standard client for auth and item ownership check
     mockFrom.mockImplementation((table: string) => {
       if (table === 'reader_items') {
         return {
@@ -168,6 +178,10 @@ describe('POST /api/reader/dismiss-failed', () => {
           }),
         };
       }
+    });
+
+    // Mock service role client for delete operation (with error)
+    mockServiceFrom.mockImplementation((table: string) => {
       if (table === 'processing_jobs') {
         return {
           delete: vi.fn().mockReturnValue({
