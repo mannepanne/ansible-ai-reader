@@ -55,20 +55,6 @@ VALUES ('<user-id-from-above>', '<email>', NOW());
 
 ---
 
-### TD-003: Reference Documentation May Need Consolidation
-- **Location:** `REFERENCE/` directory - multiple phase implementation docs
-- **Issue:** We now have 6+ implementation docs (phase-1-1, phase-1-2, phase-1-3-1, phase-1-3-2, phase-2, phase-3, automated-sync-implementation). As more features are added, finding the right doc may become harder. Some docs overlap (e.g., automated-sync spans PRs #33-#35 but phase docs exist separately).
-- **Why accepted:** Current structure works well for linear development. Each doc was written during active development and serves its purpose. Reorganizing mid-project could break context and references.
-- **Risk:** **Low** - Documentation is thorough and well-linked. CLAUDE.md navigation index helps discoverability. Only becomes an issue at scale (15+ implementation docs).
-- **Future fix:** Consider one of:
-  1. **Feature-based organization**: Group by feature (Authentication, Syncing, Summaries) instead of phases
-  2. **Consolidate completed phases**: Merge phase-1-* docs into single phase-1-complete.md
-  3. **Add cross-references**: Improve linking between related docs (e.g., automated-sync → phase-2 for auth patterns)
-  4. **Do nothing**: Current structure may be optimal for this project size
-- **Phase introduced:** Phase 5 (Notes & Rating) - noticed during automated-sync documentation
-- **Related:** PR #36 review suggested updating CLAUDE.md test counts, highlighting that summary stats need manual updates
-
----
 
 ### TD-005: No Cost Monitoring for Perplexity API
 - **Location:** No implementation exists — deferred from Phase 4, carried through Phase 5
@@ -114,7 +100,9 @@ VALUES ('<user-id-from-above>', '<email>', NOW());
 
 ## Resolved Items
 
-*(Move items here when addressed, with resolution notes)*
+### TD-003: Reference Documentation May Need Consolidation
+- **Resolved:** April 1, 2026
+- **Resolution:** REFERENCE/ was reorganised into function-based subdirectories (architecture, features, operations, development, patterns, decisions). Phase implementation docs moved to SPECIFICATIONS/ARCHIVE/implementation/ as historical records. The discoverability concern no longer applies.
 
 ---
 
