@@ -178,7 +178,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(`[Retry] Successfully retried ${retriedCount} jobs for sync ${syncId}`);
+    const operationType = syncId ? `sync ${syncId}` : `regeneration ${regenerateId}`;
+    console.log(`[Retry] Successfully retried ${retriedCount} jobs for ${operationType}`);
     return NextResponse.json({ retriedCount });
   } catch (error) {
     console.error('[Retry] Unexpected error:', error);
