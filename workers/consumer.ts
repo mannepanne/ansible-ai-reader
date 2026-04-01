@@ -195,15 +195,28 @@ async function processSummaryGeneration(
       );
     }
 
-    // 4. Generate summary via Perplexity API
+    // 4. Fetch user's custom summary prompt (fall back to default if unavailable)
+    let customPrompt: string | undefined;
+    try {
+      const { data: userSettings } = await supabase
+        .from('users')
+        .select('summary_prompt')
+        .eq('id', userId)
+        .single();
+      customPrompt = userSettings?.summary_prompt ?? undefined;
+    } catch {
+      console.warn('[Queue Consumer] Could not fetch user prompt, using default');
+    }
+
+    // 5. Generate summary via Perplexity API
     const result = await generateSummary(env.PERPLEXITY_API_KEY, {
       title: articleContent.title,
       author: articleContent.author,
       content: articleContent.content,
       url: articleContent.url,
-    });
+    }, customPrompt);
 
-    // 5. Store summary and tags in database
+    // 6. Store summary and tags in database
     const { error: updateError } = await supabase
       .from('reader_items')
       .update({
@@ -220,7 +233,7 @@ async function processSummaryGeneration(
       throw new Error(`Database update failed: ${updateError.message}`);
     }
 
-    // 6. Track token usage for cost monitoring
+    // 7. Track token usage for cost monitoring
     await trackTokenUsage(
       supabase,
       userId,
@@ -230,7 +243,7 @@ async function processSummaryGeneration(
       result.contentTruncated
     );
 
-    // 7. Mark job as completed
+    // 8. Mark job as completed
     const { error: completeError } = await supabase
       .from('processing_jobs')
       .update({
