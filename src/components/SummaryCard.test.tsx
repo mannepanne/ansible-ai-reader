@@ -1,8 +1,8 @@
 // ABOUT: Tests for SummaryCard component
-// ABOUT: Validates rendering, expand/collapse, tags, metadata, actions
+// ABOUT: Validates rendering, tabs, expand/collapse, commentariat, tags, metadata, actions
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import SummaryCard from './SummaryCard';
 
 describe('SummaryCard', () => {
@@ -16,6 +16,7 @@ describe('SummaryCard', () => {
     onArchive: vi.fn(),
     onSaveNote: vi.fn(),
     onSaveRating: vi.fn(),
+    onGenerateCommentariat: vi.fn(),
   };
 
   it('renders article title', () => {
@@ -234,6 +235,7 @@ describe('SummaryCard', () => {
         onArchive={vi.fn()}
         onSaveNote={vi.fn()}
         onSaveRating={vi.fn()}
+        onGenerateCommentariat={vi.fn()}
       />
     );
 
@@ -447,6 +449,224 @@ describe('SummaryCard', () => {
 
       // Should change from 4 to 1
       expect(mockOnSaveRating).toHaveBeenCalledWith('item-1', 1);
+    });
+  });
+
+  describe('Tab bar', () => {
+    it('renders Summary and Commentariat tabs', () => {
+      render(<SummaryCard {...defaultProps} />);
+
+      expect(screen.getByRole('button', { name: /summary/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /commentariat/i })).toBeInTheDocument();
+    });
+
+    it('shows Summary tab content by default', () => {
+      render(<SummaryCard {...defaultProps} summary="Default summary text" />);
+
+      expect(screen.getByText('Default summary text')).toBeInTheDocument();
+    });
+
+    it('switches to Commentariat tab on click', () => {
+      const commentariat = '## Counter-arguments\n- A critical point';
+      render(
+        <SummaryCard
+          {...defaultProps}
+          commentariatSummary={commentariat}
+          commentariatGeneratedAt="2026-04-01T10:00:00Z"
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+
+      expect(screen.getByText(/Counter-arguments/i)).toBeInTheDocument();
+    });
+
+    it('shows summary content when switching back to Summary tab', () => {
+      render(
+        <SummaryCard
+          {...defaultProps}
+          summary="The original summary"
+          commentariatSummary="Some commentariat"
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+      fireEvent.click(screen.getByRole('button', { name: /summary/i }));
+
+      expect(screen.getByText('The original summary')).toBeInTheDocument();
+    });
+  });
+
+  describe('Commentariat tab', () => {
+    it('shows Analyse ideas button when no commentariat exists', () => {
+      render(<SummaryCard {...defaultProps} commentariatSummary={null} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+
+      expect(screen.getByRole('button', { name: /analyse ideas/i })).toBeInTheDocument();
+    });
+
+    it('calls onGenerateCommentariat when Analyse ideas clicked', async () => {
+      const mockGenerate = vi.fn().mockResolvedValue(undefined);
+      render(
+        <SummaryCard
+          {...defaultProps}
+          commentariatSummary={null}
+          onGenerateCommentariat={mockGenerate}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+      fireEvent.click(screen.getByRole('button', { name: /analyse ideas/i }));
+
+      expect(mockGenerate).toHaveBeenCalledWith('item-1');
+    });
+
+    it('shows loading state while generating', async () => {
+      const mockGenerate = vi.fn(() => new Promise<void>(resolve => setTimeout(resolve, 100)));
+      render(
+        <SummaryCard
+          {...defaultProps}
+          commentariatSummary={null}
+          onGenerateCommentariat={mockGenerate}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+      fireEvent.click(screen.getByRole('button', { name: /analyse ideas/i }));
+
+      expect(screen.getByText(/analysing ideas/i)).toBeInTheDocument();
+    });
+
+    it('shows error message when generation fails', async () => {
+      const mockGenerate = vi.fn().mockRejectedValue(new Error('API error'));
+      render(
+        <SummaryCard
+          {...defaultProps}
+          commentariatSummary={null}
+          onGenerateCommentariat={mockGenerate}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+      fireEvent.click(screen.getByRole('button', { name: /analyse ideas/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/analysis unavailable/i)).toBeInTheDocument();
+      });
+    });
+
+    it('renders generated commentariat with ReactMarkdown', () => {
+      const commentariat = '## Counter-arguments\n- A critical point\n- Another point';
+      render(
+        <SummaryCard
+          {...defaultProps}
+          commentariatSummary={commentariat}
+          commentariatGeneratedAt="2026-04-01T10:00:00Z"
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+
+      const liElements = screen.getAllByRole('listitem');
+      expect(liElements.length).toBeGreaterThan(0);
+    });
+
+    it('shows generated date after commentariat', () => {
+      render(
+        <SummaryCard
+          {...defaultProps}
+          commentariatSummary="Some analysis content"
+          commentariatGeneratedAt="2026-04-01T10:00:00Z"
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+
+      expect(screen.getByText(/analysed/i)).toBeInTheDocument();
+    });
+
+    it('shows Refresh button after commentariat is generated', () => {
+      render(
+        <SummaryCard
+          {...defaultProps}
+          commentariatSummary="Some analysis content"
+          commentariatGeneratedAt="2026-04-01T10:00:00Z"
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+
+      expect(screen.getByTitle('Refresh analysis')).toBeInTheDocument();
+    });
+
+    it('does not show Refresh button on Summary tab', () => {
+      render(
+        <SummaryCard
+          {...defaultProps}
+          commentariatSummary="Some analysis"
+          commentariatGeneratedAt="2026-04-01T10:00:00Z"
+        />
+      );
+
+      // Default is Summary tab — Refresh should not be visible
+      expect(screen.queryByTitle('Refresh analysis')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Expand button (tab-aware)', () => {
+    it('shows Expand for long summary on Summary tab', () => {
+      const longSummary = 'a'.repeat(300);
+      render(<SummaryCard {...defaultProps} summary={longSummary} />);
+
+      expect(screen.getByRole('button', { name: /expand/i })).toBeInTheDocument();
+    });
+
+    it('does not show Expand on Commentariat tab when no commentariat', () => {
+      const longSummary = 'a'.repeat(300);
+      render(
+        <SummaryCard {...defaultProps} summary={longSummary} commentariatSummary={null} />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+
+      expect(screen.queryByRole('button', { name: /expand/i })).not.toBeInTheDocument();
+    });
+
+    it('shows Expand on Commentariat tab when commentariat is long', () => {
+      const longCommentariat = 'c'.repeat(300);
+      render(
+        <SummaryCard
+          {...defaultProps}
+          summary="Short summary"
+          commentariatSummary={longCommentariat}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+
+      expect(screen.getByRole('button', { name: /expand/i })).toBeInTheDocument();
+    });
+
+    it('expanding Commentariat tab does not expand Summary tab', () => {
+      const longSummary = 'a'.repeat(300);
+      const longCommentariat = 'c'.repeat(300);
+      render(
+        <SummaryCard
+          {...defaultProps}
+          summary={longSummary}
+          commentariatSummary={longCommentariat}
+        />
+      );
+
+      // Expand while on Commentariat tab
+      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+      fireEvent.click(screen.getByRole('button', { name: /expand/i }));
+
+      // Switch back to Summary tab — should still be truncated
+      fireEvent.click(screen.getByRole('button', { name: /summary/i }));
+      const truncatedText = 'a'.repeat(200) + '...';
+      expect(screen.getByText(truncatedText, { exact: false })).toBeInTheDocument();
     });
   });
 });

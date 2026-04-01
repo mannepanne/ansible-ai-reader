@@ -17,7 +17,7 @@ Development followed 5 sequential phases (all complete). Active work is now feat
 
 ### Active Feature Specs
 
-_(No active feature specs at this time)_
+- 📋 **[08-commentariat.md](./08-commentariat.md)** - Commentariat: intellectual stress-testing of content via Perplexity (Apr 2026)
 
 ### Completed Feature Specs
 

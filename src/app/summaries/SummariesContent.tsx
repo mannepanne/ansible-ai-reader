@@ -23,6 +23,8 @@ interface ReaderItem {
   content_truncated: boolean;
   document_note: string | null;
   rating: number | null;
+  commentariat_summary: string | null;
+  commentariat_generated_at: string | null;
   created_at: string;
 }
 
@@ -497,6 +499,36 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
     }
   }
 
+  async function handleGenerateCommentariat(itemId: string) {
+    const response = await fetch('/api/reader/commentariat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemId }),
+    });
+
+    const data = (await response.json()) as {
+      commentariat?: string;
+      generatedAt?: string;
+      error?: string;
+    };
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to generate analysis');
+    }
+
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              commentariat_summary: data.commentariat ?? null,
+              commentariat_generated_at: data.generatedAt ?? null,
+            }
+          : item
+      )
+    );
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#f8f9fa' }}>
       {/* Header */}
@@ -819,9 +851,12 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
                 contentTruncated={item.content_truncated}
                 documentNote={item.document_note}
                 rating={item.rating}
+                commentariatSummary={item.commentariat_summary}
+                commentariatGeneratedAt={item.commentariat_generated_at}
                 onArchive={handleArchive}
                 onSaveNote={handleSaveNote}
                 onSaveRating={handleSaveRating}
+                onGenerateCommentariat={handleGenerateCommentariat}
               />
             ))}
           </div>

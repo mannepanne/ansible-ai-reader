@@ -35,7 +35,7 @@ export async function GET() {
     const { data: items, error } = await supabase
       .from('reader_items')
       .select(
-        'id, reader_id, title, author, source, url, word_count, short_summary, tags, perplexity_model, content_truncated, document_note, created_at'
+        'id, reader_id, title, author, source, url, word_count, short_summary, tags, perplexity_model, content_truncated, document_note, rating, commentariat_summary, commentariat_generated_at, created_at'
       )
       .eq('user_id', userId)
       .is('archived_at', null) // Only show non-archived items
