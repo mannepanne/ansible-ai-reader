@@ -16,7 +16,7 @@ const SYSTEM_MESSAGE =
 const USER_MESSAGE_TEMPLATE = `Summarize this article in bullet points (max 2000 characters). Also provide 3-5 relevant tags.
 
 Title: [Article Title]
-Author: [Author]
+Author: [Author] (or "Unknown" if not available)
 Content: [Article Content]
 
 Format your response exactly like this:
@@ -236,7 +236,7 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
           </p>
 
           {/* Prompt tabs */}
-          <div style={{ display: 'flex', gap: '4px', marginBottom: '0' }}>
+          <div role="tablist" style={{ display: 'flex', gap: '4px', marginBottom: '0' }}>
             <button
               role="tab"
               aria-selected={activeTab === 'custom'}
@@ -256,6 +256,7 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
           </div>
 
           <div
+            role="tabpanel"
             style={{
               border: '1px solid #dee2e6',
               borderRadius: '0 4px 4px 4px',
