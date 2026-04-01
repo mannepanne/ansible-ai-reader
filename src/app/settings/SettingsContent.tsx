@@ -1,5 +1,5 @@
 // ABOUT: Settings page client component with sync interval and summary prompt configuration
-// ABOUT: Fetches and updates user settings via API
+// ABOUT: Fetches and updates user settings via API; includes Full Prompt tab for transparency
 
 'use client';
 
@@ -10,10 +10,29 @@ interface SettingsContentProps {
   userEmail: string;
 }
 
+const SYSTEM_MESSAGE =
+  'You are summarising content for a person who is evidence-driven and time-poor. Focus on key take aways and novel discoveries. Prioritise signal over noise.';
+
+const USER_MESSAGE_TEMPLATE = `Summarize this article in bullet points (max 2000 characters). Also provide 3-5 relevant tags.
+
+Title: [Article Title]
+Author: [Author]
+Content: [Article Content]
+
+Format your response exactly like this:
+## Summary
+- Key point 1
+- Key point 2
+- Key point 3
+
+## Tags
+tag1, tag2, tag3`;
+
 export default function SettingsContent({ userEmail }: SettingsContentProps) {
   const [syncInterval, setSyncInterval] = useState<number>(0);
   const [summaryPrompt, setSummaryPrompt] = useState<string>('');
   const [promptError, setPromptError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'custom' | 'full'>('custom');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -117,6 +136,20 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
     }
   }
 
+  const tabStyle = (tab: 'custom' | 'full') => ({
+    padding: '8px 16px',
+    border: '1px solid #dee2e6',
+    borderBottom: activeTab === tab ? '1px solid #fff' : '1px solid #dee2e6',
+    borderRadius: '4px 4px 0 0',
+    background: activeTab === tab ? '#fff' : '#f8f9fa',
+    color: activeTab === tab ? '#212529' : '#6c757d',
+    cursor: 'pointer' as const,
+    fontSize: '0.9rem',
+    fontWeight: activeTab === tab ? 600 : 400,
+    marginBottom: '-1px',
+    position: 'relative' as const,
+  });
+
   return (
     <>
       <Header userEmail={userEmail} />
@@ -193,7 +226,7 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
             style={{
               fontSize: '0.9em',
               color: '#6c757d',
-              marginBottom: '16px',
+              marginBottom: '24px',
               lineHeight: '1.5',
             }}
           >
@@ -202,88 +235,166 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
               : `Ansible will automatically sync new items every ${syncInterval} hour${syncInterval > 1 ? 's' : ''}.`}
           </p>
 
-          {/* Summary Prompt */}
-          <label
-            htmlFor="summary-prompt"
-            style={{
-              display: 'block',
-              marginBottom: '8px',
-              color: '#212529',
-              fontWeight: 600,
-              fontSize: '0.95rem',
-              marginTop: '24px',
-            }}
-          >
-            Summary Prompt
-          </label>
-          <textarea
-            id="summary-prompt"
-            value={summaryPrompt}
-            onChange={(e) => setSummaryPrompt(e.target.value.slice(0, MAX_PROMPT_LENGTH))}
-            disabled={loading || saving}
-            placeholder="Describe your interests or focus areas to personalise AI summaries..."
-            rows={4}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              border: promptError ? '1px solid #dc3545' : '1px solid #ced4da',
-              borderRadius: '4px',
-              fontSize: '1em',
-              boxSizing: 'border-box',
-              resize: 'vertical',
-              fontFamily: 'inherit',
-              backgroundColor: loading || saving ? '#e9ecef' : '#fff',
-            }}
-          />
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              marginBottom: '8px',
-            }}
-          >
-            <div>
-              {promptError && (
-                <p style={{ color: '#dc3545', fontSize: '0.875em', margin: 0 }}>
-                  {promptError}
-                </p>
-              )}
-              <p style={{ fontSize: '0.875em', color: '#6c757d', margin: 0, marginTop: promptError ? '4px' : 0 }}>
-                This only affects new summaries — existing ones are unchanged.
-              </p>
-            </div>
-            <span
-              style={{
-                fontSize: '0.875em',
-                color: summaryPrompt.length > MAX_PROMPT_LENGTH * 0.9 ? '#dc3545' : '#6c757d',
-                whiteSpace: 'nowrap',
-                marginLeft: '8px',
-                flexShrink: 0,
-              }}
+          {/* Prompt tabs */}
+          <div style={{ display: 'flex', gap: '4px', marginBottom: '0' }}>
+            <button
+              role="tab"
+              aria-selected={activeTab === 'custom'}
+              onClick={() => setActiveTab('custom')}
+              style={tabStyle('custom')}
             >
-              {summaryPrompt.length} / {MAX_PROMPT_LENGTH}
-            </span>
+              Custom Prompt
+            </button>
+            <button
+              role="tab"
+              aria-selected={activeTab === 'full'}
+              onClick={() => setActiveTab('full')}
+              style={tabStyle('full')}
+            >
+              Full Prompt
+            </button>
           </div>
 
-          {summaryPrompt.length === 0 ? null : (
-            <button
-              onClick={resetPromptToDefault}
-              disabled={loading || saving}
-              style={{
-                background: 'none',
-                border: '1px solid #6c757d',
-                color: '#6c757d',
-                padding: '6px 12px',
-                borderRadius: '4px',
-                cursor: loading || saving ? 'not-allowed' : 'pointer',
-                fontSize: '0.9em',
-                marginBottom: '12px',
-              }}
-            >
-              Reset to Default
-            </button>
-          )}
+          <div
+            style={{
+              border: '1px solid #dee2e6',
+              borderRadius: '0 4px 4px 4px',
+              padding: '16px',
+              marginBottom: '16px',
+            }}
+          >
+            {activeTab === 'custom' && (
+              <>
+                <label
+                  htmlFor="custom-prompt"
+                  style={{
+                    display: 'block',
+                    marginBottom: '8px',
+                    color: '#212529',
+                    fontWeight: 600,
+                    fontSize: '0.95rem',
+                  }}
+                >
+                  Custom Prompt
+                </label>
+                <textarea
+                  id="custom-prompt"
+                  value={summaryPrompt}
+                  onChange={(e) => setSummaryPrompt(e.target.value.slice(0, MAX_PROMPT_LENGTH))}
+                  disabled={loading || saving}
+                  placeholder="Describe your interests or focus areas to personalise AI summaries..."
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: promptError ? '1px solid #dc3545' : '1px solid #ced4da',
+                    borderRadius: '4px',
+                    fontSize: '1em',
+                    boxSizing: 'border-box',
+                    resize: 'vertical',
+                    fontFamily: 'inherit',
+                    backgroundColor: loading || saving ? '#e9ecef' : '#fff',
+                  }}
+                />
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    marginBottom: '8px',
+                  }}
+                >
+                  <div>
+                    {promptError && (
+                      <p style={{ color: '#dc3545', fontSize: '0.875em', margin: 0 }}>
+                        {promptError}
+                      </p>
+                    )}
+                    <p style={{ fontSize: '0.875em', color: '#6c757d', margin: 0, marginTop: promptError ? '4px' : 0 }}>
+                      Prepended to the Full Prompt when generating summaries. This only affects new summaries — existing ones are unchanged.
+                    </p>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '0.875em',
+                      color: summaryPrompt.length > MAX_PROMPT_LENGTH * 0.9 ? '#dc3545' : '#6c757d',
+                      whiteSpace: 'nowrap',
+                      marginLeft: '8px',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {summaryPrompt.length} / {MAX_PROMPT_LENGTH}
+                  </span>
+                </div>
+
+                {summaryPrompt.length === 0 ? null : (
+                  <button
+                    onClick={resetPromptToDefault}
+                    disabled={loading || saving}
+                    style={{
+                      background: 'none',
+                      border: '1px solid #6c757d',
+                      color: '#6c757d',
+                      padding: '6px 12px',
+                      borderRadius: '4px',
+                      cursor: loading || saving ? 'not-allowed' : 'pointer',
+                      fontSize: '0.9em',
+                    }}
+                  >
+                    Reset to Default
+                  </button>
+                )}
+              </>
+            )}
+
+            {activeTab === 'full' && (
+              <>
+                <p style={{ fontSize: '0.875em', color: '#6c757d', marginTop: 0, marginBottom: '16px' }}>
+                  This is the prompt sent to Perplexity for every summary. Your Custom Prompt is prepended when set.
+                </p>
+
+                <p style={{ fontSize: '0.8rem', fontWeight: 600, color: '#495057', marginBottom: '4px', marginTop: 0 }}>
+                  System
+                </p>
+                <pre
+                  style={{
+                    background: '#f8f9fa',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '4px',
+                    padding: '12px',
+                    fontSize: '0.85em',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    color: '#212529',
+                    marginTop: 0,
+                    marginBottom: '16px',
+                  }}
+                >
+                  {SYSTEM_MESSAGE}
+                </pre>
+
+                <p style={{ fontSize: '0.8rem', fontWeight: 600, color: '#495057', marginBottom: '4px', marginTop: 0 }}>
+                  User Message
+                </p>
+                <pre
+                  style={{
+                    background: '#f8f9fa',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '4px',
+                    padding: '12px',
+                    fontSize: '0.85em',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    color: '#212529',
+                    marginTop: 0,
+                    marginBottom: 0,
+                  }}
+                >
+                  {USER_MESSAGE_TEMPLATE}
+                </pre>
+              </>
+            )}
+          </div>
 
           <button
             onClick={saveSettings}
