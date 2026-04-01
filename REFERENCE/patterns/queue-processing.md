@@ -303,41 +303,72 @@ retry_delay = 10        # Seconds between retries
 
 ### Implementing Smart Retries
 
+**Pattern: Typed Error Classes**
+
+Define custom error classes to distinguish permanent from transient failures:
+
 ```typescript
-async function handleJobError(message: Message, error: any) {
-  // Classify error
-  if (isTransientError(error)) {
-    // Let queue retry automatically
-    console.log('[Consumer] Transient error, will retry:', error.message);
-    return; // Don't ack, queue will retry
+// Define error types
+class PermanentError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PermanentError';
   }
-
-  // Permanent error: Mark job as failed
-  await updateJobStatus(message.body.jobId, 'failed', error.message);
-
-  // Acknowledge to prevent further retries
-  message.ack();
 }
 
-function isTransientError(error: any): boolean {
-  // Network errors
-  if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') {
-    return true;
+class TransientError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TransientError';
+  }
+}
+
+// Classify errors when they occur
+async function fetchContent(url: string): Promise<Content> {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    // 4xx errors are permanent (bad request, not found, unauthorized)
+    if (response.status >= 400 && response.status < 500) {
+      throw new PermanentError(`Content not found (HTTP ${response.status})`);
+    }
+    // 5xx errors are transient (server issues, try again)
+    throw new TransientError(`API error (HTTP ${response.status}), will retry`);
   }
 
-  // Rate limiting
-  if (error.status === 429) {
-    return true;
-  }
+  return await response.json();
+}
 
-  // Service unavailable
-  if (error.status === 503) {
-    return true;
-  }
+// Handle errors in consumer
+try {
+  const content = await fetchContent(url);
+  await processContent(content);
+  message.ack(); // Success
+} catch (error) {
+  const isPermanent = error instanceof PermanentError;
 
-  return false;
+  if (isPermanent) {
+    // Permanent error: fail immediately without retry
+    console.error('[Consumer] Permanent failure:', error.message);
+    await updateJobStatus(jobId, 'failed', error.message);
+    message.ack(); // Don't retry
+  } else {
+    // Transient error: retry up to max_attempts
+    if (job.attempts >= job.max_attempts) {
+      // Exhausted retries
+      await updateJobStatus(jobId, 'failed', error.message);
+      message.ack();
+    } else {
+      // Increment attempts and retry
+      await incrementJobAttempts(jobId);
+      console.log(`[Consumer] Retrying job (attempt ${job.attempts + 1}/${job.max_attempts})`);
+      message.retry(); // Re-queue with exponential backoff
+    }
+  }
 }
 ```
+
+**Implementation:** See `workers/consumer.ts:27-40` for the actual error classes and `workers/consumer.ts:228-277` for the error handling logic.
 
 ---
 

@@ -391,6 +391,10 @@ describe('Queue Consumer', () => {
   it('handles missing content from Reader API', async () => {
     const mockAck = vi.fn();
     const mockRetry = vi.fn();
+    const mockUpdateJob = vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    });
+    const mockInsertLog = vi.fn().mockResolvedValue({ error: null });
 
     // Mock Reader API with no content
     (global.fetch as any).mockResolvedValue({
@@ -418,10 +422,11 @@ describe('Queue Consumer', () => {
               }),
             }),
           }),
-          update: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({ error: null }),
-          }),
+          update: mockUpdateJob,
         };
+      }
+      if (table === 'sync_log') {
+        return { insert: mockInsertLog };
       }
     });
 
@@ -443,9 +448,109 @@ describe('Queue Consumer', () => {
 
     await consumer.queue(mockBatch as any, mockEnv);
 
-    // Should retry due to content error
-    expect(mockRetry).toHaveBeenCalled();
+    // Permanent error - should ack, not retry
+    expect(mockAck).toHaveBeenCalled();
+    expect(mockRetry).not.toHaveBeenCalled();
     expect(mockGenerateSummary).not.toHaveBeenCalled();
+
+    // Verify job was marked as failed
+    expect(mockUpdateJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'failed',
+        error_message: 'Item has no content in Readwise Reader',
+      })
+    );
+
+    // Verify failure was logged as permanent
+    expect(mockInsertLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: 'user-1',
+        sync_type: 'summary_generation_failed',
+        items_failed: 1,
+        errors: expect.objectContaining({
+          permanent: true,
+        }),
+      })
+    );
+  });
+
+  it('handles item not found in Reader API (permanent error)', async () => {
+    const mockAck = vi.fn();
+    const mockRetry = vi.fn();
+    const mockUpdateJob = vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    });
+    const mockInsertLog = vi.fn().mockResolvedValue({ error: null });
+
+    // Mock Reader API 404 response
+    (global.fetch as any).mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({}),
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'processing_jobs') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { attempts: 0, max_attempts: 3 },
+                error: null,
+              }),
+            }),
+          }),
+          update: mockUpdateJob,
+        };
+      }
+      if (table === 'sync_log') {
+        return { insert: mockInsertLog };
+      }
+    });
+
+    const mockBatch = {
+      messages: [
+        {
+          body: {
+            jobId: 'job-1',
+            userId: 'user-1',
+            readerItemId: 'item-1',
+            readerId: 'reader-123',
+            jobType: 'summary_generation' as const,
+          },
+          ack: mockAck,
+          retry: mockRetry,
+        },
+      ],
+    };
+
+    await consumer.queue(mockBatch as any, mockEnv);
+
+    // Permanent error - should ack, not retry
+    expect(mockAck).toHaveBeenCalled();
+    expect(mockRetry).not.toHaveBeenCalled();
+    expect(mockGenerateSummary).not.toHaveBeenCalled();
+
+    // Verify job was marked as failed with specific error
+    expect(mockUpdateJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'failed',
+        error_message: 'Item not found in Readwise Reader (HTTP 404)',
+      })
+    );
+
+    // Verify failure was logged as permanent
+    expect(mockInsertLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: 'user-1',
+        sync_type: 'summary_generation_failed',
+        items_failed: 1,
+        errors: expect.objectContaining({
+          permanent: true,
+          error: 'Item not found in Readwise Reader (HTTP 404)',
+        }),
+      })
+    );
   });
 
   it('stores summary and tags in database', async () => {

@@ -24,10 +24,25 @@ interface QueueMessage {
   jobType: 'summary_generation';
 }
 
+// Custom error types for different failure scenarios
+class PermanentError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PermanentError';
+  }
+}
+
+class TransientError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TransientError';
+  }
+}
+
 async function fetchReaderContent(
   readerId: string,
   apiToken: string
-): Promise<{ title: string; author?: string; content: string; url: string } | null> {
+): Promise<{ title: string; author?: string; content: string; url: string }> {
   try {
     // Use Reader API to get item with full HTML content
     // withHtmlContent=true returns the html_content field
@@ -46,7 +61,12 @@ async function fetchReaderContent(
       console.error(
         `[Consumer] Failed to fetch from Reader API: ${response.status}`
       );
-      return null;
+      // 4xx errors are permanent (item doesn't exist, access denied, etc.)
+      if (response.status >= 400 && response.status < 500) {
+        throw new PermanentError(`Item not found in Readwise Reader (HTTP ${response.status})`);
+      }
+      // 5xx errors are transient (Reader API issues, try again)
+      throw new TransientError(`Reader API error (HTTP ${response.status}), will retry`);
     }
 
     const data = (await response.json()) as {
@@ -61,14 +81,14 @@ async function fetchReaderContent(
 
     if (!data.results || data.results.length === 0) {
       console.error('[Consumer] Item not found:', readerId);
-      return null;
+      throw new PermanentError('Item not found in Readwise Reader (may have been deleted)');
     }
 
     const item = data.results[0];
 
     if (!item.html_content) {
       console.error('[Consumer] Item has no content:', readerId);
-      return null;
+      throw new PermanentError('Item has no content in Readwise Reader');
     }
 
     // Strip HTML tags to get plain text for Perplexity
@@ -81,8 +101,13 @@ async function fetchReaderContent(
       url: item.url,
     };
   } catch (error) {
+    // Re-throw PermanentError and TransientError as-is
+    if (error instanceof PermanentError || error instanceof TransientError) {
+      throw error;
+    }
+    // Network errors and other exceptions are transient
     console.error('[Consumer] Error fetching Reader content:', error);
-    return null;
+    throw new TransientError('Network error fetching content, will retry');
   }
 }
 
@@ -164,12 +189,8 @@ async function processSummaryGeneration(
       env.READER_API_TOKEN
     );
 
-    if (!articleContent) {
-      throw new Error('Failed to fetch article content from Reader API');
-    }
-
     if (!articleContent.content || articleContent.content.length < 100) {
-      throw new Error(
+      throw new PermanentError(
         'Article content is empty or too short (< 100 characters)'
       );
     }
@@ -228,13 +249,14 @@ async function processSummaryGeneration(
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
+    const isPermanentError = error instanceof PermanentError;
+
     console.error('[Queue Consumer] Error processing job:', errorMessage);
 
-    // Check if we've exceeded max retry attempts
-    if (job.attempts >= job.max_attempts) {
-      // Permanent failure - mark as failed
+    // Permanent errors: fail immediately without retry
+    if (isPermanentError) {
       console.error(
-        `[Queue Consumer] Job ${jobId} permanently failed after ${job.attempts} attempts`
+        `[Queue Consumer] Job ${jobId} permanently failed: ${errorMessage}`
       );
 
       await supabase
@@ -255,6 +277,41 @@ async function processSummaryGeneration(
           reader_item_id: readerItemId,
           reader_id: readerId,
           error: errorMessage,
+          permanent: true,
+          timestamp: new Date().toISOString(),
+        },
+      });
+
+      message.ack(); // Don't retry
+      return;
+    }
+
+    // Transient errors: retry up to max_attempts
+    if (job.attempts >= job.max_attempts) {
+      // Exhausted retries - mark as failed
+      console.error(
+        `[Queue Consumer] Job ${jobId} failed after ${job.attempts} attempts`
+      );
+
+      await supabase
+        .from('processing_jobs')
+        .update({
+          status: 'failed',
+          error_message: errorMessage,
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', jobId);
+
+      // Log failure to sync_log
+      await supabase.from('sync_log').insert({
+        user_id: userId,
+        sync_type: 'summary_generation_failed',
+        items_failed: 1,
+        errors: {
+          reader_item_id: readerItemId,
+          reader_id: readerId,
+          error: errorMessage,
+          permanent: false,
           timestamp: new Date().toISOString(),
         },
       });
