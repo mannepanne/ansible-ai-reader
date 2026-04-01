@@ -622,7 +622,7 @@ describe('SummaryCard', () => {
       expect(screen.getByRole('button', { name: /expand/i })).toBeInTheDocument();
     });
 
-    it('does not show Expand on Commentariat tab when no commentariat', () => {
+    it('still shows Expand on Commentariat tab when summary is long', () => {
       const longSummary = 'a'.repeat(300);
       render(
         <SummaryCard {...defaultProps} summary={longSummary} commentariatSummary={null} />
@@ -630,7 +630,7 @@ describe('SummaryCard', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
 
-      expect(screen.queryByRole('button', { name: /expand/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /expand/i })).toBeInTheDocument();
     });
 
     it('shows Expand on Commentariat tab when commentariat is long', () => {

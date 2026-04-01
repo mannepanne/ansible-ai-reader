@@ -171,11 +171,9 @@ export default function SummaryCard({
       ? commentariatSummary.slice(0, TRUNCATE_THRESHOLD) + '...'
       : commentariatSummary;
 
-  // Controls row: expand button is tab-aware
+  // Controls row: expand button visible whenever either tab has expandable content
   const showExpandButton =
-    activeTab === 'summary'
-      ? shouldTruncateSummary
-      : shouldTruncateCommentariat && !!commentariatSummary;
+    shouldTruncateSummary || (shouldTruncateCommentariat && !!commentariatSummary);
   const isCurrentTabExpanded =
     activeTab === 'summary' ? isSummaryExpanded : isCommentariatExpanded;
   const handleExpandToggle = () => {
