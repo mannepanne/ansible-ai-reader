@@ -70,7 +70,7 @@ export default function Header({
           textDecoration: 'none',
         }}
       >
-        Ansible AI Reader
+        {isMobile ? 'Ansible' : 'Ansible AI Reader'}
       </Link>
 
       {/* Regenerate Tags button (orange, before Sync) */}
@@ -90,7 +90,11 @@ export default function Header({
             lineHeight: '1',
           }}
         >
-          {isRegenerating ? 'Processing...' : 'Regenerate Tags'}
+          {isRegenerating
+            ? 'Processing...'
+            : isMobile
+              ? 'Tags'
+              : 'Regenerate Tags'}
         </button>
       )}
 
