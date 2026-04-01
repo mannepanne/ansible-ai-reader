@@ -53,11 +53,8 @@ Auto-loaded when working with files in this directory. Documents architectural d
 
 ### Before making similar decision
 
-**Search precedent first:**
-```bash
-grep -r "library" REFERENCE/decisions/
-grep -r "authentication" REFERENCE/decisions/
-```
+**Search precedent first** using the Grep tool on `REFERENCE/decisions/`:
+- Search for the topic keyword (e.g. "library", "authentication", "queue")
 
 **Follow existing ADR unless:**
 - New information invalidates the reasoning
@@ -144,7 +141,7 @@ See [TEMPLATE-adr.md](./TEMPLATE-adr.md) for a complete example.
 ## Integration with other docs
 
 **ADRs complement:**
-- **SPECIFICATIONS/** - Plans reference ADRs for context ("We're doing X because ADR-015")
+- **SPECIFICATIONS/** - Plans reference ADRs for context ("We're doing X because of the 2026-03-15-typescript decision")
 - **REFERENCE/** - How-it-works docs reference ADRs for "why this way"
 - **Code comments** - Link to relevant ADR for architectural choices
 - **PR descriptions** - Mention ADR if decision was made during PR work
@@ -163,7 +160,7 @@ See [TEMPLATE-adr.md](./TEMPLATE-adr.md) for a complete example.
 - Be specific about alternatives (not "considered other options")
 - Explain reasoning clearly (someone reading 6 months later should understand)
 - Include trade-offs honestly (every choice has downsides)
-- Use British English (project standard)
+- Use British English
 - Keep concise but complete
 
 **Maintaining ADRs:**
@@ -183,6 +180,6 @@ See [TEMPLATE-adr.md](./TEMPLATE-adr.md) for a complete example.
 ## Credits
 
 Inspired by:
-- [Michael Nygard's ADR pattern](http://thinkrelevance.com/blog/2011/11/15/documenting-architecture-decisions)
+- [Michael Nygard's ADR pattern](https://thinkrelevance.com/blog/2011/11/15/documenting-architecture-decisions)
 - LinkedIn post about preventing re-debate of settled decisions
 - Experience with Claude Code sessions losing decision context
