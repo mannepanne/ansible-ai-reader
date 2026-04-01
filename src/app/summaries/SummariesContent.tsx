@@ -318,6 +318,49 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
     }
   }
 
+  async function handleDismissFailedItem(itemId: string) {
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await fetch('/api/reader/dismiss-failed', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ itemId }),
+      });
+
+      if (!response.ok) {
+        const errorData = (await response.json()) as { error?: string };
+        throw new Error(errorData.error || 'Failed to dismiss item');
+      }
+
+      // Remove from failed items lists
+      if (syncStatus?.failedItems) {
+        setSyncStatus({
+          ...syncStatus,
+          failedItems: syncStatus.failedItems.filter((item) => item.itemId !== itemId),
+          failedJobs: Math.max(0, syncStatus.failedJobs - 1),
+        });
+      }
+
+      if (regenerateStatus?.failedItems) {
+        setRegenerateStatus({
+          ...regenerateStatus,
+          failedItems: regenerateStatus.failedItems.filter((item) => item.itemId !== itemId),
+          failedJobs: Math.max(0, regenerateStatus.failedJobs - 1),
+        });
+      }
+
+      setSuccessMessage('Failed item dismissed');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      console.error('Dismiss failed item error:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    }
+  }
+
   async function handleRegenerateTags() {
     setError(null);
     setSuccessMessage(null);
@@ -590,10 +633,28 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
                 >
                   Failed items:
                 </p>
-                <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.9em' }}>
+                <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.9em', listStyle: 'none' }}>
                   {syncStatus.failedItems.map((item) => (
-                    <li key={item.itemId}>
-                      {item.title}: {item.error}
+                    <li key={item.itemId} style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                      <span style={{ flex: 1 }}>
+                        <strong>{item.title}:</strong> {item.error}
+                      </span>
+                      <button
+                        onClick={() => handleDismissFailedItem(item.itemId)}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid currentColor',
+                          color: 'inherit',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.85em',
+                          flexShrink: 0,
+                        }}
+                        title="Dismiss this failed item"
+                      >
+                        Dismiss
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -692,10 +753,28 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
                 >
                   Failed items:
                 </p>
-                <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.9em' }}>
+                <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.9em', listStyle: 'none' }}>
                   {regenerateStatus.failedItems.map((item) => (
-                    <li key={item.itemId}>
-                      {item.title}: {item.error}
+                    <li key={item.itemId} style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                      <span style={{ flex: 1 }}>
+                        <strong>{item.title}:</strong> {item.error}
+                      </span>
+                      <button
+                        onClick={() => handleDismissFailedItem(item.itemId)}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid currentColor',
+                          color: 'inherit',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.85em',
+                          flexShrink: 0,
+                        }}
+                        title="Dismiss this failed item"
+                      >
+                        Dismiss
+                      </button>
                     </li>
                   ))}
                 </ul>
