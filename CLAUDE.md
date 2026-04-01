@@ -95,6 +95,7 @@ Documentation is organized by **function** (what you're trying to do), not build
 - **Active specs** → [SPECIFICATIONS/](./SPECIFICATIONS/) (numbered phases)
 - **Completed specs** → [SPECIFICATIONS/ARCHIVE/](./SPECIFICATIONS/ARCHIVE/)
 - **Implementation history** → [SPECIFICATIONS/ARCHIVE/implementation/](./SPECIFICATIONS/ARCHIVE/implementation/) (phase docs)
+- **Architecture decisions?** → [decisions/](./REFERENCE/decisions/) - ADRs explaining why things are this way
 
 **Other important docs:**
 - **Technical debt** → [REFERENCE/technical-debt.md](./REFERENCE/technical-debt.md)
