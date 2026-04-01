@@ -76,6 +76,11 @@ describe('POST /api/reader/commentariat', () => {
           }),
         };
       }
+      if (table === 'sync_log') {
+        return {
+          insert: vi.fn().mockResolvedValue({ error: null }),
+        };
+      }
     });
   }
 
@@ -175,6 +180,9 @@ describe('POST /api/reader/commentariat', () => {
           }),
           update: mockUpdate,
         };
+      }
+      if (table === 'sync_log') {
+        return { insert: vi.fn().mockResolvedValue({ error: null }) };
       }
     });
 

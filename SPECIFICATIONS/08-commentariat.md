@@ -1,6 +1,6 @@
 # Feature: Commentariat — Intellectual Stress-Testing of Content
 
-**Status**: Planning
+**Status**: Implemented — In Review (PR #71)
 **Last Updated**: 2026-04-01
 **Dependencies**: Phase 4 ✅ (Perplexity integration), Phase 5 ✅ (UI card patterns)
 **Related Issue**: [#22](https://github.com/mannepanne/ansible-ai-reader/issues/22)

@@ -123,6 +123,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to save analysis' }, { status: 500 });
     }
 
+    // 8. Track token usage for cost monitoring (mirrors consumer worker pattern)
+    const { error: logError } = await supabase.from('sync_log').insert({
+      user_id: user.id,
+      sync_type: 'commentariat_generation',
+      items_created: 1,
+      errors: {
+        reader_item_id: itemId,
+        token_usage: {
+          prompt_tokens: result.usage.prompt_tokens,
+          completion_tokens: result.usage.completion_tokens,
+          total_tokens: result.usage.total_tokens,
+          model: result.model,
+          content_truncated: result.contentTruncated,
+          timestamp: generatedAt,
+        },
+      },
+    });
+
+    if (logError) {
+      // Non-fatal — log but don't fail the request
+      console.error('[Commentariat] Failed to log token usage:', logError);
+    }
+
     return NextResponse.json({
       commentariat: result.commentariat,
       generatedAt,
