@@ -70,6 +70,20 @@ export const ParsedSummarySchema = z.object({
 export type ParsedSummary = z.infer<typeof ParsedSummarySchema>;
 
 /**
+ * Commentariat generation result
+ */
+export interface CommentariatResult {
+  commentariat: string | null;
+  model: string;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+  contentTruncated: boolean;
+}
+
+/**
  * Summary generation result
  */
 export interface SummaryGenerationResult {
@@ -382,6 +396,117 @@ Your response must include a ## Summary section and a ## Tags section. Structure
       return {
         summary,
         tags,
+        model: validated.model,
+        usage: validated.usage,
+        contentTruncated: truncated,
+      };
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error('[Perplexity API] Validation error:', error.message);
+        throw new PerplexityAPIError(
+          'Invalid response format from Perplexity API',
+          undefined,
+          false
+        );
+      }
+
+      throw error;
+    }
+  });
+}
+
+/**
+ * Generate intellectual critique and counter-perspectives for article content
+ *
+ * Uses Perplexity's web search to surface counter-arguments, alternative
+ * schools of thought, and caveats from across the wider knowledge base.
+ *
+ * @param apiToken - Perplexity API key
+ * @param item - Article metadata and content
+ * @returns Commentariat text, token usage, and metadata
+ * @throws {PerplexityAPIError} On API errors
+ */
+export async function generateCommentariat(
+  apiToken: string,
+  item: {
+    title: string;
+    author?: string;
+    content: string;
+    url: string;
+  }
+): Promise<CommentariatResult> {
+  return perplexityQueue.add(async () => {
+    const { content, truncated } = smartTruncate(item.content);
+
+    if (truncated) {
+      console.log(`[Perplexity API] Content truncated for commentariat: ${item.title}`);
+    }
+
+    const requestBody: PerplexityRequest = {
+      model: 'sonar',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a critical analyst helping an evidence-driven reader evaluate ideas under scrutiny. Focus on intellectual robustness, not rhetorical style.',
+        },
+        {
+          role: 'user',
+          content: `Analyse the intellectual robustness of the main claims in this content.
+
+Identify:
+- Counter-arguments from established research or expert consensus
+- Alternative schools of thought or competing frameworks that reach different conclusions
+- Significant caveats, blind spots, or nuances the author may have overlooked
+
+Be specific and grounded. Avoid vague hedging. Format as bullet points grouped under short headers.
+
+Title: ${item.title}
+Author: ${item.author || 'Unknown'}
+
+Content:
+${content}`,
+        },
+      ],
+      max_tokens: 1000,
+      temperature: 0.2,
+    };
+
+    try {
+      const response = await fetchWithRetry(
+        'https://api.perplexity.ai/chat/completions',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new PerplexityAPIError('Invalid Perplexity API token', 401, false);
+        }
+
+        throw new PerplexityAPIError(
+          `Perplexity API error: ${response.status} ${response.statusText}`,
+          response.status,
+          response.status >= 500
+        );
+      }
+
+      const data = await response.json();
+      const validated = PerplexityResponseSchema.parse(data);
+      const commentariat = validated.choices[0].message.content;
+
+      console.log(
+        `[Perplexity API] Generated commentariat for: ${item.title} (${validated.usage.total_tokens} tokens)`
+      );
+
+      return {
+        commentariat,
         model: validated.model,
         usage: validated.usage,
         contentTruncated: truncated,

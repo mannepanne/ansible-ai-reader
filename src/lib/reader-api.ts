@@ -3,6 +3,7 @@
 
 import { z } from 'zod';
 import PQueue from 'p-queue';
+import { stripHtml } from './html-utils';
 
 // ====================
 // Types and Schemas
@@ -373,6 +374,87 @@ export async function updateNote(
     console.error('[Reader API] Note update failed:', error);
     throw error;
   }
+}
+
+/**
+ * Fetch full article content from Readwise Reader for AI processing
+ *
+ * Fetches with HTML content included, strips tags to return plain text.
+ * Used by on-demand features (e.g. commentariat) that need content at request time.
+ *
+ * @param readerId - Readwise Reader document ID
+ * @param apiToken - Reader API token
+ * @returns Article metadata and plain text content
+ * @throws {ReaderAPIError} On API errors or missing content
+ */
+export async function fetchArticleContent(
+  readerId: string,
+  apiToken: string
+): Promise<{ title: string; author?: string; content: string; url: string }> {
+  return readerQueue.add(async () => {
+    const url = `https://readwise.io/api/v3/list/?id=${encodeURIComponent(readerId)}&withHtmlContent=true`;
+
+    try {
+      const response = await fetchWithRetry(url, {
+        method: 'GET',
+        headers: {
+          Authorization: `Token ${apiToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new ReaderAPIError('Invalid Reader API token', 401, false);
+        }
+        if (response.status >= 400 && response.status < 500) {
+          throw new ReaderAPIError(
+            `Item not found (HTTP ${response.status})`,
+            response.status,
+            false
+          );
+        }
+        throw new ReaderAPIError(
+          `Reader API error: ${response.status} ${response.statusText}`,
+          response.status,
+          response.status >= 500
+        );
+      }
+
+      const data = (await response.json()) as {
+        results?: Array<{
+          id: string;
+          title: string;
+          author?: string;
+          html_content?: string;
+          url: string;
+        }>;
+      };
+
+      if (!data.results || data.results.length === 0) {
+        throw new ReaderAPIError('Item not found in Readwise Reader', 404, false);
+      }
+
+      const item = data.results[0];
+
+      if (!item.html_content) {
+        throw new ReaderAPIError('Item has no content in Readwise Reader', 422, false);
+      }
+
+      const plainText = stripHtml(item.html_content);
+
+      return {
+        title: item.title,
+        author: item.author,
+        content: plainText,
+        url: item.url,
+      };
+    } catch (error) {
+      if (error instanceof ReaderAPIError) throw error;
+      console.error('[Reader API] Error fetching article content:', error);
+      throw new ReaderAPIError('Network error fetching content', undefined, true);
+    }
+  });
 }
 
 /**

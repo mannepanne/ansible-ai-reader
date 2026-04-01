@@ -637,6 +637,180 @@ testing`,
     });
   });
 
+  describe('generateCommentariat', () => {
+    const mockApiToken = 'test-perplexity-token';
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      global.fetch = vi.fn();
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('generates commentariat successfully', async () => {
+      const mockResponse = {
+        id: 'resp-456',
+        model: 'sonar',
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: `## Counter-arguments
+- Studies show the opposite effect in low-income contexts
+- Recent meta-analysis challenges the core claim
+
+## Alternative perspectives
+- Behavioural economists take a different view
+- The Austrian school offers a competing framework
+
+## Caveats and blind spots
+- The author ignores non-Western data
+- Sample size limitations are not addressed`,
+            },
+            finish_reason: 'stop',
+          },
+        ],
+        usage: {
+          prompt_tokens: 900,
+          completion_tokens: 200,
+          total_tokens: 1100,
+        },
+      };
+
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => mockResponse,
+      });
+
+      const { generateCommentariat } = await import('./perplexity-api');
+      const result = await generateCommentariat(mockApiToken, {
+        title: 'Economic Theory Article',
+        author: 'Dr. Smith',
+        content: 'Article content about economic theory...',
+        url: 'https://example.com/article',
+      });
+
+      expect(result.commentariat).toContain('Counter-arguments');
+      expect(result.commentariat).toContain('Alternative perspectives');
+      expect(result.model).toBe('sonar');
+      expect(result.usage.total_tokens).toBe(1100);
+      expect(result.contentTruncated).toBe(false);
+    });
+
+    it('truncates long content and sets flag', async () => {
+      const longContent = 'A'.repeat(50000);
+
+      const mockResponse = {
+        id: 'resp-456',
+        model: 'sonar',
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: '## Counter-arguments\n- A point\n\n## Alternative perspectives\n- Another point',
+            },
+            finish_reason: 'stop',
+          },
+        ],
+        usage: { prompt_tokens: 1000, completion_tokens: 50, total_tokens: 1050 },
+      };
+
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const { generateCommentariat } = await import('./perplexity-api');
+      const result = await generateCommentariat(mockApiToken, {
+        title: 'Long Article',
+        content: longContent,
+        url: 'https://example.com',
+      });
+
+      expect(result.contentTruncated).toBe(true);
+
+      const fetchCall = (global.fetch as any).mock.calls[0];
+      const requestBody = JSON.parse(fetchCall[1].body);
+      const userMessage = requestBody.messages.find((m: any) => m.role === 'user');
+      expect(userMessage.content).toContain('[... content truncated for length ...]');
+    });
+
+    it('includes correct system prompt for critical analysis', async () => {
+      const mockResponse = {
+        id: 'resp-456',
+        model: 'sonar',
+        choices: [
+          {
+            index: 0,
+            message: { role: 'assistant', content: '## Counter-arguments\n- A point' },
+            finish_reason: 'stop',
+          },
+        ],
+        usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 },
+      };
+
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const { generateCommentariat } = await import('./perplexity-api');
+      await generateCommentariat(mockApiToken, {
+        title: 'Test Article',
+        content: 'Content',
+        url: 'https://example.com',
+      });
+
+      const fetchCall = (global.fetch as any).mock.calls[0];
+      const requestBody = JSON.parse(fetchCall[1].body);
+      const systemMessage = requestBody.messages.find((m: any) => m.role === 'system');
+      const userMessage = requestBody.messages.find((m: any) => m.role === 'user');
+
+      expect(systemMessage.content).toContain('critical analyst');
+      expect(userMessage.content).toContain('intellectual robustness');
+      expect(userMessage.content).toContain('Counter-arguments');
+      expect(userMessage.content).toContain('Alternative schools of thought');
+    });
+
+    it('throws error on 401 unauthorized', async () => {
+      (global.fetch as any).mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+      });
+
+      const { generateCommentariat } = await import('./perplexity-api');
+      await expect(
+        generateCommentariat(mockApiToken, {
+          title: 'Test',
+          content: 'Content',
+          url: 'https://example.com',
+        })
+      ).rejects.toThrow('Invalid Perplexity API token');
+    });
+
+    it('throws error on invalid response format', async () => {
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => ({ id: 'resp-123' /* missing required fields */ }),
+      });
+
+      const { generateCommentariat } = await import('./perplexity-api');
+      await expect(
+        generateCommentariat(mockApiToken, {
+          title: 'Test',
+          content: 'Content',
+          url: 'https://example.com',
+        })
+      ).rejects.toThrow('Invalid response format from Perplexity API');
+    });
+  });
+
   describe('PerplexityAPIError', () => {
     it('creates error with message and status code', () => {
       const error = new PerplexityAPIError('API Error', 401, false);

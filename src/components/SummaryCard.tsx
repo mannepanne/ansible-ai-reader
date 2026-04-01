@@ -1,5 +1,5 @@
 // ABOUT: Summary card component for displaying article summaries
-// ABOUT: Shows title, summary, tags, metadata, and actions
+// ABOUT: Shows title, tabbed summary/commentariat, tags, metadata, and actions
 
 'use client';
 
@@ -18,10 +18,15 @@ interface SummaryCardProps {
   contentTruncated: boolean;
   documentNote?: string | null;
   rating?: number | null;
+  commentariatSummary?: string | null;
+  commentariatGeneratedAt?: string | null;
   onArchive: (id: string) => void;
   onSaveNote: (id: string, note: string) => Promise<void>;
   onSaveRating: (id: string, rating: number | null) => Promise<void>;
+  onGenerateCommentariat: (id: string) => Promise<void>;
 }
+
+const TRUNCATE_THRESHOLD = 200;
 
 export default function SummaryCard({
   id,
@@ -34,22 +39,34 @@ export default function SummaryCard({
   contentTruncated,
   documentNote,
   rating,
+  commentariatSummary,
+  commentariatGeneratedAt,
   onArchive,
   onSaveNote,
   onSaveRating,
+  onGenerateCommentariat,
 }: SummaryCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'summary' | 'commentariat'>('summary');
+
+  // Expand state per tab
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
+  const [isCommentariatExpanded, setIsCommentariatExpanded] = useState(false);
+
+  // Note state
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [noteText, setNoteText] = useState('');
-  const [savedNote, setSavedNote] = useState<string | null>(
-    documentNote || null
-  );
+  const [savedNote, setSavedNote] = useState<string | null>(documentNote || null);
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [noteError, setNoteError] = useState<string | null>(null);
 
   // Rating state
   const [currentRating, setCurrentRating] = useState<number | null>(rating || null);
   const [isSavingRating, setIsSavingRating] = useState(false);
+
+  // Commentariat generation state
+  const [isCommentariatGenerating, setIsCommentariatGenerating] = useState(false);
+  const [commentariatError, setCommentariatError] = useState<string | null>(null);
 
   // Note handlers
   const handleAddEditNote = () => {
@@ -59,13 +76,8 @@ export default function SummaryCard({
   };
 
   const handleCancelNote = () => {
-    // Confirm if there are unsaved changes
     if (noteText.trim() !== (savedNote || '').trim()) {
-      if (
-        !window.confirm(
-          'You have unsaved changes. Are you sure you want to cancel?'
-        )
-      ) {
+      if (!window.confirm('You have unsaved changes. Are you sure you want to cancel?')) {
         return;
       }
     }
@@ -96,9 +108,7 @@ export default function SummaryCard({
       setIsEditingNote(false);
       setNoteText('');
     } catch (error) {
-      setNoteError(
-        error instanceof Error ? error.message : 'Failed to save note'
-      );
+      setNoteError(error instanceof Error ? error.message : 'Failed to save note');
     } finally {
       setIsSavingNote(false);
     }
@@ -116,12 +126,8 @@ export default function SummaryCard({
 
   // Rating handlers
   const handleRatingClick = async (targetRating: number) => {
-    if (isSavingRating) return; // Prevent double-clicks
-
-    // Toggle: if clicking the same rating, unrate (set to null)
+    if (isSavingRating) return;
     const newRating = currentRating === targetRating ? null : targetRating;
-
-    // Optimistic UI update
     const previousRating = currentRating;
     setCurrentRating(newRating);
     setIsSavingRating(true);
@@ -129,7 +135,6 @@ export default function SummaryCard({
     try {
       await onSaveRating(id, newRating);
     } catch (error) {
-      // Revert on error
       setCurrentRating(previousRating);
       console.error('Failed to save rating:', error);
     } finally {
@@ -137,22 +142,95 @@ export default function SummaryCard({
     }
   };
 
-  // Truncate summary to ~3-4 lines (roughly 200 chars)
-  const shouldTruncate = summary.length > 200;
-  const displaySummary =
-    !isExpanded && shouldTruncate ? summary.slice(0, 200) + '...' : summary;
+  // Commentariat handler
+  const handleGenerateCommentariat = async () => {
+    setIsCommentariatGenerating(true);
+    setCommentariatError(null);
 
-  // Calculate reading time estimate (250 words per minute)
+    try {
+      await onGenerateCommentariat(id);
+    } catch (error) {
+      setCommentariatError('Analysis unavailable — try again');
+    } finally {
+      setIsCommentariatGenerating(false);
+    }
+  };
+
+  // Summary truncation
+  const shouldTruncateSummary = summary.length > TRUNCATE_THRESHOLD;
+  const displaySummary =
+    !isSummaryExpanded && shouldTruncateSummary
+      ? summary.slice(0, TRUNCATE_THRESHOLD) + '...'
+      : summary;
+
+  // Commentariat truncation
+  const shouldTruncateCommentariat =
+    !!commentariatSummary && commentariatSummary.length > TRUNCATE_THRESHOLD;
+  const displayCommentariat =
+    commentariatSummary && !isCommentariatExpanded && shouldTruncateCommentariat
+      ? commentariatSummary.slice(0, TRUNCATE_THRESHOLD) + '...'
+      : commentariatSummary;
+
+  // Controls row: expand button is tab-aware
+  const showExpandButton =
+    activeTab === 'summary'
+      ? shouldTruncateSummary
+      : shouldTruncateCommentariat && !!commentariatSummary;
+  const isCurrentTabExpanded =
+    activeTab === 'summary' ? isSummaryExpanded : isCommentariatExpanded;
+  const handleExpandToggle = () => {
+    if (activeTab === 'summary') {
+      setIsSummaryExpanded((v) => !v);
+    } else {
+      setIsCommentariatExpanded((v) => !v);
+    }
+  };
+
+  // Reading time estimate
   const readingTime = wordCount ? Math.ceil(wordCount / 250) : null;
 
-  // Tag colors (cycle through a set of pleasant colors)
+  // Tag color palette
   const tagColors = [
-    { bg: '#e3f2fd', text: '#1565c0' }, // Blue
-    { bg: '#f3e5f5', text: '#7b1fa2' }, // Purple
-    { bg: '#e8f5e9', text: '#2e7d32' }, // Green
-    { bg: '#fff3e0', text: '#e65100' }, // Orange
-    { bg: '#fce4ec', text: '#c2185b' }, // Pink
+    { bg: '#e3f2fd', text: '#1565c0' },
+    { bg: '#f3e5f5', text: '#7b1fa2' },
+    { bg: '#e8f5e9', text: '#2e7d32' },
+    { bg: '#fff3e0', text: '#e65100' },
+    { bg: '#fce4ec', text: '#c2185b' },
   ];
+
+  // Shared ReactMarkdown components
+  const markdownComponents = {
+    ul: ({ ...props }) => (
+      <ul style={{ margin: '8px 0', paddingLeft: '20px', listStyleType: 'disc' }} {...props} />
+    ),
+    li: ({ ...props }) => (
+      <li style={{ marginBottom: '6px', lineHeight: 1.6 }} {...props} />
+    ),
+    p: ({ ...props }) => <p style={{ margin: '8px 0' }} {...props} />,
+    strong: ({ ...props }) => (
+      <strong style={{ fontWeight: 700, color: '#212529' }} {...props} />
+    ),
+    a: ({ ...props }) => (
+      <a
+        style={{ color: '#0d6efd', textDecoration: 'underline' }}
+        target="_blank"
+        rel="noopener noreferrer"
+        {...props}
+      />
+    ),
+    h2: ({ ...props }) => (
+      <h2
+        style={{ fontSize: '0.95em', fontWeight: 700, margin: '12px 0 4px', color: '#212529' }}
+        {...props}
+      />
+    ),
+    h3: ({ ...props }) => (
+      <h3
+        style={{ fontSize: '0.9em', fontWeight: 600, margin: '10px 0 4px', color: '#343a40' }}
+        {...props}
+      />
+    ),
+  };
 
   return (
     <div
@@ -195,169 +273,226 @@ export default function SummaryCard({
         </a>
       </h3>
 
-      {/* Summary */}
+      {/* Tab bar */}
+      <div
+        style={{
+          display: 'flex',
+          borderBottom: '1px solid #dee2e6',
+          gap: '0',
+        }}
+      >
+        {(['summary', 'commentariat'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === tab ? '2px solid #0d6efd' : '2px solid transparent',
+              color: activeTab === tab ? '#0d6efd' : '#6c757d',
+              cursor: 'pointer',
+              fontSize: '0.85em',
+              fontWeight: activeTab === tab ? 600 : 400,
+              padding: '6px 12px 8px',
+              marginBottom: '-1px',
+              transition: 'color 0.15s',
+              textTransform: 'capitalize',
+            }}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
       <div
         style={{
           color: '#495057',
           fontSize: '0.9em',
           lineHeight: 1.5,
         }}
-        className="summary-markdown"
       >
-        <ReactMarkdown
-          components={{
-            // Style unordered lists
-            ul: ({ ...props }) => (
-              <ul
+        {activeTab === 'summary' && (
+          <div className="summary-markdown">
+            <ReactMarkdown components={markdownComponents}>{displaySummary}</ReactMarkdown>
+          </div>
+        )}
+
+        {activeTab === 'commentariat' && (
+          <div className="commentariat-content">
+            {isCommentariatGenerating ? (
+              <div
                 style={{
-                  margin: '8px 0',
-                  paddingLeft: '20px',
-                  listStyleType: 'disc',
-                }}
-                {...props}
-              />
-            ),
-            // Style list items
-            li: ({ ...props }) => (
-              <li
-                style={{
-                  marginBottom: '6px',
-                  lineHeight: 1.6,
-                }}
-                {...props}
-              />
-            ),
-            // Style paragraphs
-            p: ({ ...props }) => (
-              <p
-                style={{
-                  margin: '8px 0',
-                }}
-                {...props}
-              />
-            ),
-            // Style bold text
-            strong: ({ ...props }) => (
-              <strong
-                style={{
-                  fontWeight: 700,
-                  color: '#212529',
-                }}
-                {...props}
-              />
-            ),
-            // Style links (open in new tab)
-            a: ({ ...props }) => (
-              <a
-                style={{
-                  color: '#0d6efd',
-                  textDecoration: 'underline',
-                }}
-                target="_blank"
-                rel="noopener noreferrer"
-                {...props}
-              />
-            ),
-          }}
-        >
-          {displaySummary}
-        </ReactMarkdown>
-        {/* Action links: Expand/Collapse | Add/Edit note | Rating */}
-        {(shouldTruncate || isExpanded || !isEditingNote) && (
-          <div style={{ marginTop: '4px', fontSize: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {shouldTruncate && !isExpanded && (
-              <button
-                onClick={() => setIsExpanded(true)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#0d6efd',
-                  cursor: 'pointer',
-                  padding: 0,
-                  fontSize: 'inherit',
+                  textAlign: 'center',
+                  padding: '24px 0',
+                  color: '#6c757d',
+                  fontSize: '0.9em',
                 }}
               >
-                Expand
-              </button>
-            )}
-            {isExpanded && (
-              <button
-                onClick={() => setIsExpanded(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#0d6efd',
-                  cursor: 'pointer',
-                  padding: 0,
-                  fontSize: 'inherit',
-                }}
-              >
-                Collapse
-              </button>
-            )}
-            {(shouldTruncate || isExpanded) && !isEditingNote && (
-              <span style={{ color: '#6c757d', margin: '0' }}>|</span>
-            )}
-            {!isEditingNote && (
-              <button
-                onClick={handleAddEditNote}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#0d6efd',
-                  cursor: 'pointer',
-                  padding: 0,
-                  fontSize: 'inherit',
-                }}
-              >
-                {savedNote ? 'Edit note' : 'Add note'}
-              </button>
-            )}
-            {/* Rating buttons - icon only */}
-            {!isEditingNote && (
+                Analysing ideas…
+              </div>
+            ) : commentariatSummary ? (
               <>
-                <span style={{ color: '#6c757d', margin: '0' }}>|</span>
-                <button
-                  onClick={() => handleRatingClick(4)}
-                  disabled={isSavingRating}
-                  title="Interesting"
-                  aria-label="Mark as interesting"
-                  style={{
-                    background: currentRating === 4 ? '#fff3cd' : 'transparent',
-                    border: 'none',
-                    borderRadius: '4px',
-                    padding: '2px 4px',
-                    cursor: isSavingRating ? 'not-allowed' : 'pointer',
-                    fontSize: '1.1em',
-                    opacity: isSavingRating ? 0.6 : currentRating === 4 ? 1 : 0.5,
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  💡
-                </button>
-                <button
-                  onClick={() => handleRatingClick(1)}
-                  disabled={isSavingRating}
-                  title="Not interesting"
-                  aria-label="Mark as not interesting"
-                  style={{
-                    background: currentRating === 1 ? '#f8d7da' : 'transparent',
-                    border: 'none',
-                    borderRadius: '4px',
-                    padding: '2px 4px',
-                    cursor: isSavingRating ? 'not-allowed' : 'pointer',
-                    fontSize: '1.1em',
-                    opacity: isSavingRating ? 0.6 : currentRating === 1 ? 1 : 0.5,
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  🤷
-                </button>
+                <ReactMarkdown components={markdownComponents}>
+                  {displayCommentariat || ''}
+                </ReactMarkdown>
+                {commentariatGeneratedAt && (
+                  <div
+                    style={{
+                      marginTop: '8px',
+                      fontSize: '0.75em',
+                      color: '#adb5bd',
+                    }}
+                  >
+                    Analysed{' '}
+                    {new Date(commentariatGeneratedAt).toLocaleDateString('en-GB', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </div>
+                )}
               </>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                {commentariatError && (
+                  <div
+                    style={{
+                      marginBottom: '12px',
+                      padding: '8px 12px',
+                      background: '#f8d7da',
+                      color: '#dc3545',
+                      borderRadius: '4px',
+                      fontSize: '0.85em',
+                    }}
+                  >
+                    {commentariatError}
+                  </div>
+                )}
+                <button
+                  onClick={handleGenerateCommentariat}
+                  style={{
+                    background: '#f8f9fa',
+                    border: '1px solid #ced4da',
+                    borderRadius: '4px',
+                    color: '#495057',
+                    cursor: 'pointer',
+                    fontSize: '0.85em',
+                    fontWeight: 500,
+                    padding: '8px 16px',
+                  }}
+                >
+                  Analyse ideas
+                </button>
+              </div>
             )}
           </div>
         )}
       </div>
+
+      {/* Controls row — outside tabs */}
+      {!isEditingNote && (
+        <div
+          style={{
+            marginTop: '4px',
+            fontSize: '0.9em',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          {showExpandButton && (
+            <button
+              onClick={handleExpandToggle}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#0d6efd',
+                cursor: 'pointer',
+                padding: 0,
+                fontSize: 'inherit',
+              }}
+            >
+              {isCurrentTabExpanded ? 'Collapse' : 'Expand'}
+            </button>
+          )}
+          {showExpandButton && (
+            <span style={{ color: '#6c757d' }}>|</span>
+          )}
+          <button
+            onClick={handleAddEditNote}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#0d6efd',
+              cursor: 'pointer',
+              padding: 0,
+              fontSize: 'inherit',
+            }}
+          >
+            {savedNote ? 'Edit note' : 'Add note'}
+          </button>
+          <span style={{ color: '#6c757d' }}>|</span>
+          <button
+            onClick={() => handleRatingClick(4)}
+            disabled={isSavingRating}
+            title="Interesting"
+            aria-label="Mark as interesting"
+            style={{
+              background: currentRating === 4 ? '#fff3cd' : 'transparent',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '2px 4px',
+              cursor: isSavingRating ? 'not-allowed' : 'pointer',
+              fontSize: '1.1em',
+              opacity: isSavingRating ? 0.6 : currentRating === 4 ? 1 : 0.5,
+              transition: 'all 0.2s',
+            }}
+          >
+            💡
+          </button>
+          <button
+            onClick={() => handleRatingClick(1)}
+            disabled={isSavingRating}
+            title="Not interesting"
+            aria-label="Mark as not interesting"
+            style={{
+              background: currentRating === 1 ? '#f8d7da' : 'transparent',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '2px 4px',
+              cursor: isSavingRating ? 'not-allowed' : 'pointer',
+              fontSize: '1.1em',
+              opacity: isSavingRating ? 0.6 : currentRating === 1 ? 1 : 0.5,
+              transition: 'all 0.2s',
+            }}
+          >
+            🤷
+          </button>
+
+          {/* Refresh commentariat (shown after generation) */}
+          {activeTab === 'commentariat' && commentariatSummary && !isCommentariatGenerating && (
+            <>
+              <span style={{ color: '#6c757d' }}>|</span>
+              <button
+                onClick={handleGenerateCommentariat}
+                title="Refresh analysis"
+                aria-label="Refresh analysis"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#6c757d',
+                  cursor: 'pointer',
+                  padding: 0,
+                  fontSize: '0.85em',
+                }}
+              >
+                ↺ Refresh
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Note editing form */}
       {isEditingNote && (
@@ -481,7 +616,6 @@ export default function SummaryCard({
         </div>
       )}
 
-
       {/* Tags */}
       {tags && tags.length > 0 && (
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -520,15 +654,11 @@ export default function SummaryCard({
         >
           {author && <span>{author}</span>}
           {author && readingTime && <span>·</span>}
-          {readingTime && (
-            <span>
-              {readingTime} min read
-            </span>
-          )}
+          {readingTime && <span>{readingTime} min read</span>}
         </div>
       )}
 
-      {/* Truncated warning */}
+      {/* Truncated content warning */}
       {contentTruncated && (
         <div
           style={{
@@ -550,13 +680,7 @@ export default function SummaryCard({
       )}
 
       {/* Divider */}
-      <div
-        style={{
-          height: '1px',
-          background: '#f1f3f5',
-          margin: '4px 0',
-        }}
-      />
+      <div style={{ height: '1px', background: '#f1f3f5', margin: '4px 0' }} />
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: '8px' }}>

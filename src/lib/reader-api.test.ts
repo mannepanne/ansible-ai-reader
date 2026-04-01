@@ -6,6 +6,7 @@ import {
   fetchUnreadItems,
   archiveItem,
   updateNote,
+  fetchArticleContent,
   ReaderAPIError,
   getQueueStatus,
 } from './reader-api';
@@ -472,6 +473,142 @@ describe('Reader API Client', () => {
           body: JSON.stringify({ notes: '' }),
         })
       );
+    });
+  });
+
+  describe('fetchArticleContent', () => {
+    beforeEach(() => {
+      // Advance fake timers past the queue's 60-second interval window so
+      // requests from earlier test suites don't exhaust the intervalCap (20/min).
+      vi.advanceTimersByTime(70 * 1000);
+    });
+
+    it('fetches and strips HTML content', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          results: [
+            {
+              id: 'reader-123',
+              title: 'Test Article',
+              author: 'Jane Doe',
+              html_content: '<p>Article <strong>content</strong> here.</p>',
+              url: 'https://example.com/article',
+            },
+          ],
+        }),
+        headers: new Map(),
+      } as any);
+
+      const result = await fetchArticleContent('reader-123', 'test-token');
+
+      expect(result.title).toBe('Test Article');
+      expect(result.author).toBe('Jane Doe');
+      expect(result.url).toBe('https://example.com/article');
+      expect(result.content).toContain('Article');
+      expect(result.content).not.toContain('<p>');
+      expect(result.content).not.toContain('<strong>');
+    });
+
+    it('requests withHtmlContent=true', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          results: [
+            {
+              id: 'reader-123',
+              title: 'Test',
+              html_content: '<p>Content</p>',
+              url: 'https://example.com',
+            },
+          ],
+        }),
+        headers: new Map(),
+      } as any);
+
+      await fetchArticleContent('reader-123', 'test-token');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('withHtmlContent=true'),
+        expect.any(Object)
+      );
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('reader-123'),
+        expect.any(Object)
+      );
+    });
+
+    it('throws ReaderAPIError when item not found', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ results: [] }),
+        headers: new Map(),
+      } as any);
+
+      await expect(fetchArticleContent('missing-id', 'test-token')).rejects.toThrow(
+        ReaderAPIError
+      );
+    });
+
+    it('throws ReaderAPIError when item has no content', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          results: [
+            {
+              id: 'reader-123',
+              title: 'No Content Article',
+              url: 'https://example.com',
+              // html_content intentionally absent
+            },
+          ],
+        }),
+        headers: new Map(),
+      } as any);
+
+      await expect(fetchArticleContent('reader-123', 'test-token')).rejects.toThrow(
+        ReaderAPIError
+      );
+    });
+
+    it('throws ReaderAPIError on 401', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        headers: new Map(),
+      } as any);
+
+      await expect(fetchArticleContent('reader-123', 'test-token')).rejects.toThrow(
+        'Invalid Reader API token'
+      );
+    });
+
+    it('handles missing author gracefully', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          results: [
+            {
+              id: 'reader-123',
+              title: 'No Author Article',
+              html_content: '<p>Content</p>',
+              url: 'https://example.com',
+            },
+          ],
+        }),
+        headers: new Map(),
+      } as any);
+
+      const result = await fetchArticleContent('reader-123', 'test-token');
+
+      expect(result.author).toBeUndefined();
+      expect(result.title).toBe('No Author Article');
     });
   });
 
