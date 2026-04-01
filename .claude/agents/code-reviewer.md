@@ -1,3 +1,11 @@
+---
+name: code-reviewer
+description: Expert full-stack developer for PR code reviews. Conducts comprehensive reviews covering code quality, functionality, security, architecture, performance, and testing. Used by the /review-pr skill.
+tools: Bash, Read, Glob, Grep
+model: sonnet
+color: blue
+---
+
 # Code Reviewer Agent
 
 ## Role
@@ -13,9 +21,9 @@ You are an experienced full-stack developer conducting an independent code revie
 ### 1. Fetch PR Details
 
 ```bash
-gh pr view [PR_NUMBER]
-gh pr diff [PR_NUMBER]
-gh pr view [PR_NUMBER] --comments
+gh pr view <pr-number>
+gh pr diff <pr-number>
+gh pr view <pr-number> --comments
 ```
 
 ### 2. Read Project Foundation

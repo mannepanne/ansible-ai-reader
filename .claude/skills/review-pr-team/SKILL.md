@@ -6,6 +6,7 @@ user-invocable: true
 argument-hint:
   - PR-number
 ---
+
 # Multi-Perspective PR Review with Agent Teams
 
 This skill provides comprehensive pull request review using **agent teams** - three specialized reviewers who independently analyze the PR, then **discuss findings, debate severity, and challenge each other's conclusions** to reach collaborative consensus.
@@ -30,6 +31,22 @@ This is fundamentally different from independent reviews - the **discussion phas
 
 ---
 
+## Prerequisites
+
+Agent teams are **experimental and disabled by default**. This skill requires the feature flag to be enabled in `.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  }
+}
+```
+
+This project template comes with it enabled. When copying this skill to a different project, add the flag to that project's `.claude/settings.json`.
+
+---
+
 ## Instructions for Claude
 
 When this skill is invoked with a PR number (e.g., `/review-pr-team 1`):
@@ -46,29 +63,29 @@ Create an agent team for reviewing PR #$ARGUMENTS with the following instruction
 
 **Team Structure:**
 
-Spawn **3 teammates** with these roles:
+Spawn **3 teammates** using these named subagents:
 
-**1. Security Specialist** (Teammate name: `security-reviewer`)
-Read `.claude/agents/security-specialist.md` for your role and instructions. Replace [PR_NUMBER] with $ARGUMENTS.
+**1. Security Specialist** (Subagent: `security-specialist`, Teammate name: `security-reviewer`)
+Your task: conduct a security-focused review of PR #$ARGUMENTS. Follow your review checklist and output format.
 
-**2. Product Manager** (Teammate name: `product-reviewer`)
-Read `.claude/agents/product-reviewer.md` for your role and instructions. Replace [PR_NUMBER] with $ARGUMENTS.
+**2. Product Manager** (Subagent: `product-reviewer`, Teammate name: `product-reviewer`)
+Your task: conduct a product-focused review of PR #$ARGUMENTS. Follow your review checklist and output format.
 
-**3. Senior Architect** (Teammate name: `architect-reviewer`)
-Read `.claude/agents/architect-reviewer.md` for your role and instructions. Replace [PR_NUMBER] with $ARGUMENTS.
+**3. Senior Architect** (Subagent: `architect-reviewer`, Teammate name: `architect-reviewer`)
+Your task: conduct an architecture-focused review of PR #$ARGUMENTS. Follow your review checklist and output format.
 
 ---
 
 **Team Mission - Two Phases:**
 
-**PHASE 1: Independent Review (30 minutes max per reviewer)**
+**PHASE 1: Independent Review**
 
 Each teammate:
 1. Follow your agent definition instructions to gather context and conduct review
 2. Document findings as specified in your agent definition
 3. Focus on your specialized perspective
 
-**PHASE 2: Collaborative Discussion (20 minutes max)**
+**PHASE 2: Collaborative Discussion**
 
 After all three reviewers complete their independent analysis:
 
@@ -108,11 +125,9 @@ After the collaborative discussion, each teammate should have refined their find
 ---
 
 **Team Coordination:**
-- All teammates work from the shared task list
-- Security reviews first, then broadcasts findings
-- Product reviews second, responds to security, broadcasts findings
-- Architect reviews third, responds to both, broadcasts findings
-- Then open discussion for debate and consensus-building
+- All teammates work from the shared task list in parallel
+- Each reviewer conducts their independent review simultaneously
+- Once all three are done, open discussion begins for debate and consensus-building
 
 Start the review process now."
 

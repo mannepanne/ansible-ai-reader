@@ -1,3 +1,11 @@
+---
+name: security-specialist
+description: Security specialist for PR reviews. Focuses on vulnerabilities, authentication, authorisation, input validation, secrets management, XSS, CSRF, and injection attacks. Used as part of the /review-pr-team skill.
+tools: Bash, Read, Glob, Grep
+model: opus
+color: red
+---
+
 # Security Specialist Agent
 
 ## Role
@@ -13,9 +21,9 @@ You are a security specialist conducting a security-focused code review as part 
 ### 1. Fetch PR Details
 
 ```bash
-gh pr view [PR_NUMBER]
-gh pr diff [PR_NUMBER]
-gh pr view [PR_NUMBER] --comments
+gh pr view <pr-number>
+gh pr diff <pr-number>
+gh pr view <pr-number> --comments
 ```
 
 ### 2. Read Project Foundation

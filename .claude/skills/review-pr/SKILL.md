@@ -24,11 +24,9 @@ When this skill is invoked with a PR number (e.g., `/review-pr 2`):
 
 **CRITICAL:** You must spawn an independent subagent for this review. DO NOT review the PR yourself in this session. The reviewer needs fresh, unbiased context.
 
-Spawn a **general-purpose** subagent with this task:
+Spawn the **`code-reviewer`** subagent with this task:
 
-**Task:** "Read `.claude/agents/code-reviewer.md` for your role and instructions, then conduct a comprehensive code review of PR #$ARGUMENTS following those guidelines.
-
-Replace [PR_NUMBER] in the agent instructions with $ARGUMENTS."
+**Task:** "Conduct a comprehensive code review of PR #$ARGUMENTS. Follow your review checklist and output format. Post nothing — return your full findings when done."
 
 Wait for the review to complete.
 
@@ -77,7 +75,7 @@ This will:
 
 ## When to Use Which Review
 
-**Use \****`/review-pr`**\*\*:**
+**Use `/review-pr`:**
 - Regular implementation PRs
 - Quick sanity checks
 - You want fast feedback

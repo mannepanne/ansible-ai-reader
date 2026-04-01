@@ -22,16 +22,23 @@ Agents define personas, roles, and behaviors that can be spawned by skills. Sepa
 
 ## Usage Pattern
 
-Skills reference agents rather than embedding full instructions:
+Agent files use YAML frontmatter to register as named sub-agents. Skills invoke them by name — the agent's body is its system prompt, so there's no need to "read the file".
+
+**Agent file (frontmatter + system prompt):**
+```markdown
+---
+name: code-reviewer
+description: What this agent does and when to use it
+tools: Bash, Read, Glob, Grep
+model: sonnet
+---
+
+You are a [role]. Your focus: [domain]. Review by checking: [checklist]...
+```
 
 **Skill file (orchestration):**
 ```markdown
-Spawn a general-purpose agent with task: "Read .claude/agents/code-reviewer.md and follow those instructions to review PR #$ARGUMENTS"
-```
-
-**Agent file (persona/role):**
-```markdown
-You are a [role]. Your focus: [domain]. Review by checking: [checklist]...
+Spawn the `code-reviewer` subagent with task: "Review PR #$ARGUMENTS..."
 ```
 
 ## Common Patterns
