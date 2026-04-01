@@ -48,6 +48,12 @@ Development is organized into 6 sequential phases. Each phase includes scope, ac
 **[ARCHIVE/](./ARCHIVE/)**
 - Completed specifications (moved here when phase is done)
 
+**[REFERENCE/decisions/](../REFERENCE/decisions/)** - Architecture Decision Records
+- Search here BEFORE making architectural decisions (library choice, patterns, API design)
+- Follow existing ADRs unless new information invalidates reasoning
+- Document new architectural decisions here (prevents re-debating settled choices)
+- See [ADR guidance](../REFERENCE/decisions/CLAUDE.md) for when and how to create ADRs
+
 ## When Specs Move to Archive
 
 After completing a phase and merging the PR:

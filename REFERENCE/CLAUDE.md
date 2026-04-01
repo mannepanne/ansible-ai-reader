@@ -27,6 +27,10 @@ Documentation is organized by **function**, not build chronology. Navigate by **
 **[patterns/](./patterns/CLAUDE.md)** - Best practices, architectural decisions
 - Why do we do it this way? How should I implement similar functionality?
 
+### 🗂️ Architecture Decisions
+**[decisions/](./decisions/CLAUDE.md)** - Permanent log of significant technical choices and trade-offs
+- Why was this built this way? What alternatives were considered?
+
 ## Quick Links
 
 ### Most Common Needs
@@ -46,13 +50,14 @@ Documentation is organized by **function**, not build chronology. Navigate by **
 - **Service role client (RLS bypass)** → [patterns/service-role-client.md](./patterns/service-role-client.md)
 - **API validation** → [patterns/api-validation.md](./patterns/api-validation.md)
 - **Queue processing** → [patterns/queue-processing.md](./patterns/queue-processing.md)
+- **Reviewing pull requests** → [development/pr-review-workflow.md](./development/pr-review-workflow.md)
 
 ## Standalone Documentation
 
 Some docs don't fit cleanly in a category but are important:
 
 - **[technical-debt.md](./technical-debt.md)** - Known issues and accepted risks
-- **[pr-review-workflow.md](./pr-review-workflow.md)** - Using `/review-pr` and `/review-pr-team`
+- **[development/pr-review-workflow.md](./development/pr-review-workflow.md)** - Using `/review-pr` and `/review-pr-team`
 - **[documentation-refactor-plan.md](./documentation-refactor-plan.md)** - Refactor plan and implementation status
 
 ## Navigation Tips

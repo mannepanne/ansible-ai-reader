@@ -276,6 +276,13 @@ The goal is tracking our work and enabling collaboration, not perfect git aesthe
 - Document architectural decisions and their outcomes for future reference.
 - Track patterns in user feedback to improve collaboration over time.
 
+- **Architecture Decision Records (ADRs):** When making decisions that affect architecture beyond today's PR (library choice, architectural pattern, API design, deciding NOT to do something):
+  - Prompt user: "This decision affects future architecture. Should I create an ADR in REFERENCE/decisions/?"
+  - If confirmed, create ADR documenting: decision, context, alternatives considered, reasoning, trade-offs accepted
+  - Before making similar decisions, search `REFERENCE/decisions/` for precedent
+  - Follow existing ADRs unless new information invalidates the reasoning
+  - See [REFERENCE/decisions/CLAUDE.md](../REFERENCE/decisions/CLAUDE.md) for complete ADR guidance
+
 ## Problem Solving and Debugging
 
 I value a scientific approach to debugging - let's understand what's actually happening before we start fixing things.

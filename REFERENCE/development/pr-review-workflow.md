@@ -226,7 +226,7 @@ git diff                 # Review your own changes first
 
 1. Create feature branch
 2. Review specs and architectural guidelines
-3. Consider using EnterPlanMode for complex features
+3. Consider using plan mode (`EnterPlanMode` Claude Code tool) for complex features
 4. Implement with comprehensive tests
 5. Self-review: `git diff`, verify no secrets/debug code
 6. Create PR with detailed description
