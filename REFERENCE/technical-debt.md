@@ -71,24 +71,17 @@ VALUES ('<user-id-from-above>', '<email>', NOW());
 
 ---
 
-### TD-004: Missing Custom Summary Prompt UI
-- **Location:** `src/app/settings/page.tsx` - Settings page only shows sync interval, not prompt editor
-- **Issue:** API fully supports custom summary prompts (`PATCH /api/settings` with Zod validation), but Settings page UI doesn't expose this capability. Users cannot customize AI summary behavior via UI.
-- **Why accepted:** Automated sync settings were higher priority. API implementation was completed to validate the pattern, but UI was deferred.
-- **Risk:** **Low** - Users can still get summaries with system default prompt. Custom prompts are a nice-to-have for personalization, not critical for core workflow.
-- **Future fix:** Add to Settings page:
-  1. Textarea for custom prompt editing
-  2. Display default prompt as placeholder
-  3. Character counter (10-2000 chars)
-  4. Info text explaining how prompts affect summaries
-  5. "Reset to default" button
-- **Phase introduced:** Phase 5 (Notes & Rating) - API completed, UI deferred
-- **Specification:** `SPECIFICATIONS/07-summary-prompt-ui.md` (active spec for implementation)
-- **Database:** `users.summary_prompt TEXT` field exists and is used by Perplexity API when not null
+### TD-006: Prompt Constants Duplicated Between UI and API
+- **Location:** `src/app/settings/SettingsContent.tsx:13-29` and `src/lib/perplexity-api.ts:319-337`
+- **Issue:** `SYSTEM_MESSAGE` and `USER_MESSAGE_TEMPLATE` are defined as string constants in the Settings UI component to display in the "Full Prompt" tab, but the actual prompt strings are hardcoded inside `generateSummary()` in `perplexity-api.ts`. If the prompts change in the API module and the UI constants aren't updated, the Full Prompt tab silently shows stale content.
+- **Why accepted:** The hardcoded prompt architecture pre-dates the Full Prompt tab. Exporting constants from `perplexity-api.ts` would require restructuring the module and re-testing. Accepted as a low-risk pragmatic choice for a single-user tool where prompt changes are rare and would be caught in code review.
+- **Risk:** **Low** - Incorrect display only; no functional impact on actual summary generation.
+- **Future fix:** Export `SYSTEM_MESSAGE` and `USER_MESSAGE_TEMPLATE` from `perplexity-api.ts` and import them in `SettingsContent.tsx`. This creates a single source of truth.
+- **Introduced:** April 2026 (PR #68 - Full Prompt tab feature)
 
 ---
 
-### Example Format: TD-006: Description
+### Example Format: TD-007: Description
 - **Location:** `src/path/to/file.ts` - `functionName()`
 - **Issue:** Clear description of the limitation or shortcut
 - **Why accepted:** Reason for accepting this debt (e.g., runtime constraints, time pressure, lack of alternative)
@@ -99,6 +92,12 @@ VALUES ('<user-id-from-above>', '<email>', NOW());
 ---
 
 ## Resolved Items
+
+### TD-004: Missing Custom Summary Prompt UI
+- **Resolved:** April 2026 (PR #65, #68)
+- **Resolution:** Full implementation shipped — custom prompt textarea, character counter, reset button, validation, and a Full Prompt tab showing the system and user message templates sent to Perplexity. The entire chain is now wired: UI → API → queue consumer → Perplexity.
+
+---
 
 ### TD-003: Reference Documentation May Need Consolidation
 - **Resolved:** April 1, 2026
