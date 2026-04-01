@@ -4,27 +4,29 @@ REFERENCE > Features > AI Summaries
 How AI-generated summaries are created using the Perplexity API.
 
 ## What Is This?
-Automatic summary generation for saved articles using Perplexity's sonar-pro model. Summaries are 100-2000 characters with 3-10 AI-generated tags.
+Automatic summary generation for saved articles using Perplexity's `sonar` model. Summaries are up to 2000 characters with 3-5 AI-generated tags.
 
 ## Core Workflow
 
 ```
 1. Queue consumer receives job message
-2. Fetch full article content from Reader
-3. Truncate if > 30k characters
-4. Call Perplexity API with custom prompt
-5. Parse markdown response (summary + tags)
-6. Store results in database
-7. Update job status
+2. Update job status to 'processing'
+3. Fetch full article content from Reader
+4. Fetch user's custom summary_prompt from DB (optional — falls back to default)
+5. Truncate content if > 30k characters (smart truncation: first 80%, last 20%)
+6. Call Perplexity API (custom prompt prepended if present)
+7. Parse markdown response (## Summary + ## Tags sections)
+8. Store results in database
+9. Update job status to 'completed'
 ```
 
 ## Perplexity API Integration
 
-### Model: sonar-pro
-**Why sonar-pro?**
-- Optimized for summarization
-- Good balance of quality and cost
+### Model: sonar
+**Why sonar?**
+- Good balance of quality and cost for summarization
 - Fast response times (~2-5 seconds)
+- Rate limit: 50 requests/minute (enforced via PQueue)
 
 ### API Endpoint
 ```
@@ -34,32 +36,31 @@ POST https://api.perplexity.ai/chat/completions
 ### Request Format
 ```typescript
 {
-  model: 'sonar-pro',
+  model: 'sonar',
   messages: [
     {
       role: 'system',
-      content: systemPrompt,  // Can be customized by user
+      content: 'You are summarising content for a person who is evidence-driven and time-poor. Focus on key take aways and novel discoveries. Prioritise signal over noise.',
     },
     {
       role: 'user',
-      content: articleContent,  // Max 30k chars
+      content: `[customPrompt + "\n\n" if set]Summarize this article (max 2000 characters). Also provide 3-5 relevant tags.
+
+Title: [title]
+Author: [author]
+Content: [content]
+
+Your response must include a ## Summary section and a ## Tags section. Structure the summary however best fits the content and any additional instructions above.
+
+## Tags should be a comma-separated list, e.g.: tag1, tag2, tag3`,
     },
   ],
+  max_tokens: 1000,
+  temperature: 0.2,
 }
 ```
 
-### Default System Prompt
-```
-Create a concise summary (100-2000 characters) of this article with key takeaways as bullet points. Then suggest 3-10 relevant tags. Format as:
-
-**Summary:**
-- Key point 1
-- Key point 2
-
-**Tags:** tag1, tag2, tag3
-```
-
-**Custom Prompts:** Users can customize via Settings page (10-2000 chars).
+**Custom Prompts:** Users can add a custom prompt (10-2000 chars) in Settings. It is prepended to the user message, allowing them to focus summaries on interests or add format instructions.
 
 See: [Settings](./settings.md)
 
@@ -67,15 +68,13 @@ See: [Settings](./settings.md)
 ```json
 {
   "id": "response-id",
-  "model": "sonar-pro",
-  "object": "chat.completion",
-  "created": 1234567890,
+  "model": "sonar",
   "choices": [
     {
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "**Summary:**\n- Point 1\n- Point 2\n\n**Tags:** ai, tech, productivity"
+        "content": "## Summary\n- Point 1\n- Point 2\n\n## Tags\nai, tech, productivity"
       },
       "finish_reason": "stop"
     }
@@ -105,100 +104,74 @@ WHERE id = $2;
 
 ### Truncation (30k Character Limit)
 
-Perplexity has a context window limit. We truncate long articles:
+Long articles are smart-truncated to stay within Perplexity's context window:
 
 ```typescript
-const MAX_CONTENT_LENGTH = 30000;
-
-let content = fullArticleContent;
-let contentTruncated = false;
-
-if (content.length > MAX_CONTENT_LENGTH) {
-  content = content.substring(0, MAX_CONTENT_LENGTH);
-  contentTruncated = true;
-}
-
-// Store flag
-await supabase
-  .from('reader_items')
-  .update({ content_truncated: contentTruncated })
-  .eq('id', itemId);
+// smartTruncate() in src/lib/perplexity-api.ts
+// Keeps first 80% + last 20% to preserve intro and conclusion
+const keepStart = Math.floor(maxChars * 0.8);  // 24,000 chars
+const keepEnd = maxChars - keepStart;           // 6,000 chars
+const truncated = content.substring(0, keepStart)
+  + '\n\n[... content truncated for length ...]\n\n'
+  + content.substring(content.length - keepEnd);
 ```
 
-**UI Indicator:** Items with truncated content show a warning.
+**Why 80/20?** Preserves the article's introduction (sets context) and conclusion (often has key takeaways), dropping the middle body which is typically less information-dense.
+
+**UI Indicator:** Items with truncated content store `content_truncated: true` in the DB.
 
 ### Parsing Markdown Response
 
+The parser (`parseSummaryResponse` in `src/lib/perplexity-api.ts`) looks for `## Summary` and `## Tags` headings:
+
 ```typescript
-function parsePerplexityResponse(markdown: string) {
-  // Extract summary
-  const summaryMatch = markdown.match(
-    /\*\*Summary:\*\*\s*\n([\s\S]*?)(?=\*\*Tags:\*\*|$)/
-  );
-  const summary = summaryMatch?.[1]?.trim() || '';
+// Extract summary: everything between "## Summary" and "## Tags" (or end)
+const summaryMatch = text.match(/## Summary\n([\s\S]*?)(?=\n## Tags|$)/);
 
-  // Extract tags
-  const tagsMatch = markdown.match(/\*\*Tags:\*\*\s*(.+)/);
-  const tags = tagsMatch?.[1]?.split(',').map(t => t.trim()) || [];
-
-  return { summary, tags };
-}
+// Extract tags: comma-separated list on line after "## Tags"
+const tagsMatch = text.match(/## Tags\n(.*)/);
+const tags = tagsString.split(',').map(tag => tag.trim()).filter(Boolean);
 ```
 
 **Fallbacks:**
-- If parsing fails: Use full response as summary, empty tags array
-- If summary empty: Log error, mark job as failed
-- If tags empty: Store empty array (not critical)
+- If `## Summary` missing: `summary` is `null`
+- If `## Tags` missing: `tags` is `[]`
+- Validated with Zod — partial result returned on validation failure (not a crash)
+
+**Custom prompts and format:** The prompt instructs Perplexity to "structure the summary however best fits the content and any additional instructions above" — so users can request different internal formats (prose, bullet points, sections) via their custom prompt, as long as the `## Summary` and `## Tags` anchors remain.
 
 ## Queue Processing
 
 ### Consumer Worker Flow
 
 ```typescript
-export default {
-  async queue(batch: MessageBatch<JobMessage>, env: Env): Promise<void> {
-    for (const message of batch.messages) {
-      try {
-        // 1. Update job status
-        await updateJob(message.body.jobId, 'processing');
+// workers/consumer.ts — processSummaryGeneration()
 
-        // 2. Fetch full content from Reader
-        const content = await fetchReaderContent(message.body.readerItemId);
+// 1. Fetch article content from Reader API
+const htmlContent = await fetchReaderItem(readerItem.source_url, env.READER_API_KEY);
 
-        // 3. Truncate if needed
-        const { content: truncated, wasTruncated } = truncateContent(content);
+// 2. Fetch user's custom prompt (optional — fall back to default if missing)
+const { data: userSettings } = await supabase
+  .from('users')
+  .select('summary_prompt')
+  .eq('id', job.user_id)
+  .single();
+const customPrompt = userSettings?.summary_prompt ?? undefined;
 
-        // 4. Call Perplexity
-        const response = await callPerplexity(truncated, env.PERPLEXITY_API_KEY);
+// 3. Generate summary (custom prompt prepended if set)
+const result = await generateSummary(env.PERPLEXITY_API_KEY, {
+  title, author, content, url,
+}, customPrompt);
 
-        // 5. Parse response
-        const { summary, tags } = parsePerplexityResponse(response.content);
+// 4. Store results
+await supabase.from('reader_items').update({
+  short_summary: result.summary,
+  tags: result.tags,
+  content_truncated: result.contentTruncated,
+}).eq('id', readerItem.id);
 
-        // 6. Store results
-        await supabase
-          .from('reader_items')
-          .update({
-            summary,
-            tags,
-            content_truncated: wasTruncated,
-          })
-          .eq('id', message.body.readerItemId);
-
-        // 7. Update job as completed
-        await updateJob(message.body.jobId, 'completed');
-
-        // 8. Track tokens
-        await trackTokenUsage(message.body.syncLogId, response.usage.total_tokens);
-
-        // 9. Acknowledge message
-        message.ack();
-      } catch (error) {
-        // Handle error
-        await handleJobError(message, error);
-      }
-    }
-  },
-};
+// 5. Update job as completed
+await supabase.from('jobs').update({ status: 'completed' }).eq('id', job.id);
 ```
 
 ### Batch Processing

@@ -17,7 +17,11 @@ Development followed 5 sequential phases (all complete). Active work is now feat
 
 ### Active Feature Specs
 
-- **[07-summary-prompt-ui.md](./07-summary-prompt-ui.md)** - Custom summary prompt editor in Settings (TD-004)
+_(No active feature specs at this time)_
+
+### Completed Feature Specs
+
+- ✅ **[ARCHIVE/features/07-summary-prompt-ui.md](./ARCHIVE/features/07-summary-prompt-ui.md)** - Custom summary prompt editor in Settings (TD-004, Apr 2026)
 
 ### On Hold / Future
 

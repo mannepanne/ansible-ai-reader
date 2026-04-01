@@ -5,8 +5,8 @@ User settings system for configuring sync intervals and AI summary prompts.
 
 ## What Is This?
 User preferences page where users can:
-- Configure automated sync frequency (0-24 hours) ✅ **UI Available**
-- Customize AI summary prompt (10-2000 characters) ⚠️ **API Only** (no UI yet)
+- Configure automated sync frequency (0-24 hours) ✅
+- Customize AI summary prompt (10-2000 characters) ✅
 
 ## Settings API (`/api/settings`)
 
@@ -29,8 +29,8 @@ Response: {
 PATCH /api/settings
 
 Body: {
-  sync_interval?: number,  // 0-24
-  summary_prompt?: string  // 10-2000 chars
+  sync_interval?: number,        // 0-24
+  summary_prompt?: string | null  // 10-2000 chars, null to reset to default
 }
 
 Response: { success: true }
@@ -57,8 +57,11 @@ z.string()
     const dangerous = ['ignore previous', 'ignore all', 'system:', 'assistant:'];
     return !dangerous.some(phrase => prompt.toLowerCase().includes(phrase));
   })
+  .nullable()
   .optional()
 ```
+
+`null` = reset to default (clears saved prompt). `undefined` = field not provided (unchanged).
 
 **Security:**
 - HTML tags stripped
@@ -88,29 +91,36 @@ See: [Service Role Pattern](../patterns/service-role-client.md)
 
 ### Settings Page (`/settings`)
 
-**Currently Implemented:**
+**Implemented:**
 - ✅ Sync interval dropdown (0-24 hours)
-- ✅ Save button
-- ✅ Success/error notifications
+- ✅ Custom prompt textarea with character counter (0/2000)
+- ✅ "Reset to Default" button (clears saved prompt, sends `null`)
+- ✅ Tabbed prompt section: **Custom Prompt** tab (editor) and **Full Prompt** tab (read-only view)
+- ✅ Inline validation error (min 10 chars if non-empty)
+- ✅ Save button with success/error notifications
+- ✅ Info text: custom prompt only affects new summaries, not existing ones
 
-**Not Yet Implemented:**
-- ❌ Custom prompt textarea (API supports it, UI missing)
+### Full Prompt Tab
+
+Shows users exactly what gets sent to Perplexity:
+- **System message** — the persona/persona instruction
+- **User message template** — the summarization prompt with `[Article Title]`, `[Article Content]` placeholders
+
+The custom prompt is prepended to the user message when set.
 
 ### Form Handling
 ```typescript
-const handleSave = async () => {
-  const response = await fetch('/api/settings', {
-    method: 'PATCH',
-    body: JSON.stringify({
-      sync_interval: selectedInterval,
-      summary_prompt: customPrompt || null,
-    }),
-  });
+// Save: send both fields together
+body: JSON.stringify({
+  sync_interval: syncInterval,
+  summary_prompt: summaryPrompt.length > 0 ? summaryPrompt : null,
+})
 
-  if (response.ok) {
-    showSuccess('Settings saved!');
-  }
-};
+// Reset to default
+body: JSON.stringify({
+  sync_interval: syncInterval,
+  summary_prompt: null,
+})
 ```
 
 ## Database Schema
