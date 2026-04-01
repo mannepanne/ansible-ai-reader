@@ -77,35 +77,58 @@ CREATE POLICY "Users can manage own items" ON reader_items
   FOR ALL USING (auth.uid() = user_id);
 ```
 
-### jobs
-Queue job tracking for async summary generation.
+### processing_jobs
+Queue job tracking for async summary generation and tag regeneration.
 
 ```sql
-CREATE TABLE jobs (
+CREATE TABLE processing_jobs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   reader_item_id UUID NOT NULL REFERENCES reader_items(id) ON DELETE CASCADE,
-  sync_log_id UUID REFERENCES sync_log(id) ON DELETE SET NULL,
-  status TEXT NOT NULL CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
+  job_type job_type_enum NOT NULL, -- 'summary_generation' | 'archive_sync'
+  status job_status_enum NOT NULL DEFAULT 'pending',
   attempts INTEGER DEFAULT 0,
+  max_attempts INTEGER DEFAULT 3,
   error_message TEXT,
+  sync_log_id UUID REFERENCES sync_log(id) ON DELETE SET NULL, -- For sync operations
+  regenerate_batch_id TEXT, -- For tag regeneration progress tracking
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  started_at TIMESTAMP WITH TIME ZONE,
+  completed_at TIMESTAMP WITH TIME ZONE
 );
 ```
 
+**Columns:**
+- `job_type` - Type of job: `summary_generation` (AI summary + tags) or `archive_sync` (archive in Reader)
+- `status` - Current state: `pending`, `processing`, `completed`, `failed`
+- `sync_log_id` - Links to sync operation (for jobs created during sync)
+- `regenerate_batch_id` - Groups jobs from "Regenerate Tags" operation (enables progress tracking)
+- `attempts` - Retry count (max 3)
+- `max_attempts` - Maximum retries before marking as failed
+
 **Indexes:**
 ```sql
-CREATE INDEX idx_jobs_user_id ON jobs(user_id);
-CREATE INDEX idx_jobs_status ON jobs(status);
-CREATE INDEX idx_jobs_sync_log_id ON jobs(sync_log_id);
+CREATE INDEX idx_processing_jobs_user ON processing_jobs(user_id, status);
+CREATE INDEX idx_processing_jobs_status ON processing_jobs(status, created_at);
+CREATE INDEX idx_processing_jobs_sync_log_id ON processing_jobs(sync_log_id);
+CREATE INDEX idx_processing_jobs_regenerate_batch_id
+  ON processing_jobs(regenerate_batch_id)
+  WHERE regenerate_batch_id IS NOT NULL; -- Partial index for performance
 ```
 
 **RLS Policy:**
 ```sql
--- Users can only access their own jobs
-CREATE POLICY "Users can manage own jobs" ON jobs
-  FOR ALL USING (auth.uid() = user_id);
+-- Users can view own jobs
+CREATE POLICY "Users can view own processing jobs" ON processing_jobs
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Users can insert own jobs
+CREATE POLICY "Users can insert own processing jobs" ON processing_jobs
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Queue consumers can update jobs
+CREATE POLICY "Queue consumers can update jobs" ON processing_jobs
+  FOR UPDATE USING (true); -- Queue consumer uses service role key
 ```
 
 **Job Lifecycle:**
@@ -113,6 +136,10 @@ CREATE POLICY "Users can manage own jobs" ON jobs
 2. **processing** - Consumer worker picked up the job
 3. **completed** - Summary generated successfully
 4. **failed** - All retry attempts exhausted (moved to DLQ)
+
+**Batch Tracking:**
+- `sync_log_id` - Used for sync operations (track all jobs in a sync)
+- `regenerate_batch_id` - Used for tag regeneration (track all jobs in a regeneration)
 
 ### sync_log
 History of sync operations for progress tracking and analytics.
@@ -150,18 +177,18 @@ CREATE POLICY "Users can manage own sync logs" ON sync_log
 
 ```
 users (1) ──── (many) reader_items
-users (1) ──── (many) jobs
+users (1) ──── (many) processing_jobs
 users (1) ──── (many) sync_log
 
-reader_items (1) ──── (many) jobs
+reader_items (1) ──── (many) processing_jobs
 
-sync_log (1) ──── (many) jobs
+sync_log (1) ──── (many) processing_jobs
 ```
 
 **Cascade Behavior:**
 - Deleting a user deletes all their data (CASCADE)
-- Deleting a reader_item deletes associated jobs (CASCADE)
-- Deleting a sync_log sets jobs.sync_log_id to NULL (SET NULL)
+- Deleting a reader_item deletes associated processing_jobs (CASCADE)
+- Deleting a sync_log sets processing_jobs.sync_log_id to NULL (SET NULL)
 
 ## Row-Level Security (RLS)
 
@@ -183,9 +210,10 @@ supabase db push
 ```
 
 **Key Migrations:**
-- `20260309_initial_schema.sql` - Initial tables (users, reader_items, jobs)
-- `20260313_add_sync_log.sql` - Add sync_log table and sync_log_id to jobs
+- `20260309000001_initial_schema.sql` - Initial tables (users, reader_items, processing_jobs)
+- `20260312_add_sync_log_id.sql` - Add sync_log_id to processing_jobs for sync tracking
 - `20260324_add_auto_sync_settings.sql` - Add sync_interval, last_auto_sync_at to users
+- `20260401_add_regenerate_batch_id.sql` - Add regenerate_batch_id to processing_jobs for tag regeneration tracking
 
 ## Query Patterns
 

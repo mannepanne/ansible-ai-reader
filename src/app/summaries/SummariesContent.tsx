@@ -281,6 +281,43 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
     }
   }
 
+  async function handleRetryRegenerateTags() {
+    if (!regenerateStatus) return;
+
+    setError(null);
+    setSuccessMessage(null);
+    setRegenerating(true);
+
+    try {
+      const response = await fetch('/api/reader/retry', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ regenerateId: regenerateStatus.regenerateId }),
+      });
+
+      if (!response.ok) {
+        const errorData = (await response.json()) as { error?: string };
+        throw new Error(errorData.error || 'Retry failed');
+      }
+
+      const data = (await response.json()) as { retriedCount: number };
+
+      // Reset regenerate status to start polling again
+      setRegenerateStatus({
+        ...regenerateStatus,
+        failedJobs: regenerateStatus.failedJobs - data.retriedCount,
+        pendingJobs: regenerateStatus.pendingJobs + data.retriedCount,
+        status: 'processing',
+      });
+    } catch (err) {
+      console.error('Retry regenerate tags error:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      setRegenerating(false);
+    }
+  }
+
   async function handleRegenerateTags() {
     setError(null);
     setSuccessMessage(null);
@@ -605,22 +642,42 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
                   `❌ Tag regeneration failed. ${regenerateStatus.failedJobs} items failed to process.`}
               </p>
 
-              {/* Close button */}
-              <button
-                onClick={() => setRegenerateStatus(null)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'inherit',
-                  cursor: 'pointer',
-                  fontSize: '1.2em',
-                  padding: '4px 8px',
-                  flexShrink: 0,
-                }}
-                aria-label="Dismiss"
-              >
-                ✕
-              </button>
+              <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                {/* Retry button */}
+                {regenerateStatus.failedJobs > 0 && (
+                  <button
+                    onClick={handleRetryRegenerateTags}
+                    style={{
+                      background: '#ffc107',
+                      color: '#fff',
+                      padding: '6px 16px',
+                      borderRadius: '4px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '0.9em',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Retry Failed ({regenerateStatus.failedJobs})
+                  </button>
+                )}
+
+                {/* Close button */}
+                <button
+                  onClick={() => setRegenerateStatus(null)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'inherit',
+                    cursor: 'pointer',
+                    fontSize: '1.2em',
+                    padding: '4px 8px',
+                  }}
+                  aria-label="Dismiss"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {/* Failed items list */}

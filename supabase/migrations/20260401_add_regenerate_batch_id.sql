@@ -2,6 +2,8 @@
 -- This enables tracking progress for "Regenerate Tags" operations
 
 -- Add column (nullable to support existing jobs)
+-- Using TEXT instead of UUID type for consistency with existing sync_log_id pattern
+-- and to avoid type casting in application code
 ALTER TABLE processing_jobs
 ADD COLUMN regenerate_batch_id TEXT;
 
