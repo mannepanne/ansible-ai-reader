@@ -321,20 +321,15 @@ export async function generateSummary(
         },
         {
           role: 'user',
-          content: `${customPrompt ? customPrompt + '\n\n' : ''}Summarize this article in bullet points (max 2000 characters). Also provide 3-5 relevant tags.
+          content: `${customPrompt ? customPrompt + '\n\n' : ''}Summarize this article (max 2000 characters). Also provide 3-5 relevant tags.
 
 Title: ${item.title}
 Author: ${item.author || 'Unknown'}
 Content: ${content}
 
-Format your response exactly like this:
-## Summary
-- Key point 1
-- Key point 2
-- Key point 3
+Your response must include a ## Summary section and a ## Tags section. Structure the summary however best fits the content and any additional instructions above.
 
-## Tags
-tag1, tag2, tag3`,
+## Tags should be a comma-separated list, e.g.: tag1, tag2, tag3`,
         },
       ],
       max_tokens: 1000,

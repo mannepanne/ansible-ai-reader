@@ -13,20 +13,15 @@ interface SettingsContentProps {
 const SYSTEM_MESSAGE =
   'You are summarising content for a person who is evidence-driven and time-poor. Focus on key take aways and novel discoveries. Prioritise signal over noise.';
 
-const USER_MESSAGE_TEMPLATE = `Summarize this article in bullet points (max 2000 characters). Also provide 3-5 relevant tags.
+const USER_MESSAGE_TEMPLATE = `Summarize this article (max 2000 characters). Also provide 3-5 relevant tags.
 
 Title: [Article Title]
 Author: [Author] (or "Unknown" if not available)
 Content: [Article Content]
 
-Format your response exactly like this:
-## Summary
-- Key point 1
-- Key point 2
-- Key point 3
+Your response must include a ## Summary section and a ## Tags section. Structure the summary however best fits the content and any additional instructions above.
 
-## Tags
-tag1, tag2, tag3`;
+## Tags should be a comma-separated list, e.g.: tag1, tag2, tag3`;
 
 export default function SettingsContent({ userEmail }: SettingsContentProps) {
   const [syncInterval, setSyncInterval] = useState<number>(0);
