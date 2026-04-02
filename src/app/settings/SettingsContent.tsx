@@ -261,6 +261,17 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
           </p>
 
           {/* Prompt tabs */}
+          <label
+            style={{
+              display: 'block',
+              marginBottom: '8px',
+              color: '#212529',
+              fontWeight: 600,
+              fontSize: '0.95rem',
+            }}
+          >
+            Prompts
+          </label>
           <div role="tablist" style={{ display: 'flex', gap: '4px', marginBottom: '0' }}>
             <button
               role="tab"
@@ -268,7 +279,7 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
               onClick={() => setActiveTab('custom')}
               style={tabStyle('custom')}
             >
-              Summary Prompt Add-on
+              Summary Add-on
             </button>
             <button
               role="tab"
@@ -276,7 +287,7 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
               onClick={() => setActiveTab('full')}
               style={tabStyle('full')}
             >
-              Summary Base Prompt
+              Summary Base
             </button>
             <button
               role="tab"
@@ -284,7 +295,7 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
               onClick={() => setActiveTab('commentary')}
               style={tabStyle('commentary')}
             >
-              Commentary Prompt
+              Commentary
             </button>
           </div>
 

@@ -38,12 +38,12 @@ describe('SettingsContent', () => {
 
   // --- Tab navigation ---
 
-  it('renders Summary Prompt Add-on, Summary Base Prompt, and Commentary Prompt tabs', async () => {
+  it('renders Summary Add-on, Summary Base, and Commentary tabs', async () => {
     render(<SettingsContent userEmail="test@example.com" />);
     await waitFor(() => {
-      expect(screen.getByRole('tab', { name: /summary prompt add-on/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /summary base prompt/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /commentary prompt/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /summary add-on/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /summary base/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /^commentary$/i })).toBeInTheDocument();
     });
   });
 
@@ -54,22 +54,22 @@ describe('SettingsContent', () => {
     });
   });
 
-  it('switches to Summary Base Prompt tab and shows system message content', async () => {
+  it('switches to Summary Base tab and shows system message content', async () => {
     render(<SettingsContent userEmail="test@example.com" />);
-    await waitFor(() => screen.getByRole('tab', { name: /summary base prompt/i }));
+    await waitFor(() => screen.getByRole('tab', { name: /summary base/i }));
 
-    fireEvent.click(screen.getByRole('tab', { name: /summary base prompt/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /summary base/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/evidence-driven/i)).toBeInTheDocument();
     });
   });
 
-  it('shows user message template with readable placeholders on Summary Base Prompt tab', async () => {
+  it('shows user message template with readable placeholders on Summary Base tab', async () => {
     render(<SettingsContent userEmail="test@example.com" />);
-    await waitFor(() => screen.getByRole('tab', { name: /summary base prompt/i }));
+    await waitFor(() => screen.getByRole('tab', { name: /summary base/i }));
 
-    fireEvent.click(screen.getByRole('tab', { name: /summary base prompt/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /summary base/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/\[Article Title\]/i)).toBeInTheDocument();
@@ -77,56 +77,56 @@ describe('SettingsContent', () => {
     });
   });
 
-  it('hides the textarea when Summary Base Prompt tab is active', async () => {
+  it('hides the textarea when Summary Base tab is active', async () => {
     render(<SettingsContent userEmail="test@example.com" />);
-    await waitFor(() => screen.getByRole('tab', { name: /summary base prompt/i }));
+    await waitFor(() => screen.getByRole('tab', { name: /summary base/i }));
 
-    fireEvent.click(screen.getByRole('tab', { name: /summary base prompt/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /summary base/i }));
 
     await waitFor(() => {
       expect(screen.queryByRole('textbox', { name: /custom prompt/i })).not.toBeInTheDocument();
     });
   });
 
-  it('switches back to Summary Prompt Add-on tab', async () => {
+  it('switches back to Summary Add-on tab', async () => {
     render(<SettingsContent userEmail="test@example.com" />);
-    await waitFor(() => screen.getByRole('tab', { name: /summary base prompt/i }));
+    await waitFor(() => screen.getByRole('tab', { name: /summary base/i }));
 
-    fireEvent.click(screen.getByRole('tab', { name: /summary base prompt/i }));
-    fireEvent.click(screen.getByRole('tab', { name: /summary prompt add-on/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /summary base/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /summary add-on/i }));
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: /custom prompt/i })).toBeInTheDocument();
     });
   });
 
-  it('switches to Commentary Prompt tab and shows commentary system message', async () => {
+  it('switches to Commentary tab and shows commentary system message', async () => {
     render(<SettingsContent userEmail="test@example.com" />);
-    await waitFor(() => screen.getByRole('tab', { name: /commentary prompt/i }));
+    await waitFor(() => screen.getByRole('tab', { name: /^commentary$/i }));
 
-    fireEvent.click(screen.getByRole('tab', { name: /commentary prompt/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /^commentary$/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/sharp, well-read critic/i)).toBeInTheDocument();
     });
   });
 
-  it('shows commentary user message template on Commentary Prompt tab', async () => {
+  it('shows commentary user message template on Commentary tab', async () => {
     render(<SettingsContent userEmail="test@example.com" />);
-    await waitFor(() => screen.getByRole('tab', { name: /commentary prompt/i }));
+    await waitFor(() => screen.getByRole('tab', { name: /^commentary$/i }));
 
-    fireEvent.click(screen.getByRole('tab', { name: /commentary prompt/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /^commentary$/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/sceptical reader/i)).toBeInTheDocument();
     });
   });
 
-  it('hides the textarea when Commentary Prompt tab is active', async () => {
+  it('hides the textarea when Commentary tab is active', async () => {
     render(<SettingsContent userEmail="test@example.com" />);
-    await waitFor(() => screen.getByRole('tab', { name: /commentary prompt/i }));
+    await waitFor(() => screen.getByRole('tab', { name: /^commentary$/i }));
 
-    fireEvent.click(screen.getByRole('tab', { name: /commentary prompt/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /^commentary$/i }));
 
     await waitFor(() => {
       expect(screen.queryByRole('textbox', { name: /custom prompt/i })).not.toBeInTheDocument();
@@ -174,6 +174,14 @@ describe('SettingsContent', () => {
     await user.type(textarea, 'Hello');
 
     expect(screen.getByText(/5\s*\/\s*2000/)).toBeInTheDocument();
+  });
+
+  it('renders a Prompts section heading', async () => {
+    render(<SettingsContent userEmail="test@example.com" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Prompts')).toBeInTheDocument();
+    });
   });
 
   it('shows info text that custom prompt is prepended to the summary base prompt', async () => {
