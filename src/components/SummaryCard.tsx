@@ -297,12 +297,14 @@ export default function SummaryCard({
               textTransform: 'capitalize',
               display: 'flex',
               alignItems: 'center',
-              gap: '5px',
+              gap: '6px',
             }}
           >
             {tab}
             {tab === 'commentariat' && commentariatSummary && (
               <span
+                aria-hidden="true"
+                data-testid="commentariat-dot-indicator"
                 style={{
                   width: '6px',
                   height: '6px',
