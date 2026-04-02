@@ -3,7 +3,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type CSSProperties } from 'react';
 import Header from '@/components/Header';
 
 interface SettingsContentProps {
@@ -147,6 +147,19 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
       setSaving(false);
     }
   }
+
+  const promptPreStyle = (marginBottom: string | number): CSSProperties => ({
+    background: '#f8f9fa',
+    border: '1px solid #dee2e6',
+    borderRadius: '4px',
+    padding: '12px',
+    fontSize: '0.85em',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+    color: '#212529',
+    marginTop: 0,
+    marginBottom,
+  });
 
   const tabStyle = (tab: 'custom' | 'full' | 'commentary') => ({
     padding: '8px 16px',
@@ -366,40 +379,14 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
                 <p style={{ fontSize: '0.8rem', fontWeight: 600, color: '#495057', marginBottom: '4px', marginTop: 0 }}>
                   System
                 </p>
-                <pre
-                  style={{
-                    background: '#f8f9fa',
-                    border: '1px solid #dee2e6',
-                    borderRadius: '4px',
-                    padding: '12px',
-                    fontSize: '0.85em',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    color: '#212529',
-                    marginTop: 0,
-                    marginBottom: '16px',
-                  }}
-                >
+                <pre style={promptPreStyle('16px')}>
                   {SYSTEM_MESSAGE}
                 </pre>
 
                 <p style={{ fontSize: '0.8rem', fontWeight: 600, color: '#495057', marginBottom: '4px', marginTop: 0 }}>
                   User Message
                 </p>
-                <pre
-                  style={{
-                    background: '#f8f9fa',
-                    border: '1px solid #dee2e6',
-                    borderRadius: '4px',
-                    padding: '12px',
-                    fontSize: '0.85em',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    color: '#212529',
-                    marginTop: 0,
-                    marginBottom: 0,
-                  }}
-                >
+                <pre style={promptPreStyle(0)}>
                   {USER_MESSAGE_TEMPLATE}
                 </pre>
               </>
@@ -414,40 +401,14 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
                 <p style={{ fontSize: '0.8rem', fontWeight: 600, color: '#495057', marginBottom: '4px', marginTop: 0 }}>
                   System
                 </p>
-                <pre
-                  style={{
-                    background: '#f8f9fa',
-                    border: '1px solid #dee2e6',
-                    borderRadius: '4px',
-                    padding: '12px',
-                    fontSize: '0.85em',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    color: '#212529',
-                    marginTop: 0,
-                    marginBottom: '16px',
-                  }}
-                >
+                <pre style={promptPreStyle('16px')}>
                   {COMMENTARY_SYSTEM_MESSAGE}
                 </pre>
 
                 <p style={{ fontSize: '0.8rem', fontWeight: 600, color: '#495057', marginBottom: '4px', marginTop: 0 }}>
                   User Message
                 </p>
-                <pre
-                  style={{
-                    background: '#f8f9fa',
-                    border: '1px solid #dee2e6',
-                    borderRadius: '4px',
-                    padding: '12px',
-                    fontSize: '0.85em',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    color: '#212529',
-                    marginTop: 0,
-                    marginBottom: 0,
-                  }}
-                >
+                <pre style={promptPreStyle(0)}>
                   {COMMENTARY_USER_MESSAGE_TEMPLATE}
                 </pre>
               </>
