@@ -495,6 +495,21 @@ describe('SummaryCard', () => {
 
       expect(screen.getByText('The original summary')).toBeInTheDocument();
     });
+
+    it('shows dot indicator on Commentariat tab when analysis exists', () => {
+      render(<SummaryCard {...defaultProps} commentariatSummary="Some analysis" />);
+
+      const commentariatTab = screen.getByRole('button', { name: /commentariat/i });
+      // The dot is a span sibling inside the tab button
+      expect(commentariatTab.querySelector('span')).toBeInTheDocument();
+    });
+
+    it('does not show dot indicator when no commentariat exists', () => {
+      render(<SummaryCard {...defaultProps} commentariatSummary={null} />);
+
+      const commentariatTab = screen.getByRole('button', { name: /commentariat/i });
+      expect(commentariatTab.querySelector('span')).not.toBeInTheDocument();
+    });
   });
 
   describe('Commentariat tab', () => {

@@ -295,9 +295,24 @@ export default function SummaryCard({
               marginBottom: '-1px',
               transition: 'color 0.15s',
               textTransform: 'capitalize',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
             }}
           >
             {tab}
+            {tab === 'commentariat' && commentariatSummary && (
+              <span
+                style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  background: activeTab === 'commentariat' ? '#0d6efd' : '#6c757d',
+                  display: 'inline-block',
+                  flexShrink: 0,
+                }}
+              />
+            )}
           </button>
         ))}
       </div>
