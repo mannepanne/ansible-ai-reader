@@ -1,9 +1,9 @@
 // ABOUT: Settings page client component with sync interval and summary prompt configuration
-// ABOUT: Fetches and updates user settings via API; includes Full Prompt tab for transparency
+// ABOUT: Fetches and updates user settings via API; includes prompt transparency tabs for summary and commentary
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type CSSProperties } from 'react';
 import Header from '@/components/Header';
 
 interface SettingsContentProps {
@@ -23,11 +23,28 @@ Your response must include a ## Summary section and a ## Tags section. Structure
 
 ## Tags should be a comma-separated list, e.g.: tag1, tag2, tag3`;
 
+const COMMENTARY_SYSTEM_MESSAGE =
+  'You are a sharp, well-read critic helping a busy reader cut through the noise. Be concise, direct, and editorial — not academic.';
+
+const COMMENTARY_USER_MESSAGE_TEMPLATE = `Today's date is [Today's date].
+
+What are the 2–3 most important things a sceptical reader should know before taking this article at face value?
+
+Pick only what matters most: a significant unstated assumption, a strong counter-argument from established knowledge, or important context the author left out. Skip anything minor.
+
+Be specific. No vague hedging. Keep it short — the reader is time-poor. Do not comment on whether the article is old, new, or timely. Do not dispute whether the products, companies, events, or entities in the article exist — accept the article's basic factual premise and focus your critique on the quality of reasoning, evidence, or missing context.
+
+Title: [Article Title]
+Author: [Author]
+
+Content:
+[Article Content]`;
+
 export default function SettingsContent({ userEmail }: SettingsContentProps) {
   const [syncInterval, setSyncInterval] = useState<number>(0);
   const [summaryPrompt, setSummaryPrompt] = useState<string>('');
   const [promptError, setPromptError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'custom' | 'full'>('custom');
+  const [activeTab, setActiveTab] = useState<'custom' | 'full' | 'commentary'>('custom');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -131,7 +148,20 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
     }
   }
 
-  const tabStyle = (tab: 'custom' | 'full') => ({
+  const promptPreStyle = (marginBottom: string | number): CSSProperties => ({
+    background: '#f8f9fa',
+    border: '1px solid #dee2e6',
+    borderRadius: '4px',
+    padding: '12px',
+    fontSize: '0.85em',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+    color: '#212529',
+    marginTop: 0,
+    marginBottom,
+  });
+
+  const tabStyle = (tab: 'custom' | 'full' | 'commentary') => ({
     padding: '8px 16px',
     border: '1px solid #dee2e6',
     borderBottom: activeTab === tab ? '1px solid #fff' : '1px solid #dee2e6',
@@ -238,7 +268,7 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
               onClick={() => setActiveTab('custom')}
               style={tabStyle('custom')}
             >
-              Custom Prompt
+              Summary Prompt Add-on
             </button>
             <button
               role="tab"
@@ -246,7 +276,15 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
               onClick={() => setActiveTab('full')}
               style={tabStyle('full')}
             >
-              Full Prompt
+              Summary Base Prompt
+            </button>
+            <button
+              role="tab"
+              aria-selected={activeTab === 'commentary'}
+              onClick={() => setActiveTab('commentary')}
+              style={tabStyle('commentary')}
+            >
+              Commentary Prompt
             </button>
           </div>
 
@@ -296,7 +334,7 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
                       </p>
                     )}
                     <p style={{ fontSize: '0.875em', color: '#6c757d', margin: 0, marginTop: promptError ? '4px' : 0 }}>
-                      Prepended to the Full Prompt when generating summaries. This only affects new summaries — existing ones are unchanged.
+                      Prepended to the Summary Base Prompt when generating summaries. This only affects new summaries — existing ones are unchanged.
                     </p>
                   </div>
                   <span
@@ -335,47 +373,43 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
             {activeTab === 'full' && (
               <>
                 <p style={{ fontSize: '0.875em', color: '#6c757d', marginTop: 0, marginBottom: '16px' }}>
-                  This is the prompt sent to Perplexity for every summary. Your Custom Prompt is prepended when set.
+                  This is the prompt sent to Perplexity for every summary. Your Summary Prompt Add-on is prepended when set.
                 </p>
 
                 <p style={{ fontSize: '0.8rem', fontWeight: 600, color: '#495057', marginBottom: '4px', marginTop: 0 }}>
                   System
                 </p>
-                <pre
-                  style={{
-                    background: '#f8f9fa',
-                    border: '1px solid #dee2e6',
-                    borderRadius: '4px',
-                    padding: '12px',
-                    fontSize: '0.85em',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    color: '#212529',
-                    marginTop: 0,
-                    marginBottom: '16px',
-                  }}
-                >
+                <pre style={promptPreStyle('16px')}>
                   {SYSTEM_MESSAGE}
                 </pre>
 
                 <p style={{ fontSize: '0.8rem', fontWeight: 600, color: '#495057', marginBottom: '4px', marginTop: 0 }}>
                   User Message
                 </p>
-                <pre
-                  style={{
-                    background: '#f8f9fa',
-                    border: '1px solid #dee2e6',
-                    borderRadius: '4px',
-                    padding: '12px',
-                    fontSize: '0.85em',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    color: '#212529',
-                    marginTop: 0,
-                    marginBottom: 0,
-                  }}
-                >
+                <pre style={promptPreStyle(0)}>
                   {USER_MESSAGE_TEMPLATE}
+                </pre>
+              </>
+            )}
+
+            {activeTab === 'commentary' && (
+              <>
+                <p style={{ fontSize: '0.875em', color: '#6c757d', marginTop: 0, marginBottom: '16px' }}>
+                  This is the fixed prompt sent to Perplexity for every Commentary analysis. It cannot be customised.
+                </p>
+
+                <p style={{ fontSize: '0.8rem', fontWeight: 600, color: '#495057', marginBottom: '4px', marginTop: 0 }}>
+                  System
+                </p>
+                <pre style={promptPreStyle('16px')}>
+                  {COMMENTARY_SYSTEM_MESSAGE}
+                </pre>
+
+                <p style={{ fontSize: '0.8rem', fontWeight: 600, color: '#495057', marginBottom: '4px', marginTop: 0 }}>
+                  User Message
+                </p>
+                <pre style={promptPreStyle(0)}>
+                  {COMMENTARY_USER_MESSAGE_TEMPLATE}
                 </pre>
               </>
             )}

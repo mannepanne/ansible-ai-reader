@@ -1,5 +1,5 @@
 // ABOUT: Tests for SettingsContent component
-// ABOUT: Validates sync interval + custom prompt UI, tab navigation, save/reset behaviour, character counter
+// ABOUT: Validates sync interval + prompt UI, tab navigation (summary add-on, base prompt, commentary), save/reset behaviour, character counter
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -38,37 +38,38 @@ describe('SettingsContent', () => {
 
   // --- Tab navigation ---
 
-  it('renders Custom Prompt and Full Prompt tabs', async () => {
+  it('renders Summary Prompt Add-on, Summary Base Prompt, and Commentary Prompt tabs', async () => {
     render(<SettingsContent userEmail="test@example.com" />);
     await waitFor(() => {
-      expect(screen.getByRole('tab', { name: /custom prompt/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /full prompt/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /summary prompt add-on/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /summary base prompt/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /commentary prompt/i })).toBeInTheDocument();
     });
   });
 
-  it('shows Custom Prompt tab as active by default', async () => {
+  it('shows Summary Prompt Add-on tab as active by default', async () => {
     render(<SettingsContent userEmail="test@example.com" />);
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: /custom prompt/i })).toBeInTheDocument();
     });
   });
 
-  it('switches to Full Prompt tab and shows system message content', async () => {
+  it('switches to Summary Base Prompt tab and shows system message content', async () => {
     render(<SettingsContent userEmail="test@example.com" />);
-    await waitFor(() => screen.getByRole('tab', { name: /full prompt/i }));
+    await waitFor(() => screen.getByRole('tab', { name: /summary base prompt/i }));
 
-    fireEvent.click(screen.getByRole('tab', { name: /full prompt/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /summary base prompt/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/evidence-driven/i)).toBeInTheDocument();
     });
   });
 
-  it('shows user message template with readable placeholders on Full Prompt tab', async () => {
+  it('shows user message template with readable placeholders on Summary Base Prompt tab', async () => {
     render(<SettingsContent userEmail="test@example.com" />);
-    await waitFor(() => screen.getByRole('tab', { name: /full prompt/i }));
+    await waitFor(() => screen.getByRole('tab', { name: /summary base prompt/i }));
 
-    fireEvent.click(screen.getByRole('tab', { name: /full prompt/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /summary base prompt/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/\[Article Title\]/i)).toBeInTheDocument();
@@ -76,26 +77,59 @@ describe('SettingsContent', () => {
     });
   });
 
-  it('hides the textarea when Full Prompt tab is active', async () => {
+  it('hides the textarea when Summary Base Prompt tab is active', async () => {
     render(<SettingsContent userEmail="test@example.com" />);
-    await waitFor(() => screen.getByRole('tab', { name: /full prompt/i }));
+    await waitFor(() => screen.getByRole('tab', { name: /summary base prompt/i }));
 
-    fireEvent.click(screen.getByRole('tab', { name: /full prompt/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /summary base prompt/i }));
 
     await waitFor(() => {
       expect(screen.queryByRole('textbox', { name: /custom prompt/i })).not.toBeInTheDocument();
     });
   });
 
-  it('switches back to Custom Prompt tab', async () => {
+  it('switches back to Summary Prompt Add-on tab', async () => {
     render(<SettingsContent userEmail="test@example.com" />);
-    await waitFor(() => screen.getByRole('tab', { name: /full prompt/i }));
+    await waitFor(() => screen.getByRole('tab', { name: /summary base prompt/i }));
 
-    fireEvent.click(screen.getByRole('tab', { name: /full prompt/i }));
-    fireEvent.click(screen.getByRole('tab', { name: /custom prompt/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /summary base prompt/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /summary prompt add-on/i }));
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: /custom prompt/i })).toBeInTheDocument();
+    });
+  });
+
+  it('switches to Commentary Prompt tab and shows commentary system message', async () => {
+    render(<SettingsContent userEmail="test@example.com" />);
+    await waitFor(() => screen.getByRole('tab', { name: /commentary prompt/i }));
+
+    fireEvent.click(screen.getByRole('tab', { name: /commentary prompt/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/sharp, well-read critic/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows commentary user message template on Commentary Prompt tab', async () => {
+    render(<SettingsContent userEmail="test@example.com" />);
+    await waitFor(() => screen.getByRole('tab', { name: /commentary prompt/i }));
+
+    fireEvent.click(screen.getByRole('tab', { name: /commentary prompt/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/sceptical reader/i)).toBeInTheDocument();
+    });
+  });
+
+  it('hides the textarea when Commentary Prompt tab is active', async () => {
+    render(<SettingsContent userEmail="test@example.com" />);
+    await waitFor(() => screen.getByRole('tab', { name: /commentary prompt/i }));
+
+    fireEvent.click(screen.getByRole('tab', { name: /commentary prompt/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('textbox', { name: /custom prompt/i })).not.toBeInTheDocument();
     });
   });
 
@@ -142,11 +176,11 @@ describe('SettingsContent', () => {
     expect(screen.getByText(/5\s*\/\s*2000/)).toBeInTheDocument();
   });
 
-  it('shows info text that custom prompt is prepended to the full prompt', async () => {
+  it('shows info text that custom prompt is prepended to the summary base prompt', async () => {
     render(<SettingsContent userEmail="test@example.com" />);
 
     await waitFor(() => {
-      expect(screen.getByText(/prepended to the full prompt/i)).toBeInTheDocument();
+      expect(screen.getByText(/prepended to the summary base prompt/i)).toBeInTheDocument();
     });
   });
 
