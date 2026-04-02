@@ -458,7 +458,7 @@ What are the 2–3 most important things a sceptical reader should know before t
 
 Pick only what matters most: a significant unstated assumption, a strong counter-argument from established knowledge, or important context the author left out. Skip anything minor.
 
-Be specific. No vague hedging. Keep it short — the reader is time-poor. Do not comment on whether the article is old, new, or timely.
+Be specific. No vague hedging. Keep it short — the reader is time-poor. Do not comment on whether the article is old, new, or timely. Do not dispute whether the products, companies, events, or entities in the article exist — accept the article's basic factual premise and focus your critique on the quality of reasoning, evidence, or missing context.
 
 Title: ${item.title}
 Author: ${item.author || 'Unknown'}
