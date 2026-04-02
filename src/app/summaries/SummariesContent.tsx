@@ -499,6 +499,38 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
     }
   }
 
+  async function handleRegenerateSummary(itemId: string) {
+    const response = await fetch('/api/reader/regenerate-summary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemId }),
+    });
+
+    const data = (await response.json()) as {
+      summary?: string | null;
+      tags?: string[];
+      contentTruncated?: boolean;
+      error?: string;
+    };
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to regenerate summary');
+    }
+
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              short_summary: data.summary ?? item.short_summary,
+              tags: data.tags ?? item.tags,
+              content_truncated: data.contentTruncated ?? item.content_truncated,
+            }
+          : item
+      )
+    );
+  }
+
   async function handleGenerateCommentariat(itemId: string) {
     const response = await fetch('/api/reader/commentariat', {
       method: 'POST',
@@ -856,6 +888,7 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
                 onArchive={handleArchive}
                 onSaveNote={handleSaveNote}
                 onSaveRating={handleSaveRating}
+                onRegenerateSummary={handleRegenerateSummary}
                 onGenerateCommentariat={handleGenerateCommentariat}
               />
             ))}

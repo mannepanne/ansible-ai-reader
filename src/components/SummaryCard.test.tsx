@@ -16,6 +16,7 @@ describe('SummaryCard', () => {
     onArchive: vi.fn(),
     onSaveNote: vi.fn(),
     onSaveRating: vi.fn(),
+    onRegenerateSummary: vi.fn(),
     onGenerateCommentariat: vi.fn(),
   };
 
@@ -456,8 +457,8 @@ describe('SummaryCard', () => {
     it('renders Summary and Commentary tabs', () => {
       render(<SummaryCard {...defaultProps} />);
 
-      expect(screen.getByRole('button', { name: /summary/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /commentary/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^summary$/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^commentary$/i })).toBeInTheDocument();
     });
 
     it('shows Summary tab content by default', () => {
@@ -679,6 +680,42 @@ describe('SummaryCard', () => {
       fireEvent.click(screen.getByRole('button', { name: /summary/i }));
       const truncatedText = 'a'.repeat(200) + '...';
       expect(screen.getByText(truncatedText, { exact: false })).toBeInTheDocument();
+    });
+  });
+
+  describe('Summary refresh', () => {
+    it('shows Refresh button on Summary tab', () => {
+      render(<SummaryCard {...defaultProps} />);
+
+      expect(screen.getByRole('button', { name: /refresh summary/i })).toBeInTheDocument();
+    });
+
+    it('does not show Summary Refresh button on Commentary tab', () => {
+      render(<SummaryCard {...defaultProps} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /commentary/i }));
+
+      expect(screen.queryByRole('button', { name: /refresh summary/i })).not.toBeInTheDocument();
+    });
+
+    it('shows refreshing state when regenerating', async () => {
+      const onRegenerateSummary = vi.fn(
+        () => new Promise<void>((resolve) => setTimeout(resolve, 100))
+      );
+      render(<SummaryCard {...defaultProps} onRegenerateSummary={onRegenerateSummary} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /refresh summary/i }));
+
+      expect(await screen.findByText('Refreshing summary…')).toBeInTheDocument();
+    });
+
+    it('calls onRegenerateSummary with item id', async () => {
+      const onRegenerateSummary = vi.fn().mockResolvedValue(undefined);
+      render(<SummaryCard {...defaultProps} onRegenerateSummary={onRegenerateSummary} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /refresh summary/i }));
+
+      expect(onRegenerateSummary).toHaveBeenCalledWith('item-1');
     });
   });
 });
