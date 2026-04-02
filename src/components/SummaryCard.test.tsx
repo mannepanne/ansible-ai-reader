@@ -453,11 +453,11 @@ describe('SummaryCard', () => {
   });
 
   describe('Tab bar', () => {
-    it('renders Summary and Commentariat tabs', () => {
+    it('renders Summary and Commentary tabs', () => {
       render(<SummaryCard {...defaultProps} />);
 
       expect(screen.getByRole('button', { name: /summary/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /commentariat/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /commentary/i })).toBeInTheDocument();
     });
 
     it('shows Summary tab content by default', () => {
@@ -476,7 +476,7 @@ describe('SummaryCard', () => {
         />
       );
 
-      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+      fireEvent.click(screen.getByRole('button', { name: /commentary/i }));
 
       expect(screen.getByText(/Counter-arguments/i)).toBeInTheDocument();
     });
@@ -490,10 +490,22 @@ describe('SummaryCard', () => {
         />
       );
 
-      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+      fireEvent.click(screen.getByRole('button', { name: /commentary/i }));
       fireEvent.click(screen.getByRole('button', { name: /summary/i }));
 
       expect(screen.getByText('The original summary')).toBeInTheDocument();
+    });
+
+    it('shows dot indicator on Commentariat tab when analysis exists', () => {
+      render(<SummaryCard {...defaultProps} commentariatSummary="Some analysis" />);
+
+      expect(screen.getByTestId('commentariat-dot-indicator')).toBeInTheDocument();
+    });
+
+    it('does not show dot indicator when no commentariat exists', () => {
+      render(<SummaryCard {...defaultProps} commentariatSummary={null} />);
+
+      expect(screen.queryByTestId('commentariat-dot-indicator')).not.toBeInTheDocument();
     });
   });
 
@@ -501,7 +513,7 @@ describe('SummaryCard', () => {
     it('shows Analyse ideas button when no commentariat exists', () => {
       render(<SummaryCard {...defaultProps} commentariatSummary={null} />);
 
-      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+      fireEvent.click(screen.getByRole('button', { name: /commentary/i }));
 
       expect(screen.getByRole('button', { name: /analyse ideas/i })).toBeInTheDocument();
     });
@@ -516,7 +528,7 @@ describe('SummaryCard', () => {
         />
       );
 
-      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+      fireEvent.click(screen.getByRole('button', { name: /commentary/i }));
       fireEvent.click(screen.getByRole('button', { name: /analyse ideas/i }));
 
       expect(mockGenerate).toHaveBeenCalledWith('item-1');
@@ -532,7 +544,7 @@ describe('SummaryCard', () => {
         />
       );
 
-      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+      fireEvent.click(screen.getByRole('button', { name: /commentary/i }));
       fireEvent.click(screen.getByRole('button', { name: /analyse ideas/i }));
 
       expect(screen.getByText(/analysing ideas/i)).toBeInTheDocument();
@@ -548,7 +560,7 @@ describe('SummaryCard', () => {
         />
       );
 
-      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+      fireEvent.click(screen.getByRole('button', { name: /commentary/i }));
       fireEvent.click(screen.getByRole('button', { name: /analyse ideas/i }));
 
       await waitFor(() => {
@@ -566,7 +578,7 @@ describe('SummaryCard', () => {
         />
       );
 
-      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+      fireEvent.click(screen.getByRole('button', { name: /commentary/i }));
 
       const liElements = screen.getAllByRole('listitem');
       expect(liElements.length).toBeGreaterThan(0);
@@ -581,7 +593,7 @@ describe('SummaryCard', () => {
         />
       );
 
-      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+      fireEvent.click(screen.getByRole('button', { name: /commentary/i }));
 
       expect(screen.getByText(/analysed/i)).toBeInTheDocument();
     });
@@ -595,7 +607,7 @@ describe('SummaryCard', () => {
         />
       );
 
-      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+      fireEvent.click(screen.getByRole('button', { name: /commentary/i }));
 
       expect(screen.getByTitle('Refresh analysis')).toBeInTheDocument();
     });
@@ -628,7 +640,7 @@ describe('SummaryCard', () => {
         <SummaryCard {...defaultProps} summary={longSummary} commentariatSummary={null} />
       );
 
-      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+      fireEvent.click(screen.getByRole('button', { name: /commentary/i }));
 
       expect(screen.getByRole('button', { name: /expand/i })).toBeInTheDocument();
     });
@@ -643,7 +655,7 @@ describe('SummaryCard', () => {
         />
       );
 
-      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+      fireEvent.click(screen.getByRole('button', { name: /commentary/i }));
 
       expect(screen.getByRole('button', { name: /expand/i })).toBeInTheDocument();
     });
@@ -660,7 +672,7 @@ describe('SummaryCard', () => {
       );
 
       // Expand while on Commentariat tab
-      fireEvent.click(screen.getByRole('button', { name: /commentariat/i }));
+      fireEvent.click(screen.getByRole('button', { name: /commentary/i }));
       fireEvent.click(screen.getByRole('button', { name: /expand/i }));
 
       // Switch back to Summary tab — should still be truncated
