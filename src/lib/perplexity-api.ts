@@ -448,18 +448,15 @@ export async function generateCommentariat(
         {
           role: 'system',
           content:
-            'You are a critical analyst helping an evidence-driven reader evaluate ideas under scrutiny. Focus on intellectual robustness, not rhetorical style.',
+            'You are a sharp, well-read critic helping a busy reader cut through the noise. Be concise, direct, and editorial — not academic.',
         },
         {
           role: 'user',
-          content: `Analyse the intellectual robustness of the main claims in this content.
+          content: `What are the 2–3 most important things a sceptical reader should know before taking this article at face value?
 
-Identify:
-- Counter-arguments from established research or expert consensus
-- Alternative schools of thought or competing frameworks that reach different conclusions
-- Significant caveats, blind spots, or nuances the author may have overlooked
+Pick only what matters most: a significant unstated assumption, a strong counter-argument from established knowledge, or important context the author left out. Skip anything minor.
 
-Be specific and grounded. Avoid vague hedging. Format as bullet points grouped under short headers.
+Be specific. No vague hedging. Keep it short — the reader is time-poor.
 
 Title: ${item.title}
 Author: ${item.author || 'Unknown'}
