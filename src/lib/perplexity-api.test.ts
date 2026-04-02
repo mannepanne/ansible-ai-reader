@@ -772,6 +772,7 @@ testing`,
       const userMessage = requestBody.messages.find((m: any) => m.role === 'user');
 
       expect(systemMessage.content).toContain('sharp, well-read critic');
+      expect(userMessage.content).toContain("Today's date is");
       expect(userMessage.content).toContain('sceptical reader');
       expect(userMessage.content).toContain('2–3 most important things');
     });
