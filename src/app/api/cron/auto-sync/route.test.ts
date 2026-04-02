@@ -117,6 +117,7 @@ describe('GET /api/cron/auto-sync', () => {
       syncId: 'sync-123',
       totalItems: 5,
       totalFetched: 5,
+      itemsArchived: 0,
     });
 
     const response = await GET(mockRequest('Bearer test-cron-secret'));
@@ -193,6 +194,7 @@ describe('GET /api/cron/auto-sync', () => {
       syncId: 'sync-456',
       totalItems: 10,
       totalFetched: 10,
+      itemsArchived: 0,
     });
 
     const response = await GET(mockRequest('Bearer test-cron-secret'));
@@ -244,6 +246,7 @@ describe('GET /api/cron/auto-sync', () => {
         syncId: 'sync-1',
         totalItems: 5,
         totalFetched: 5,
+        itemsArchived: 0,
       })
       .mockRejectedValueOnce(new Error('Network error'));
 
@@ -290,6 +293,7 @@ describe('GET /api/cron/auto-sync', () => {
         syncId: 'sync-2',
         totalItems: 3,
         totalFetched: 3,
+        itemsArchived: 0,
       });
 
     const response = await GET(mockRequest('Bearer test-cron-secret'));
@@ -325,6 +329,7 @@ describe('GET /api/cron/auto-sync', () => {
       syncId: 'sync-local',
       totalItems: 2,
       totalFetched: 2,
+      itemsArchived: 0,
     });
 
     // Mock getCloudflareContext to throw (simulates local dev)
@@ -393,6 +398,7 @@ describe('GET /api/cron/auto-sync', () => {
       syncId: 'sync-789',
       totalItems: 1,
       totalFetched: 1,
+      itemsArchived: 0,
     });
 
     const response = await GET(mockRequest('Bearer test-cron-secret'));

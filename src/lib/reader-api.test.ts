@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   fetchUnreadItems,
+  fetchRecentlyArchivedItems,
   archiveItem,
   updateNote,
   fetchArticleContent,
@@ -609,6 +610,135 @@ describe('Reader API Client', () => {
 
       expect(result.author).toBeUndefined();
       expect(result.title).toBe('No Author Article');
+    });
+  });
+
+  describe('fetchRecentlyArchivedItems', () => {
+    it('fetches archived items with correct location and updatedAfter params', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          results: [
+            {
+              id: 'reader-archived-1',
+              updated_at: '2026-04-01T12:00:00Z',
+              highlights_count: 3,
+              notes: 'interesting concept',
+            },
+          ],
+          nextPageCursor: null,
+        }),
+        headers: new Map(),
+      } as any);
+
+      const result = await fetchRecentlyArchivedItems('test-token', '2026-03-01T00:00:00Z');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('location=archive'),
+        expect.objectContaining({
+          method: 'GET',
+          headers: {
+            Authorization: 'Token test-token',
+            'Content-Type': 'application/json',
+          },
+        })
+      );
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('updatedAfter=2026-03-01'),
+        expect.any(Object)
+      );
+
+      expect(result.results).toHaveLength(1);
+      expect(result.results[0]).toMatchObject({
+        id: 'reader-archived-1',
+        updated_at: '2026-04-01T12:00:00Z',
+        highlights_count: 3,
+        notes: 'interesting concept',
+      });
+      expect(result.nextPageCursor).toBeNull();
+    });
+
+    it('handles pagination cursor', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          results: [{ id: 'reader-archived-2', updated_at: '2026-04-01T13:00:00Z' }],
+          nextPageCursor: 'archive-cursor-xyz',
+        }),
+        headers: new Map(),
+      } as any);
+
+      const result = await fetchRecentlyArchivedItems(
+        'test-token',
+        '2026-03-01T00:00:00Z',
+        'prev-cursor'
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('pageCursor=prev-cursor'),
+        expect.any(Object)
+      );
+      expect(result.nextPageCursor).toBe('archive-cursor-xyz');
+    });
+
+    it('handles empty results (no items archived since last sync)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ results: [], nextPageCursor: null }),
+        headers: new Map(),
+      } as any);
+
+      const result = await fetchRecentlyArchivedItems('test-token', '2026-04-01T00:00:00Z');
+
+      expect(result.results).toHaveLength(0);
+      expect(result.nextPageCursor).toBeNull();
+    });
+
+    it('handles items with missing optional signal fields', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          results: [{ id: 'reader-archived-3', updated_at: '2026-04-01T14:00:00Z' }],
+          nextPageCursor: null,
+        }),
+        headers: new Map(),
+      } as any);
+
+      const result = await fetchRecentlyArchivedItems('test-token', '2026-03-01T00:00:00Z');
+
+      expect(result.results[0].id).toBe('reader-archived-3');
+      expect(result.results[0].highlights_count).toBeUndefined();
+      expect(result.results[0].notes).toBeUndefined();
+    });
+
+    it('throws ReaderAPIError on 401', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        headers: new Map(),
+      } as any);
+
+      await expect(
+        fetchRecentlyArchivedItems('bad-token', '2026-03-01T00:00:00Z')
+      ).rejects.toThrow(ReaderAPIError);
+    });
+
+    it('throws ReaderAPIError on invalid response format', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ unexpected: 'shape' }),
+        headers: new Map(),
+      } as any);
+
+      await expect(
+        fetchRecentlyArchivedItems('test-token', '2026-03-01T00:00:00Z')
+      ).rejects.toThrow(ReaderAPIError);
     });
   });
 

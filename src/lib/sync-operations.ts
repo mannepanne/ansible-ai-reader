@@ -1,8 +1,8 @@
 // ABOUT: Shared sync logic for both manual and automated (cron) syncing
-// ABOUT: Fetches unread items from Reader API, creates processing jobs, enqueues to Cloudflare Queue
+// ABOUT: Fetches unread items from Reader API, creates processing jobs, enqueues to Cloudflare Queue, and mirrors archive state
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { fetchUnreadItems } from './reader-api';
+import { fetchUnreadItems, fetchRecentlyArchivedItems } from './reader-api';
 
 export interface PerformSyncOptions {
   userId: string;
@@ -15,6 +15,7 @@ export interface PerformSyncResult {
   syncId: string;
   totalItems: number;
   totalFetched: number;
+  itemsArchived: number;
   errors?: number;
 }
 
@@ -59,6 +60,7 @@ export async function performSyncForUser(
   let pageCursor: string | null | undefined = null;
   let totalFetched = 0;
   let totalCreated = 0;
+  let totalArchived = 0;
   const errors: any[] = [];
 
   try {
@@ -182,6 +184,91 @@ export async function performSyncForUser(
       );
     } while (pageCursor);
 
+    // Step 2: Archive sync — mirror Reader archive state to Ansible
+    // Runs after unread fetch; failures are non-fatal and logged but do not abort sync.
+    try {
+      // Determine lookback window: since the last completed sync for this user,
+      // or 30 days for first-time users who may have archived items before using Ansible.
+      const { data: lastSync } = await supabase
+        .from('sync_log')
+        .select('started_at')
+        .eq('user_id', userId)
+        .not('completed_at', 'is', null)
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const updatedAfter = lastSync?.started_at ?? thirtyDaysAgo;
+
+      // Collect all recently archived items with their timestamps, paginating if needed
+      const allArchivedItems: Array<{ id: string; updated_at: string }> = [];
+      let archiveCursor: string | null | undefined = null;
+
+      do {
+        const archiveResponse = await fetchRecentlyArchivedItems(
+          readerApiToken,
+          updatedAfter,
+          archiveCursor || undefined
+        );
+        allArchivedItems.push(
+          ...archiveResponse.results.map((item) => ({
+            id: item.id,
+            updated_at: item.updated_at,
+          }))
+        );
+        archiveCursor = archiveResponse.nextPageCursor;
+      } while (archiveCursor);
+
+      if (allArchivedItems.length > 0) {
+        // Build a map of reader_id → Reader's updated_at timestamp (the actual archive time)
+        const archivedAtMap = new Map(
+          allArchivedItems.map((item) => [item.id, item.updated_at])
+        );
+
+        // Batch SELECT: find which of these items exist locally and are not yet archived
+        const { data: localItems, error: selectError } = await supabase
+          .from('reader_items')
+          .select('id, reader_id')
+          .eq('user_id', userId)
+          .in('reader_id', Array.from(archivedAtMap.keys()))
+          .is('archived_at', null);
+
+        if (selectError) {
+          console.error('[SyncOps] Archive sync SELECT failed:', selectError);
+          errors.push({ error: `Archive sync failed: ${selectError.message}` });
+        } else if (localItems && localItems.length > 0) {
+          // Update each item individually to preserve its Reader archive timestamp
+          for (const localItem of localItems) {
+            const archivedAt =
+              archivedAtMap.get(localItem.reader_id) ?? new Date().toISOString();
+            const { error: updateError } = await supabase
+              .from('reader_items')
+              .update({ archived: true, archived_at: archivedAt })
+              .eq('id', localItem.id);
+
+            if (updateError) {
+              console.error(
+                `[SyncOps] Archive sync update failed for item ${localItem.id}:`,
+                updateError
+              );
+            } else {
+              totalArchived++;
+            }
+          }
+          console.log(`[SyncOps] Archive sync: ${totalArchived} items archived`);
+        }
+      } else {
+        console.log('[SyncOps] Archive sync: no new archived items found');
+      }
+    } catch (archiveSyncError) {
+      console.error('[SyncOps] Archive sync failed (non-fatal):', archiveSyncError);
+      errors.push({
+        error: `Archive sync failed: ${archiveSyncError instanceof Error ? archiveSyncError.message : 'Unknown error'}`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     // Update sync_log with totals
     const { error: updateError } = await supabase
       .from('sync_log')
@@ -205,6 +292,7 @@ export async function performSyncForUser(
       syncId,
       totalItems: totalCreated,
       totalFetched,
+      itemsArchived: totalArchived,
       errors: errors.length > 0 ? errors.length : undefined,
     };
   } catch (syncError) {

@@ -16,6 +16,7 @@ How-it-works documentation for user-facing features.
 
 ### AI Features
 - **[ai-summaries.md](./ai-summaries.md)** - Perplexity API integration, content truncation (30k limit), token tracking
+- **[commentariat.md](./commentariat.md)** - On-demand intellectual stress-testing of article content via Perplexity
 - **[tags.md](./tags.md)** - AI-generated tags (3-10 per item) and regeneration
 
 ### Automation
@@ -29,6 +30,7 @@ How-it-works documentation for user-facing features.
 ## Common Questions
 - **"How does Reader sync work?"** → [reader-sync.md](./reader-sync.md)
 - **"How are AI summaries generated?"** → [ai-summaries.md](./ai-summaries.md)
+- **"How does Commentariat work?"** → [commentariat.md](./commentariat.md)
 - **"How does automated sync work?"** → [automated-sync.md](./automated-sync.md)
 - **"How do users configure settings?"** → [settings.md](./settings.md)
 - **"How are tags generated?"** → [tags.md](./tags.md)
