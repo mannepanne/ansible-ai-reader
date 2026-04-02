@@ -13,14 +13,15 @@ Development followed 5 sequential phases (all complete). Active work is now feat
 - ✅ **Phase 4: Perplexity Integration** - [ARCHIVE/04-perplexity-integration.md](./ARCHIVE/04-perplexity-integration.md) (Mar 15, 2026)
 - ✅ **Phase 5: Notes & Rating** - [ARCHIVE/05-notes-rating-polish.md](./ARCHIVE/05-notes-rating-polish.md) (Apr 1, 2026)
 
-**Current application status:** Fully functional MVP — 428 tests, 95%+ coverage, live at ansible.hultberg.org
+**Current application status:** Fully functional MVP — 461 tests, 95%+ coverage, live at ansible.hultberg.org
 
 ### Active Feature Specs
 
-- 📋 **[09-archive-sync.md](./09-archive-sync.md)** - Archive Sync: mirror items archived in Reader to Ansible during sync (Apr 2026)
+_(none — all caught up)_
 
 ### Completed Feature Specs
 
+- ✅ **[ARCHIVE/features/09-archive-sync.md](./ARCHIVE/features/09-archive-sync.md)** - Archive Sync: mirror Reader archive state to Ansible during sync (Apr 2026)
 - ✅ **[ARCHIVE/features/08-commentariat.md](./ARCHIVE/features/08-commentariat.md)** - Commentariat: intellectual stress-testing of content via Perplexity (Apr 2026)
 - ✅ **[ARCHIVE/features/07-summary-prompt-ui.md](./ARCHIVE/features/07-summary-prompt-ui.md)** - Custom summary prompt editor in Settings (TD-004, Apr 2026)
 

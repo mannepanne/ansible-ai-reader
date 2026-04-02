@@ -12,7 +12,7 @@ How-it-works documentation for user-facing features.
 ## Feature Documentation
 
 ### Reader Integration
-- **[reader-sync.md](./reader-sync.md)** - Fetching and syncing articles from Readwise Reader (API client, rate limiting, pagination)
+- **[reader-sync.md](./reader-sync.md)** - Fetching and syncing articles from Readwise Reader (API client, rate limiting, pagination, archive sync)
 
 ### AI Features
 - **[ai-summaries.md](./ai-summaries.md)** - Perplexity API integration, content truncation (30k limit), token tracking
@@ -29,6 +29,7 @@ How-it-works documentation for user-facing features.
 
 ## Common Questions
 - **"How does Reader sync work?"** → [reader-sync.md](./reader-sync.md)
+- **"How does archive sync work?"** → [reader-sync.md](./reader-sync.md#archive-sync)
 - **"How are AI summaries generated?"** → [ai-summaries.md](./ai-summaries.md)
 - **"How does Commentariat work?"** → [commentariat.md](./commentariat.md)
 - **"How does automated sync work?"** → [automated-sync.md](./automated-sync.md)

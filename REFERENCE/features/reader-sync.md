@@ -9,13 +9,17 @@ Integration with [Readwise Reader](https://readwise.io/read) that fetches your s
 ## Core Workflow
 
 ```
-1. User clicks "Sync" button
-2. Fetch unread items from Reader API (paginated)
+1. User clicks "Sync" button (or cron triggers auto-sync)
+2. Fetch unread items from Reader API (location=new, paginated)
 3. Store article metadata in database
 4. Create queue jobs for AI summary generation
-5. Poll for completion
-6. Display summaries in UI
+5. Fetch recently archived items from Reader API (location=archive, updatedAfter=last sync)
+6. Mark matching local items as archived (mirrors Reader archive state)
+7. Poll for summary generation completion
+8. Display summaries in UI
 ```
+
+Steps 2–4 and 5–6 are sequential but independent failure domains — archive sync failure is non-fatal and logged without aborting the unread items sync.
 
 ## Reader API Integration
 
@@ -407,8 +411,40 @@ const progress = (jobs_completed / jobs_created) * 100;
 - Verify RLS policies allow access
 - Check jobs completed successfully
 
+## Archive Sync
+
+Items archived directly in Readwise Reader (rather than via Ansible) are automatically mirrored during each sync.
+
+### How It Works
+
+After the unread items fetch completes, `performSyncForUser()` runs a second step:
+
+```
+1. Query last completed sync timestamp for this user
+   → First-time users: 30-day fallback window
+2. GET /api/v3/list/?location=archive&updatedAfter={timestamp}
+3. Batch SELECT local reader_items matching the returned reader_ids
+   (only items where archived_at IS NULL)
+4. Per-item UPDATE: archived=true, archived_at=Reader's updated_at timestamp
+```
+
+The Reader's `updated_at` timestamp is used for `archived_at` rather than the sync time, preserving the actual moment the item was archived in Reader.
+
+### Signal Data (Future)
+
+The archive API response also carries `highlights_count` and `notes` per item. These are captured in `ArchivedReaderItemSchema` for future interest-signal tracking (issue #58) without requiring a separate API integration.
+
+### Error Handling
+
+Archive sync is wrapped in an isolated try/catch. Any failure is logged and appended to the sync's error count but does not abort or fail the unread items sync.
+
+**Implementation:** `src/lib/sync-operations.ts` — `performSyncForUser()`, archive sync step
+**API client:** `src/lib/reader-api.ts` — `fetchRecentlyArchivedItems()`
+
 ## Related Documentation
 - [AI Summaries](./ai-summaries.md) - How summaries are generated
 - [Automated Sync](./automated-sync.md) - Scheduled syncing
 - [Workers](../architecture/workers.md) - Queue consumer details
 - [API Design](../architecture/api-design.md) - API patterns
+- [Issue #26](https://github.com/mannepanne/ansible-ai-reader/issues/26) - Archive sync feature request
+- [Issue #58](https://github.com/mannepanne/ansible-ai-reader/issues/58) - Interest signals (future extension)
