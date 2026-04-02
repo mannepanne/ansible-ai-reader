@@ -771,10 +771,9 @@ testing`,
       const systemMessage = requestBody.messages.find((m: any) => m.role === 'system');
       const userMessage = requestBody.messages.find((m: any) => m.role === 'user');
 
-      expect(systemMessage.content).toContain('critical analyst');
-      expect(userMessage.content).toContain('intellectual robustness');
-      expect(userMessage.content).toContain('Counter-arguments');
-      expect(userMessage.content).toContain('Alternative schools of thought');
+      expect(systemMessage.content).toContain('sharp, well-read critic');
+      expect(userMessage.content).toContain('sceptical reader');
+      expect(userMessage.content).toContain('2–3 most important things');
     });
 
     it('throws error on 401 unauthorized', async () => {
