@@ -236,6 +236,7 @@ describe('SummaryCard', () => {
         onArchive={vi.fn()}
         onSaveNote={vi.fn()}
         onSaveRating={vi.fn()}
+        onRegenerateSummary={vi.fn()}
         onGenerateCommentariat={vi.fn()}
       />
     );
