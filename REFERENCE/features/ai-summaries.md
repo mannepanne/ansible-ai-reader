@@ -263,8 +263,35 @@ If `content_truncated = true`:
 
 ## Regeneration
 
-### Use Case
-User wants updated summary with different prompt or tags.
+Two regeneration paths exist — on-demand (single item, synchronous) and batch (all items, queue-based).
+
+### On-Demand Refresh (single item)
+
+**Use Case:** User wants to immediately refresh a specific item's summary and tags, e.g. after changing their custom prompt.
+
+**Trigger:** ↺ Refresh button on the Summary tab in the card UI.
+
+**Endpoint:**
+```
+POST /api/reader/regenerate-summary
+Body: { "itemId": "uuid" }
+Response: { "summary": string | null, "tags": string[], "contentTruncated": boolean }
+```
+
+**Process:**
+1. Auth + ownership check (`.eq('user_id', user.id)`)
+2. Fetch user's custom prompt from `users.summary_prompt` (falls back to default)
+3. Fetch full article content from Reader (`fetchArticleContent`)
+4. Call Perplexity (`generateSummary`) with custom prompt
+5. Write `short_summary`, `tags`, `content_truncated`, `updated_at` to DB
+6. Log token usage to `sync_log` (non-fatal)
+7. Return new summary + tags — card updates in-place without page reload
+
+**Implementation:** `src/app/api/reader/regenerate-summary/route.ts`
+
+### Batch Regeneration (all items, queue-based)
+
+**Use Case:** User wants to regenerate summaries for all items, e.g. after a significant prompt change.
 
 ### Trigger
 ```

@@ -23,6 +23,7 @@ interface SummaryCardProps {
   onArchive: (id: string) => void;
   onSaveNote: (id: string, note: string) => Promise<void>;
   onSaveRating: (id: string, rating: number | null) => Promise<void>;
+  onRegenerateSummary: (id: string) => Promise<void>;
   onGenerateCommentariat: (id: string) => Promise<void>;
 }
 
@@ -44,6 +45,7 @@ export default function SummaryCard({
   onArchive,
   onSaveNote,
   onSaveRating,
+  onRegenerateSummary,
   onGenerateCommentariat,
 }: SummaryCardProps) {
   // Tab state
@@ -52,6 +54,10 @@ export default function SummaryCard({
   // Expand state per tab
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
   const [isCommentariatExpanded, setIsCommentariatExpanded] = useState(false);
+
+  // Summary refresh state
+  const [isSummaryRefreshing, setIsSummaryRefreshing] = useState(false);
+  const [summaryRefreshError, setSummaryRefreshError] = useState<string | null>(null);
 
   // Note state
   const [isEditingNote, setIsEditingNote] = useState(false);
@@ -139,6 +145,20 @@ export default function SummaryCard({
       console.error('Failed to save rating:', error);
     } finally {
       setIsSavingRating(false);
+    }
+  };
+
+  // Summary refresh handler
+  const handleRefreshSummary = async () => {
+    setIsSummaryRefreshing(true);
+    setSummaryRefreshError(null);
+
+    try {
+      await onRegenerateSummary(id);
+    } catch (error) {
+      setSummaryRefreshError('Refresh failed — try again');
+    } finally {
+      setIsSummaryRefreshing(false);
     }
   };
 
@@ -283,7 +303,7 @@ export default function SummaryCard({
         {(['summary', 'commentariat'] as const).map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => { setActiveTab(tab); setSummaryRefreshError(null); }}
             style={{
               background: 'none',
               border: 'none',
@@ -329,7 +349,36 @@ export default function SummaryCard({
       >
         {activeTab === 'summary' && (
           <div className="summary-markdown">
-            <ReactMarkdown components={markdownComponents}>{displaySummary}</ReactMarkdown>
+            {isSummaryRefreshing ? (
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '24px 0',
+                  color: '#6c757d',
+                  fontSize: '0.9em',
+                }}
+              >
+                Refreshing summary…
+              </div>
+            ) : (
+              <>
+                <ReactMarkdown components={markdownComponents}>{displaySummary}</ReactMarkdown>
+                {summaryRefreshError && (
+                  <div
+                    style={{
+                      marginTop: '8px',
+                      padding: '8px 12px',
+                      background: '#f8d7da',
+                      color: '#dc3545',
+                      borderRadius: '4px',
+                      fontSize: '0.85em',
+                    }}
+                  >
+                    {summaryRefreshError}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
@@ -484,6 +533,28 @@ export default function SummaryCard({
           >
             🤷
           </button>
+
+          {/* Refresh summary */}
+          {activeTab === 'summary' && !isSummaryRefreshing && (
+            <>
+              <span style={{ color: '#6c757d' }}>|</span>
+              <button
+                onClick={handleRefreshSummary}
+                title="Refresh summary"
+                aria-label="Refresh summary"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#6c757d',
+                  cursor: 'pointer',
+                  padding: 0,
+                  fontSize: '0.85em',
+                }}
+              >
+                ↺ Refresh
+              </button>
+            </>
+          )}
 
           {/* Refresh commentariat (shown after generation) */}
           {activeTab === 'commentariat' && commentariatSummary && !isCommentariatGenerating && (

@@ -81,7 +81,41 @@ VALUES ('<user-id-from-above>', '<email>', NOW());
 
 ---
 
-### Example Format: TD-007: Description
+### TD-007: SummaryCard Component Size and Inline Style Complexity
+- **Location:** `src/components/SummaryCard.tsx` - entire file (~680 lines)
+- **Issue:** SummaryCard has grown through multiple feature additions (notes, ratings, tabs, commentariat, expand state) into a large single-file component with inline style objects defined inline throughout render. Inline styles make visual changes harder to track, and the component combines display logic, async action handlers, and tab state that could be split across smaller components.
+- **Why accepted:** Each feature addition was incremental and correct. No single addition crossed a refactor threshold on its own. Splitting prematurely would have added complexity without benefit during active development.
+- **Risk:** **Low** - Works correctly and is well-tested. Complexity creep only starts to matter when adding new features or debugging layout issues.
+- **Future fix:** When next touching the card UI for a significant change:
+  1. Extract a `CommentariatTab` component
+  2. Extract a `SummaryTab` component  
+  3. Move inline styles to CSS modules or Tailwind classes
+  4. Keep `SummaryCard` as a thin orchestration shell with shared state
+- **Introduced:** April 2026 (PR #71 - Commentariat feature, flagged in architecture review)
+
+---
+
+### TD-008: `sync_log.items_created` Misused for On-Demand Operations
+- **Location:** `src/app/api/reader/commentariat/route.ts:139`, `src/app/api/reader/regenerate-summary/route.ts:139`
+- **Issue:** Both on-demand routes insert `items_created: 1` into `sync_log` when logging token usage. No `reader_items` row is created — a summary or commentariat is updated. The field is semantically incorrect.
+- **Why accepted:** The on-demand routes reuse the `sync_log` table for token tracking (the most pragmatic approach given the table already exists). Adding a new field or table just for this distinction was out of scope.
+- **Risk:** **Low** - No functional impact. The field is currently used for reporting only and the incorrect value would only matter if someone queries `items_created` to count actual item creations.
+- **Future fix:** Either add a separate `items_updated` column to `sync_log`, or change the on-demand routes to use `items_created: 0`.
+- **Introduced:** April 2026 (PR #71, PR #76)
+
+---
+
+### TD-009: `sync_log.errors` Column Typed as `number` but Used as Object
+- **Location:** `src/app/api/reader/commentariat/route.ts:131`, `src/app/api/reader/regenerate-summary/route.ts:140` — both insert JSON token usage objects into `errors`
+- **Issue:** The TypeScript type for `sync_log` (if/when it's defined) shows `errors?: number`, but both on-demand routes insert a structured object `{ reader_item_id, token_usage: { ... } }`. This is a schema mismatch that works at runtime (Postgres accepts JSONB) but is misleading.
+- **Why accepted:** The field is effectively untyped at the DB level and no runtime validation enforces the type. The mismatch is harmless today.
+- **Risk:** **Low** - Works correctly. Would become a problem if strict TypeScript types are enforced on Supabase-generated types or if code tries to do arithmetic on the field.
+- **Future fix:** Rename the column to `metadata` (or similar) and update its type to `jsonb` explicitly, then align TypeScript types.
+- **Introduced:** April 2026 (PR #71, PR #76)
+
+---
+
+### Example Format: TD-XXX: Description
 - **Location:** `src/path/to/file.ts` - `functionName()`
 - **Issue:** Clear description of the limitation or shortcut
 - **Why accepted:** Reason for accepting this debt (e.g., runtime constraints, time pressure, lack of alternative)
