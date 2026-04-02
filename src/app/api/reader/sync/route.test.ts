@@ -49,6 +49,7 @@ describe('POST /api/reader/sync', () => {
       syncId: 'sync-123',
       totalItems: 2,
       totalFetched: 2,
+      itemsArchived: 0,
     });
 
     const response = await POST(mockRequest);
@@ -59,6 +60,7 @@ describe('POST /api/reader/sync', () => {
       syncId: 'sync-123',
       totalItems: 2,
       totalFetched: 2,
+      itemsArchived: 0,
     });
 
     expect(performSyncForUser).toHaveBeenCalledWith(
@@ -145,6 +147,7 @@ describe('POST /api/reader/sync', () => {
       syncId: 'sync-456',
       totalItems: 5,
       totalFetched: 5,
+      itemsArchived: 0,
     });
 
     await POST(mockRequest);
@@ -170,6 +173,7 @@ describe('POST /api/reader/sync', () => {
       syncId: 'sync-789',
       totalItems: 1,
       totalFetched: 2,
+      itemsArchived: 0,
       errors: 1,
     });
 
@@ -181,6 +185,7 @@ describe('POST /api/reader/sync', () => {
       syncId: 'sync-789',
       totalItems: 1,
       totalFetched: 2,
+      itemsArchived: 0,
       errors: 1,
     });
   });
@@ -198,6 +203,7 @@ describe('POST /api/reader/sync', () => {
       syncId: 'sync-local',
       totalItems: 3,
       totalFetched: 3,
+      itemsArchived: 0,
     });
 
     // Mock getCloudflareContext to throw (simulates local dev)

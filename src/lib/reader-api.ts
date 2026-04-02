@@ -1,5 +1,5 @@
 // ABOUT: Readwise Reader API client with type-safe validation
-// ABOUT: Handles fetching unread items, archiving, rate limiting, and error handling
+// ABOUT: Handles fetching unread items, fetching archived items, archiving, rate limiting, and error handling
 
 import { z } from 'zod';
 import PQueue from 'p-queue';
@@ -71,6 +71,26 @@ export const ReaderListResponseSchema = z.object({
  */
 export type ReaderItem = z.infer<typeof ReaderItemSchema>;
 export type ReaderListResponse = z.infer<typeof ReaderListResponseSchema>;
+
+/**
+ * Schema for items returned by the archive location endpoint.
+ * Captures the id (for cross-referencing with local reader_id) and signal
+ * data that will be used by interest-signal tracking (issue #58) when built.
+ */
+export const ArchivedReaderItemSchema = z.object({
+  id: z.string().min(1),
+  updated_at: z.string(),
+  highlights_count: z.number().int().nonnegative().nullable().optional(),
+  notes: z.string().nullable().optional(),
+});
+
+export const ArchivedReaderListResponseSchema = z.object({
+  results: z.array(ArchivedReaderItemSchema),
+  nextPageCursor: z.string().nullable().optional(),
+});
+
+export type ArchivedReaderItem = z.infer<typeof ArchivedReaderItemSchema>;
+export type ArchivedReaderListResponse = z.infer<typeof ArchivedReaderListResponseSchema>;
 
 /**
  * Reader API error types
@@ -453,6 +473,78 @@ export async function fetchArticleContent(
       if (error instanceof ReaderAPIError) throw error;
       console.error('[Reader API] Error fetching article content:', error);
       throw new ReaderAPIError('Network error fetching content', undefined, true);
+    }
+  });
+}
+
+/**
+ * Fetch items recently archived in Readwise Reader
+ *
+ * Used during sync to detect items archived directly in Reader so they can be
+ * mirrored to Ansible. The response also carries signal data (highlights_count,
+ * notes) for future interest-signal tracking (issue #58).
+ *
+ * @param apiToken - Reader API token
+ * @param updatedAfter - ISO 8601 timestamp — only items archived after this date
+ * @param pageCursor - Pagination cursor (optional)
+ * @returns Validated list of archived items with optional signal metadata
+ * @throws {ReaderAPIError} On API errors
+ */
+export async function fetchRecentlyArchivedItems(
+  apiToken: string,
+  updatedAfter: string,
+  pageCursor?: string
+): Promise<ArchivedReaderListResponse> {
+  return readerQueue.add(async () => {
+    const url = new URL('https://readwise.io/api/v3/list/');
+    url.searchParams.set('location', 'archive');
+    url.searchParams.set('updatedAfter', updatedAfter);
+
+    if (pageCursor) {
+      url.searchParams.set('pageCursor', pageCursor);
+    }
+
+    try {
+      const response = await fetchWithRetry(url.toString(), {
+        method: 'GET',
+        headers: {
+          Authorization: `Token ${apiToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new ReaderAPIError('Invalid Reader API token', 401, false);
+        }
+
+        throw new ReaderAPIError(
+          `Reader API error: ${response.status} ${response.statusText}`,
+          response.status,
+          response.status >= 500
+        );
+      }
+
+      const data = await response.json();
+      const validated = ArchivedReaderListResponseSchema.parse(data);
+
+      console.log(
+        `[Reader API] Fetched ${validated.results.length} archived items` +
+          (validated.nextPageCursor ? ' (more available)' : '')
+      );
+
+      return validated;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error('[Reader API] Validation error (archived items):', error.message);
+        throw new ReaderAPIError(
+          'Invalid response format from Reader API',
+          undefined,
+          false
+        );
+      }
+
+      throw error;
     }
   });
 }
