@@ -452,7 +452,9 @@ export async function generateCommentariat(
         },
         {
           role: 'user',
-          content: `What are the 2–3 most important things a sceptical reader should know before taking this article at face value?
+          content: `Today's date is ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.
+
+What are the 2–3 most important things a sceptical reader should know before taking this article at face value?
 
 Pick only what matters most: a significant unstated assumption, a strong counter-argument from established knowledge, or important context the author left out. Skip anything minor.
 
