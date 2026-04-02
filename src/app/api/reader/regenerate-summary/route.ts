@@ -115,13 +115,14 @@ export async function POST(request: NextRequest) {
     }
 
     // 8. Store updated summary and tags in database
+    const updatedAt = new Date().toISOString();
     const { error: updateError } = await supabase
       .from('reader_items')
       .update({
         short_summary: result.summary,
         tags: result.tags,
         content_truncated: result.contentTruncated,
-        updated_at: new Date().toISOString(),
+        updated_at: updatedAt,
       })
       .eq('id', itemId)
       .eq('user_id', user.id);
@@ -144,7 +145,7 @@ export async function POST(request: NextRequest) {
           total_tokens: result.usage.total_tokens,
           model: result.model,
           content_truncated: result.contentTruncated,
-          timestamp: new Date().toISOString(),
+          timestamp: updatedAt,
         },
       },
     });

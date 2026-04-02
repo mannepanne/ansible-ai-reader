@@ -303,7 +303,7 @@ export default function SummaryCard({
         {(['summary', 'commentariat'] as const).map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => { setActiveTab(tab); setSummaryRefreshError(null); }}
             style={{
               background: 'none',
               border: 'none',
