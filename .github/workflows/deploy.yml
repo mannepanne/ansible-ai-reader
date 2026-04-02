@@ -1,5 +1,5 @@
 # ABOUT: Automated CI/CD workflow for deploying Ansible AI Reader to Cloudflare Workers
-# ABOUT: Runs tests, type checks, builds, and deploys both workers on every push to main
+# ABOUT: Runs tests, type checks, builds, and deploys all three workers on every push to main
 # See REFERENCE/deployment-guide.md for setup instructions and troubleshooting
 
 name: Deploy to Production
@@ -51,6 +51,14 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           READER_API_TOKEN: ${{ secrets.READER_API_TOKEN }}
           PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+
+      - name: Deploy cron worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: deploy --config wrangler-cron.toml
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
 
       - name: Deploy main application
         uses: cloudflare/wrangler-action@v3
