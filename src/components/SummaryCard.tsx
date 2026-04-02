@@ -279,6 +279,7 @@ export default function SummaryCard({
           gap: '0',
         }}
       >
+        {/* Tab display labels — internal state stays as 'commentariat' to match DB columns */}
         {(['summary', 'commentariat'] as const).map((tab) => (
           <button
             key={tab}
@@ -294,13 +295,12 @@ export default function SummaryCard({
               padding: '6px 12px 8px',
               marginBottom: '-1px',
               transition: 'color 0.15s',
-              textTransform: 'capitalize',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
             }}
           >
-            {tab}
+            {tab === 'commentariat' ? 'Commentary' : 'Summary'}
             {tab === 'commentariat' && commentariatSummary && (
               <span
                 aria-hidden="true"
