@@ -19,8 +19,10 @@ Before users have Ansible accounts, they land on a public marketing site. The go
 /           LandingPage.tsx   ← email capture, nav tracking, CTA section
 /demo       DemoPage.tsx      ← interactive product demo, gated
 /privacy    PrivacyPage.tsx   ← GDPR policy, tracks its own views
+/contact    page.tsx          ← contact form, Cloudflare Turnstile CAPTCHA
 
 src/hooks/useTracking.ts      ← all tracking logic, two hooks, identity helpers
+src/app/api/contact/route.ts  ← Turnstile verification + Resend email send
 ```
 
 All three pages are **client components** (`'use client'`). The tracking hook uses a direct Supabase anonymous client (not the Next.js server client), which is an intentional design choice — see [Identity & Supabase Client](#identity--supabase-client) below.
@@ -133,10 +135,55 @@ trackPageEvent('privacy_page_view');
 This is tracked so the admin can see how many landing page visitors read the privacy policy before signing up — a useful signal for consent quality.
 
 The policy is written in plain language and commits to:
-- Email used only for a one-time launch notification
-- No third-party sharing, no marketing lists
+- Email used only for a one-time launch notification (or explicit opt-in to future updates)
+- Non-personalised advertising only, if ever introduced
 - Anonymous visitor/session IDs via localStorage (no cookies)
 - Right to deletion and data export (handled via admin GDPR tools)
+
+---
+
+## Contact Form
+
+**Files:** `src/app/contact/page.tsx`, `src/app/api/contact/route.ts`
+
+A simple public contact form linked from the privacy page ("Your rights" and "Contact" sections). The recipient email address is never present in the client bundle or page HTML — it lives only in the `CONTACT_EMAIL` server-side environment variable.
+
+### Flow
+
+```
+User fills email + message
+  → Cloudflare Turnstile widget verifies (client-side)
+  → POST /api/contact { email, message, turnstileToken }
+      → Zod validates body
+      → Server verifies token: POST https://challenges.cloudflare.com/turnstile/v0/siteverify
+      → Sends email via Resend REST API
+          from: RESEND_FROM_EMAIL (server-side env var)
+          to:   CONTACT_EMAIL    (server-side env var)
+          reply_to: sender's email (so replies go directly to them)
+      → 200 { success: true }
+  → Success message shown, form replaced
+```
+
+### CAPTCHA — Cloudflare Turnstile
+
+Turnstile is Cloudflare's privacy-preserving CAPTCHA — no cookies, no cross-site tracking, no Google involvement. The public site key (`NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY`) is safe to expose in the client bundle; it only identifies the site to the widget. The secret key (`CLOUDFLARE_TURNSTILE_SECRET_KEY`) is server-side only and used to verify the token with Cloudflare.
+
+For local development, use Cloudflare's always-pass test keys (documented in `.dev.vars.example`).
+
+### Email sending
+
+Uses the Resend REST API directly (no SDK) with `RESEND_API_KEY`. The `from` address must be on a domain verified in your Resend account (`RESEND_FROM_EMAIL`). The `reply_to` is set to the form submitter's address, so any reply goes directly to them rather than bouncing back to the from address.
+
+### Environment variables
+
+| Variable | Exposure | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY` | Client-safe | Identifies site to Turnstile widget |
+| `CLOUDFLARE_TURNSTILE_SECRET_KEY` | Server only | Verifies Turnstile token with Cloudflare |
+| `RESEND_FROM_EMAIL` | Server only | Sender address (must be Resend-verified domain) |
+| `CONTACT_EMAIL` | Server only | Recipient address — never in client code |
+
+**See:** [environment-setup.md](../operations/environment-setup.md#contact-form-variables) for setup instructions.
 
 ---
 
