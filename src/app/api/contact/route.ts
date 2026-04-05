@@ -79,9 +79,10 @@ export async function POST(request: NextRequest) {
     // 3. Check required env vars before attempting send
     const contactEmail = process.env.CONTACT_EMAIL;
     const resendApiKey = process.env.RESEND_API_KEY;
+    const fromEmail = process.env.RESEND_FROM_EMAIL;
 
-    if (!contactEmail || !resendApiKey) {
-      console.error('[Contact] CONTACT_EMAIL or RESEND_API_KEY not configured');
+    if (!contactEmail || !resendApiKey || !fromEmail) {
+      console.error('[Contact] CONTACT_EMAIL, RESEND_API_KEY, or RESEND_FROM_EMAIL not configured');
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
 
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Ansible Contact Form <contact@ansible.hultberg.org>',
+        from: `Ansible Contact Form <${fromEmail}>`,
         to: [contactEmail],
         reply_to: email,
         subject: `Message via Ansible contact form`,

@@ -12,6 +12,7 @@ vi.stubGlobal('fetch', mockFetch);
 vi.stubEnv('CLOUDFLARE_TURNSTILE_SECRET_KEY', 'test-turnstile-secret');
 vi.stubEnv('RESEND_API_KEY', 'test-resend-key');
 vi.stubEnv('CONTACT_EMAIL', 'test@example.com');
+vi.stubEnv('RESEND_FROM_EMAIL', 'from@example.com');
 
 // Import after stubs are set up
 const { POST } = await import('./route');
@@ -203,6 +204,20 @@ describe('POST /api/contact', () => {
 
       expect(res.status).toBe(500);
       vi.stubEnv('CONTACT_EMAIL', 'test@example.com');
+    });
+
+    it('returns 500 if RESEND_FROM_EMAIL is not set', async () => {
+      vi.stubEnv('RESEND_FROM_EMAIL', '');
+      mockTurnstileSuccess();
+
+      const res = await POST(makeRequest({
+        email: 'user@example.com',
+        message: 'This is a valid message with enough characters',
+        turnstileToken: 'valid-token',
+      }));
+
+      expect(res.status).toBe(500);
+      vi.stubEnv('RESEND_FROM_EMAIL', 'from@example.com');
     });
   });
 });

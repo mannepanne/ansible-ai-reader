@@ -20,5 +20,7 @@ RESEND_API_KEY=your-resend-api-key-here
 NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY=your-turnstile-site-key-here
 CLOUDFLARE_TURNSTILE_SECRET_KEY=your-turnstile-secret-key-here
 
-# Contact form recipient — never exposed to the client
-CONTACT_EMAIL=your-email@example.com
+# Contact form — never exposed to the client
+# RESEND_FROM_EMAIL must be a verified sender in your Resend account
+RESEND_FROM_EMAIL=your-verified-sender@example.com
+CONTACT_EMAIL=your-recipient-email@example.com
