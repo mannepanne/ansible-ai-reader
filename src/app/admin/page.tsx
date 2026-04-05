@@ -45,7 +45,7 @@ export default async function AdminPage() {
     db.from('page_events').select('*', { count: 'exact', head: true }).eq('event_type', 'privacy_page_view'),
     db.from('page_events').select('*', { count: 'exact', head: true }).eq('event_type', 'demo_signup'),
     db.from('page_events').select('event_data').eq('event_type', 'nav_click'),
-    db.from('email_captures').select('id, email, source, created_at').order('created_at', { ascending: false }),
+    db.from('email_captures').select('id, email, source, created_at').order('created_at', { ascending: false }).limit(100),
     db.from('demo_sessions').select('*', { count: 'exact', head: true }),
     db.from('demo_events').select('*', { count: 'exact', head: true }),
     db.from('demo_sessions')
@@ -77,7 +77,7 @@ export default async function AdminPage() {
     totalVisits: landingVisitsResult.count ?? 0,
     uniqueVisitors,
     privacyPageViews: privacyViewsResult.count ?? 0,
-    totalSessions: sessionCountResult.count ?? 0,
+    demoSessions: sessionCountResult.count ?? 0,
     totalSignups: signupsResult.count ?? 0,
     navClicks: Object.entries(navClickCounts)
       .map(([label, count]) => ({ label, count }))

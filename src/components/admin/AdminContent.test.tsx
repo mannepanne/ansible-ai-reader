@@ -25,7 +25,7 @@ const mockLandingStats: LandingStats = {
   totalVisits: 120,
   uniqueVisitors: 85,
   privacyPageViews: 18,
-  totalSessions: 22,
+  demoSessions: 22,
   totalSignups: 15,
   navClicks: [
     { label: 'features', count: 40 },

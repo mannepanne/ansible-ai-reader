@@ -5,7 +5,7 @@ export interface LandingStats {
   totalVisits: number;
   uniqueVisitors: number;
   privacyPageViews: number;
-  totalSessions: number;
+  demoSessions: number;
   totalSignups: number;
   navClicks: { label: string; count: number }[];
   signupSources: { source: string; count: number }[];
