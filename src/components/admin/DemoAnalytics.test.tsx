@@ -26,6 +26,7 @@ const mockStats: DemoStats = {
 describe('DemoAnalytics', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.restoreAllMocks();
     window.confirm = vi.fn().mockReturnValue(true);
   });
 
@@ -54,6 +55,26 @@ describe('DemoAnalytics', () => {
 
     // alice's rows should be gone from the table
     expect(screen.queryByText('alice@example.com')).toBeNull();
+  });
+
+  it('triggers file download when Export is clicked', async () => {
+    const user = userEvent.setup();
+    render(<DemoAnalytics stats={mockStats} />);
+
+    // Spy after render so React's own createElement calls are unaffected
+    const mockClick = vi.fn();
+    const mockAnchor = { href: '', download: '', click: mockClick };
+    vi.spyOn(document, 'createElement').mockReturnValueOnce(mockAnchor as unknown as HTMLElement);
+    vi.spyOn(document.body, 'appendChild').mockReturnValueOnce(mockAnchor as unknown as Node);
+    vi.spyOn(document.body, 'removeChild').mockReturnValueOnce(mockAnchor as unknown as Node);
+
+    const exportButtons = screen.getAllByRole('button', { name: /export/i });
+    expect(exportButtons.length).toBe(2); // one per session with email (alice has 2 sessions)
+    await user.click(exportButtons[0]);
+
+    expect(mockAnchor.href).toContain('export-user-data');
+    expect(mockAnchor.href).toContain('alice%40example.com');
+    expect(mockClick).toHaveBeenCalled();
   });
 
   it('does not decrement stats after failed delete', async () => {
