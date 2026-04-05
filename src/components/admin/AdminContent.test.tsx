@@ -24,6 +24,8 @@ vi.mock('@/components/Header', () => ({
 const mockLandingStats: LandingStats = {
   totalVisits: 120,
   uniqueVisitors: 85,
+  privacyPageViews: 18,
+  totalSessions: 22,
   totalSignups: 15,
   navClicks: [
     { label: 'features', count: 40 },
@@ -39,25 +41,28 @@ const mockDemoStats: DemoStats = {
   emailCaptureCount: 15,
   sessionCount: 22,
   totalInteractions: 187,
-  avgDurationMinutes: 4,
+  avgDurationSeconds: 240,
   eventTypeBreakdown: [
     { eventType: 'tab_switch', count: 55 },
     { eventType: 'expand', count: 42 },
     { eventType: 'archive', count: 12 },
+  ],
+  emailCaptures: [
+    { id: 'cap-1', email: 'user@example.com', source: 'hero', createdAt: '2026-04-01T09:00:00Z' },
   ],
   sessions: [
     {
       sessionId: 'sess-1',
       email: 'user@example.com',
       startedAt: '2026-04-01T10:00:00Z',
-      durationMinutes: 5,
+      durationSeconds: 300,
       totalEvents: 12,
     },
     {
       sessionId: 'sess-2',
       email: null,
       startedAt: '2026-04-02T14:00:00Z',
-      durationMinutes: 2,
+      durationSeconds: 120,
       totalEvents: 4,
     },
   ],
@@ -99,9 +104,9 @@ describe('AdminContent', () => {
         demoStats={mockDemoStats}
       />
     );
-    expect(screen.getByText('120')).toBeDefined(); // totalVisits
-    expect(screen.getByText('85')).toBeDefined();  // uniqueVisitors
-    expect(screen.getByText('15')).toBeDefined();  // totalSignups
+    expect(screen.getByText('120')).toBeDefined();  // totalVisits
+    expect(screen.getByText('85')).toBeDefined();   // uniqueVisitors
+    expect(screen.getByText('18')).toBeDefined();   // privacyPageViews
   });
 
   it('shows conversion rate on landing tab', () => {
@@ -130,7 +135,7 @@ describe('AdminContent', () => {
 
     expect(screen.getByText('22')).toBeDefined();  // sessionCount
     expect(screen.getByText('187')).toBeDefined(); // totalInteractions
-    expect(screen.getByText('4 min')).toBeDefined(); // avgDuration
+    expect(screen.getByText('4m 0s')).toBeDefined(); // avgDurationSeconds: 240s formatted
   });
 
   it('shows session table with email and anonymous entries', async () => {
@@ -145,11 +150,12 @@ describe('AdminContent', () => {
 
     await user.click(screen.getByRole('tab', { name: /^demo$/i }));
 
-    expect(screen.getByText('user@example.com')).toBeDefined();
+    // email appears in both captures list and session table
+    expect(screen.getAllByText('user@example.com').length).toBeGreaterThan(0);
     expect(screen.getByText('Anonymous')).toBeDefined();
   });
 
-  it('shows delete and export buttons for email sessions only', async () => {
+  it('shows delete and export buttons in email captures section', async () => {
     const user = userEvent.setup();
     render(
       <AdminContent
@@ -163,7 +169,8 @@ describe('AdminContent', () => {
 
     const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
     const exportButtons = screen.getAllByRole('button', { name: /export/i });
-    expect(deleteButtons.length).toBe(1); // only for sessions with email
-    expect(exportButtons.length).toBe(1); // only for sessions with email
+    // mockDemoStats has 1 email capture row → 1 of each
+    expect(deleteButtons.length).toBe(1);
+    expect(exportButtons.length).toBe(1);
   });
 });

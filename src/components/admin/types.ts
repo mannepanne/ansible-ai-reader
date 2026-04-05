@@ -4,16 +4,25 @@
 export interface LandingStats {
   totalVisits: number;
   uniqueVisitors: number;
+  privacyPageViews: number;
+  totalSessions: number;
   totalSignups: number;
   navClicks: { label: string; count: number }[];
   signupSources: { source: string; count: number }[];
+}
+
+export interface EmailCaptureRow {
+  id: string;
+  email: string;
+  source: string;
+  createdAt: string;
 }
 
 export interface DemoSessionRow {
   sessionId: string;
   email: string | null;
   startedAt: string;
-  durationMinutes: number;
+  durationSeconds: number;
   totalEvents: number;
 }
 
@@ -21,7 +30,8 @@ export interface DemoStats {
   emailCaptureCount: number;
   sessionCount: number;
   totalInteractions: number;
-  avgDurationMinutes: number;
+  avgDurationSeconds: number;
   eventTypeBreakdown: { eventType: string; count: number }[];
   sessions: DemoSessionRow[];
+  emailCaptures: EmailCaptureRow[];
 }
