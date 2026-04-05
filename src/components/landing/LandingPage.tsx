@@ -211,7 +211,7 @@ function HeroSection() {
               size="lg"
               className="h-12 rounded-full px-8 text-base font-medium gap-2 bg-blue-600 hover:bg-blue-700"
               onClick={() => {
-                trackPageEvent('nav_click', { label: 'hero_go_to_demo' });
+                trackPageEvent('nav_click', { label: 'go_to_demo' });
                 router.push('/demo');
               }}
             >
@@ -773,7 +773,7 @@ function FinalCTA() {
               size="lg"
               className="h-12 rounded-full px-8 text-base font-medium gap-2 bg-blue-600 hover:bg-blue-700"
               onClick={() => {
-                trackPageEvent('nav_click', { label: 'cta_go_to_demo' });
+                trackPageEvent('nav_click', { label: 'go_to_demo' });
                 router.push('/demo');
               }}
             >
