@@ -115,6 +115,29 @@ VALUES ('<user-id-from-above>', '<email>', NOW());
 
 ---
 
+### TD-010: Unified User Identity Across Demo and Ansible Sign-Up
+- **Location:** `src/app/api/admin/delete-user-data/route.ts`, `src/app/admin/page.tsx`, `supabase/migrations/`
+- **Issue:** User identity is currently split across two separate systems with no link between them:
+  1. **Demo/landing data** — email stored in `email_captures`, sessions in `demo_sessions`, events in `demo_events`
+  2. **Ansible user** — record in `users` table, account in Supabase Auth (`auth.users`)
+
+  These two records can share the same email address but there is no foreign key, join, or reference connecting them. This creates two problems:
+
+  **GDPR completeness:** The current GDPR delete (`DELETE /api/admin/delete-user-data`) only removes demo analytics data. It does not delete the `users` record or Supabase Auth account. A full right-to-erasure request from someone who is both a demo visitor AND a full Ansible user requires additional manual steps.
+
+  **Funnel analytics gap:** There is no way to trace the journey of a person who visits the landing page → submits their email → uses the demo → later signs up for Ansible. These are currently three disconnected data points. Understanding conversion from demo visitor to paying user is impossible without a unified identity.
+
+- **Why accepted:** At the current pre-launch single-user stage, no visitors have converted to full Ansible users. The demo and auth systems were built independently and linking them was out of scope. GDPR risk is low with zero external users.
+- **Risk:** **Medium** — Becomes a real GDPR compliance gap the moment external users exist. Also permanently loses funnel conversion data if not addressed before launch.
+- **Future fix:** When implementing user onboarding for launch, address both concerns together:
+  1. **Link identities on sign-up:** When a user signs up for Ansible with the same email they used for the demo, add a `demo_email` or `linked_at` reference (or simply match on email in queries). This enables full funnel tracking.
+  2. **Extend GDPR delete:** Update `delete-user-data` to also delete the `users` row and call the Supabase Admin API to delete the `auth.users` record when one exists.
+  3. **Extend admin dashboard:** Add a unified user view that shows the full journey — landing page visit → email capture → demo sessions → Ansible sign-up date — for any email address.
+  4. **Protect against dangling data:** Ensure that archiving a user (Ansible account deletion) also cascades to demo analytics, and vice versa.
+- **Introduced:** April 2026 (PR #85 — admin dashboard, surfaced during post-merge review)
+
+---
+
 ### Example Format: TD-XXX: Description
 - **Location:** `src/path/to/file.ts` - `functionName()`
 - **Issue:** Clear description of the limitation or shortcut
