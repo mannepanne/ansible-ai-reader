@@ -14,12 +14,20 @@ vi.mock('next/navigation', () => ({
 
 // Mock Supabase server client
 const mockGetSession = vi.fn();
+const mockSingle = vi.fn();
 
 vi.mock('@/utils/supabase/server', () => ({
   createClient: vi.fn(async () => ({
     auth: {
       getSession: mockGetSession,
     },
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          single: mockSingle,
+        }),
+      }),
+    }),
   })),
 }));
 
@@ -29,6 +37,7 @@ global.fetch = vi.fn();
 describe('SummariesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSingle.mockResolvedValue({ data: { is_admin: false }, error: null });
     // Default mock for items endpoint
     (global.fetch as any).mockResolvedValue({
       ok: true,

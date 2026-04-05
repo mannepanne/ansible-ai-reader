@@ -8,6 +8,7 @@ import Header from '@/components/Header';
 
 interface SettingsContentProps {
   userEmail: string;
+  isAdmin?: boolean;
 }
 
 const SYSTEM_MESSAGE =
@@ -40,7 +41,7 @@ Author: [Author]
 Content:
 [Article Content]`;
 
-export default function SettingsContent({ userEmail }: SettingsContentProps) {
+export default function SettingsContent({ userEmail, isAdmin = false }: SettingsContentProps) {
   const [syncInterval, setSyncInterval] = useState<number>(0);
   const [summaryPrompt, setSummaryPrompt] = useState<string>('');
   const [promptError, setPromptError] = useState<string | null>(null);
@@ -177,7 +178,7 @@ export default function SettingsContent({ userEmail }: SettingsContentProps) {
 
   return (
     <>
-      <Header userEmail={userEmail} />
+      <Header userEmail={userEmail} isAdmin={isAdmin} />
       <main style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
         <h1 style={{ color: '#212529', marginBottom: '20px', fontSize: '1.5rem' }}>
           Settings

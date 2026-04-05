@@ -14,6 +14,7 @@ interface HeaderProps {
   showRegenerateTags?: boolean;
   onRegenerateTags?: () => void;
   isRegenerating?: boolean;
+  isAdmin?: boolean;
 }
 
 export default function Header({
@@ -24,6 +25,7 @@ export default function Header({
   showRegenerateTags = false,
   onRegenerateTags,
   isRegenerating = false,
+  isAdmin = false,
 }: HeaderProps) {
   const MOBILE_BREAKPOINT = 640;
   const [isMobile, setIsMobile] = useState(false);
@@ -139,6 +141,24 @@ export default function Header({
         <span>⚙️</span>
         {!isMobile && <span>Settings</span>}
       </Link>
+
+      {/* Admin link — only shown to admin users */}
+      {isAdmin && (
+        <Link
+          href="/admin"
+          style={{
+            border: '1px solid #6c757d',
+            color: '#adb5bd',
+            padding: '6px 12px',
+            borderRadius: '4px',
+            textDecoration: 'none',
+            fontSize: '0.85em',
+            lineHeight: '1',
+          }}
+        >
+          Admin
+        </Link>
+      )}
 
       {/* User email - hidden on mobile */}
       {!isMobile && (
