@@ -130,7 +130,7 @@ export function useTracking() {
     const interval = setInterval(() => {
       touchLastActive();
       if (!sessionId.current) return;
-      void supabase.rpc('update_session_heartbeat', { sid: sessionId.current });
+      supabase.rpc('update_session_heartbeat', { sid: sessionId.current }).then(() => {});
     }, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -142,16 +142,17 @@ export function useTracking() {
       const sid = sessionId.current;
       if (!sid) return;
 
-      void supabase
+      supabase
         .from('demo_events')
         .insert({
           session_id: sid,
           email,
           event_type: eventType,
           event_data: eventData,
-        });
+        })
+        .then(() => {});
 
-      void supabase.rpc('increment_session_events', { sid });
+      supabase.rpc('increment_session_events', { sid }).then(() => {});
     },
     []
   );
@@ -177,14 +178,15 @@ export function usePageTracking() {
       touchLastActive();
       const vid = visitorId.current || getVisitorId();
       const sid = sessionId.current || getSessionId();
-      void supabase
+      supabase
         .from('page_events')
         .insert({
           visitor_id: vid,
           session_id: sid,
           event_type: eventType,
           event_data: eventData,
-        });
+        })
+        .then(() => {});
     },
     []
   );
