@@ -76,7 +76,12 @@ export async function verifyStoredEmail(): Promise<boolean> {
   const email = localStorage.getItem('ansible_email');
   if (!email) return false;
   const { data, error } = await supabase.rpc('email_exists', { check_email: email });
-  if (error || !data) {
+  if (error) {
+    // Supabase error (table not migrated yet, network issue) — fail open, keep email
+    return true;
+  }
+  if (!data) {
+    // RPC confirmed email does not exist in DB — revoke access
     localStorage.removeItem('ansible_email');
     return false;
   }
