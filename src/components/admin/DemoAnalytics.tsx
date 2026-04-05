@@ -35,6 +35,7 @@ export default function DemoAnalytics({ stats }: DemoAnalyticsProps) {
   const [emailCaptureCount, setEmailCaptureCount] = useState(stats.emailCaptureCount);
   const [sessionCount, setSessionCount] = useState(stats.sessionCount);
   const [totalInteractions, setTotalInteractions] = useState(stats.totalInteractions);
+  const [avgDurationMinutes, setAvgDurationMinutes] = useState(stats.avgDurationMinutes);
   const [deletingEmail, setDeletingEmail] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -52,12 +53,17 @@ export default function DemoAnalytics({ stats }: DemoAnalyticsProps) {
       if (!res.ok) throw new Error('Delete failed');
 
       const deletedRows = sessions.filter(s => s.email === email);
+      const remainingRows = sessions.filter(s => s.email !== email);
       const deletedInteractions = deletedRows.reduce((sum, s) => sum + s.totalEvents, 0);
+      const newAvg = remainingRows.length > 0
+        ? Math.round(remainingRows.reduce((sum, s) => sum + s.durationMinutes, 0) / remainingRows.length)
+        : 0;
 
-      setSessions(prev => prev.filter(s => s.email !== email));
+      setSessions(remainingRows);
       setEmailCaptureCount(prev => prev - 1);
       setSessionCount(prev => prev - deletedRows.length);
       setTotalInteractions(prev => prev - deletedInteractions);
+      setAvgDurationMinutes(newAvg);
     } catch {
       setDeleteError(`Failed to delete data for ${email}`);
     } finally {
@@ -77,7 +83,7 @@ export default function DemoAnalytics({ stats }: DemoAnalyticsProps) {
         {statCard('Email Captures', emailCaptureCount)}
         {statCard('Demo Sessions', sessionCount)}
         {statCard('Interactions', totalInteractions)}
-        {statCard('Avg Duration', `${stats.avgDurationMinutes} min`)}
+        {statCard('Avg Duration', `${avgDurationMinutes} min`)}
       </div>
 
       {/* Event type breakdown */}

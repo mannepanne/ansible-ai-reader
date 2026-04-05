@@ -46,9 +46,10 @@ describe('DemoAnalytics', () => {
     await user.click(screen.getAllByRole('button', { name: /delete/i })[0]);
 
     await waitFor(() => {
-      expect(screen.getByText('6')).toBeDefined();   // emailCaptureCount: 7 - 1
-      expect(screen.getByText('11')).toBeDefined();  // sessionCount: 13 - 2 sessions for alice
-      expect(screen.getByText('23')).toBeDefined();  // totalInteractions: 42 - 19 = 23
+      expect(screen.getByText('6')).toBeDefined();    // emailCaptureCount: 7 - 1
+      expect(screen.getByText('11')).toBeDefined();   // sessionCount: 13 - 2 sessions for alice
+      expect(screen.getByText('23')).toBeDefined();   // totalInteractions: 42 - 19 = 23
+      expect(screen.getByText('3 min')).toBeDefined(); // avgDuration: only sess-3 (3 min) remains
     });
 
     // alice's rows should be gone from the table

@@ -43,7 +43,7 @@ export default async function AdminPage() {
     db.from('page_events').select('visitor_id').eq('event_type', 'landing_page_view'),
     db.from('page_events').select('*', { count: 'exact', head: true }).eq('event_type', 'demo_signup'),
     db.from('page_events').select('event_data').eq('event_type', 'nav_click'),
-    db.from('email_captures').select('source'),
+    db.from('email_captures').select('email, source'),
     db.from('demo_sessions').select('*', { count: 'exact', head: true }),
     db.from('demo_events').select('*', { count: 'exact', head: true }),
     db.from('demo_sessions')
@@ -65,8 +65,10 @@ export default async function AdminPage() {
   });
 
   const sourceCounts: Record<string, number> = {};
-  (emailCapturesResult.data ?? []).forEach((e: { source: string }) => {
+  const capturedEmails = new Set<string>();
+  (emailCapturesResult.data ?? []).forEach((e: { email: string; source: string }) => {
     sourceCounts[e.source] = (sourceCounts[e.source] ?? 0) + 1;
+    capturedEmails.add(e.email);
   });
 
   const landingStats: LandingStats = {
@@ -108,7 +110,7 @@ export default async function AdminPage() {
     : 0;
 
   const demoStats: DemoStats = {
-    emailCaptureCount: emailCapturesResult.data?.length ?? 0,
+    emailCaptureCount: capturedEmails.size,
     sessionCount: sessionCountResult.count ?? 0,
     totalInteractions: interactionsResult.count ?? 0,
     avgDurationMinutes,
