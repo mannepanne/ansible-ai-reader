@@ -182,7 +182,7 @@ function HeroSection() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (email.trim() && consented && isValidEmail(email.trim())) {
-      captureEmail(email.trim(), 'hero', true);
+      void captureEmail(email.trim(), 'hero', true);
       setSessionEmail(email.trim());
       trackPageEvent('demo_signup', { source: 'hero' });
       setHasSubmitted(true);
@@ -748,7 +748,7 @@ function FinalCTA() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (email.trim() && consented && isValidEmail(email.trim())) {
-      captureEmail(email.trim(), 'cta', true);
+      void captureEmail(email.trim(), 'cta', true);
       setSessionEmail(email.trim());
       trackPageEvent('demo_signup', { source: 'cta' });
       setHasSubmitted(true);
