@@ -22,12 +22,20 @@ How-it-works documentation for user-facing features.
 ### Automation
 - **[automated-sync.md](./automated-sync.md)** - Scheduled syncing system (cron worker, intervals, user settings)
 
+### Public Site & Growth
+- **[landing-page-and-demo.md](./landing-page-and-demo.md)** - Landing page, interactive demo, privacy page, and the cookie-free localStorage tracking system
+- **[admin-analytics.md](./admin-analytics.md)** - Admin dashboard: landing funnel metrics, demo engagement, GDPR export/delete tools
+
 ### User Preferences & Annotations
 - **[settings.md](./settings.md)** - User settings API and UI (sync intervals 0-24h, custom summary prompts)
 - **[document-notes.md](./document-notes.md)** - Personal note-taking system that syncs to Readwise Reader
 - **[ratings.md](./ratings.md)** - Binary rating system (Interesting/Not interesting) with optimistic UI updates
 
 ## Common Questions
+- **"How does the landing page work?"** → [landing-page-and-demo.md](./landing-page-and-demo.md)
+- **"How does the demo tracking work?"** → [landing-page-and-demo.md](./landing-page-and-demo.md#identity--tracking-system)
+- **"How does the admin dashboard work?"** → [admin-analytics.md](./admin-analytics.md)
+- **"How does GDPR export/delete work?"** → [admin-analytics.md](./admin-analytics.md#gdpr-api-routes)
 - **"How does Reader sync work?"** → [reader-sync.md](./reader-sync.md)
 - **"How does archive sync work?"** → [reader-sync.md](./reader-sync.md#archive-sync)
 - **"How are AI summaries generated?"** → [ai-summaries.md](./ai-summaries.md)
