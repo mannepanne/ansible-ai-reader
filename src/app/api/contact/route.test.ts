@@ -62,7 +62,7 @@ describe('POST /api/contact', () => {
     it('returns 400 when body is missing required fields', async () => {
       const res = await POST(makeRequest({}));
       expect(res.status).toBe(400);
-      const body = await res.json();
+      const body = await res.json() as { error?: string };
       expect(body.error).toBe('Validation failed');
     });
 
@@ -73,7 +73,7 @@ describe('POST /api/contact', () => {
         turnstileToken: 'token',
       }));
       expect(res.status).toBe(400);
-      const body = await res.json();
+      const body = await res.json() as { error?: string };
       expect(body.error).toBe('Validation failed');
     });
 
@@ -84,7 +84,7 @@ describe('POST /api/contact', () => {
         turnstileToken: 'token',
       }));
       expect(res.status).toBe(400);
-      const body = await res.json();
+      const body = await res.json() as { error?: string };
       expect(body.error).toBe('Validation failed');
     });
 
@@ -95,7 +95,7 @@ describe('POST /api/contact', () => {
         turnstileToken: 'token',
       }));
       expect(res.status).toBe(400);
-      const body = await res.json();
+      const body = await res.json() as { error?: string };
       expect(body.error).toBe('Validation failed');
     });
 
@@ -105,7 +105,7 @@ describe('POST /api/contact', () => {
         message: 'This is a valid message with enough characters',
       }));
       expect(res.status).toBe(400);
-      const body = await res.json();
+      const body = await res.json() as { error?: string };
       expect(body.error).toBe('Validation failed');
     });
   });
@@ -120,7 +120,7 @@ describe('POST /api/contact', () => {
         turnstileToken: 'bad-token',
       }));
       expect(res.status).toBe(400);
-      const body = await res.json();
+      const body = await res.json() as { error?: string };
       expect(body.error).toBe('CAPTCHA verification failed');
     });
 
@@ -154,7 +154,7 @@ describe('POST /api/contact', () => {
       }));
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = await res.json() as { success?: boolean };
       expect(body.success).toBe(true);
     });
 
@@ -186,7 +186,7 @@ describe('POST /api/contact', () => {
       }));
 
       expect(res.status).toBe(500);
-      const body = await res.json();
+      const body = await res.json() as { error?: string };
       expect(body.error).toBe('Failed to send message');
     });
   });
