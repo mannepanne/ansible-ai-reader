@@ -1,7 +1,14 @@
 // ABOUT: Tests for root layout component
 // ABOUT: Verifies children rendering and metadata exports
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+// next/font/google cannot run in a Node test environment — mock it to return
+// CSS-variable-based font objects that match the expected shape.
+vi.mock('next/font/google', () => ({
+  DM_Sans: vi.fn(() => ({ variable: '--font-sans', className: 'dm-sans' })),
+  Newsreader: vi.fn(() => ({ variable: '--font-serif', className: 'newsreader' })),
+}));
 import { render } from '@testing-library/react';
 import RootLayout, { metadata } from './layout';
 

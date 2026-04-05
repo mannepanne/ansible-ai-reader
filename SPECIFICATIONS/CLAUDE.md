@@ -17,7 +17,7 @@ Development followed 5 sequential phases (all complete). Active work is now feat
 
 ### Active Feature Specs
 
-_(none — all caught up)_
+- 🔨 **[10-landing-page-and-admin.md](./10-landing-page-and-admin.md)** - Public landing page, interactive demo, privacy page & admin analytics dashboard (Apr 2026)
 
 ### Completed Feature Specs
 

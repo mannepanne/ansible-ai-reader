@@ -1,19 +1,51 @@
-// ABOUT: Tests for home page component
-// ABOUT: Validates authenticated and unauthenticated rendering
+// ABOUT: Tests for the home server component
+// ABOUT: Verifies unauthenticated users see the landing page; authenticated users are redirected
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
+import { redirect } from 'next/navigation';
 import Home from './page';
+
+// Mock Next.js navigation
+vi.mock('next/navigation', () => ({
+  redirect: vi.fn(),
+  useRouter: vi.fn(() => ({ push: vi.fn(), replace: vi.fn() })),
+}));
 
 // Mock Supabase server client
 const mockGetSession = vi.fn();
-
 vi.mock('@/utils/supabase/server', () => ({
   createClient: vi.fn(async () => ({
-    auth: {
-      getSession: mockGetSession,
-    },
+    auth: { getSession: mockGetSession },
   })),
+}));
+
+// Mock the tracking hook so it doesn't fire Supabase calls in tests
+vi.mock('@/hooks/useTracking', () => ({
+  usePageTracking: vi.fn(() => ({ trackPageEvent: vi.fn(), visitorId: 'test-visitor' })),
+  useTracking: vi.fn(() => ({ trackEvent: vi.fn(), sessionId: 'test-session' })),
+  getStoredEmail: vi.fn(() => null),
+  captureEmail: vi.fn(),
+  setSessionEmail: vi.fn(),
+  verifyStoredEmail: vi.fn(async () => false),
+}));
+
+// Mock Lucide icons to avoid rendering issues in tests
+vi.mock('lucide-react', () => ({
+  ArrowRight: () => null,
+  Zap: () => null,
+  MessageSquareWarning: () => null,
+  Search: () => null,
+  BookOpen: () => null,
+  Filter: () => null,
+  Clock: () => null,
+  ChevronRight: () => null,
+  ChevronDown: () => null,
+  ChevronUp: () => null,
+  ExternalLink: () => null,
+  Archive: () => null,
+  StickyNote: () => null,
+  ArrowLeft: () => null,
 }));
 
 describe('Home Page', () => {
@@ -21,74 +53,28 @@ describe('Home Page', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the landing page hero heading', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: null },
-    });
+  it('renders landing page for unauthenticated users', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: null } });
 
     const component = await Home();
     await act(async () => {
       render(component as any);
     });
 
-    const heading = screen.getByRole('heading', {
-      name: /stop drowning in saved articles/i,
-    });
-    expect(heading).toBeDefined();
+    // Landing page hero heading should be present
+    expect(screen.getByRole('heading', { level: 1 })).toBeDefined();
+    expect(redirect).not.toHaveBeenCalled();
   });
 
-  it('displays the landing page tagline', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: null },
-    });
-
-    const component = await Home();
-    await act(async () => {
-      render(component as any);
-    });
-
-    const tagline = screen.getByText(
-      /AI-powered summaries of your Readwise library/i
-    );
-    expect(tagline).toBeDefined();
-  });
-
-  it('shows developer login button when not authenticated', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: null },
-    });
-
-    const component = await Home();
-    await act(async () => {
-      render(component as any);
-    });
-
-    // Landing page should show developer login button
-    expect(screen.getByRole('button', { name: /developer login/i })).toBeDefined();
-
-    // Login form should not be visible by default
-    expect(screen.queryByLabelText(/email address/i)).toBeNull();
-  });
-
-  it('shows authenticated view when user is logged in', async () => {
+  it('redirects authenticated users to /summaries', async () => {
     mockGetSession.mockResolvedValue({
       data: {
-        session: {
-          user: {
-            id: 'test-user',
-            email: 'test@example.com',
-          },
-        },
+        session: { user: { id: 'test-user', email: 'test@example.com' } },
       },
     });
 
-    const component = await Home();
-    await act(async () => {
-      render(component as any);
-    });
+    await Home();
 
-    expect(screen.getByText(/welcome back/i)).toBeDefined();
-    expect(screen.getByText(/test@example.com/)).toBeDefined();
-    expect(screen.getByRole('link', { name: /view summaries/i })).toBeDefined();
+    expect(redirect).toHaveBeenCalledWith('/summaries');
   });
 });

@@ -1,8 +1,9 @@
-// ABOUT: Home/landing page with integrated login
-// ABOUT: Shows welcome + login form (not authenticated) or welcome + summaries link (authenticated)
+// ABOUT: Home page — public landing for unauthenticated visitors
+// ABOUT: Authenticated users are redirected to /summaries
 
+import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
-import HomeContent from './HomeContent';
+import LandingPage from '@/components/landing/LandingPage';
 
 export default async function Home() {
   const supabase = await createClient();
@@ -10,10 +11,9 @@ export default async function Home() {
     data: { session },
   } = await supabase.auth.getSession();
 
-  return (
-    <HomeContent
-      isAuthenticated={!!session}
-      userEmail={session?.user?.email}
-    />
-  );
+  if (session) {
+    redirect('/summaries');
+  }
+
+  return <LandingPage />;
 }
