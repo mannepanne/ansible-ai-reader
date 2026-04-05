@@ -24,9 +24,28 @@ When this skill is invoked with a PR number (e.g., `/review-pr 2`):
 
 **CRITICAL:** You must spawn an independent subagent for this review. DO NOT review the PR yourself in this session. The reviewer needs fresh, unbiased context.
 
-Spawn the **`code-reviewer`** subagent with this task:
+Spawn a **`general-purpose`** agent with this task (the `code-reviewer` custom agent type is not supported by the Agent tool — embed instructions directly):
 
-**Task:** "Conduct a comprehensive code review of PR #$ARGUMENTS. Follow your review checklist and output format. Post nothing — return your full findings when done."
+**Task:** "You are an experienced full-stack developer conducting an independent code review of PR #$ARGUMENTS in the repo at the current working directory. This is a fresh review — approach it objectively.
+
+**Context gathering:** Run `gh pr view $ARGUMENTS` and `gh pr diff $ARGUMENTS`. Read `CLAUDE.md` in the repo root. Read any changed files in full where needed.
+
+**Review dimensions:** Functionality (bugs, edge cases), Code quality (readability, naming), Security (vulnerabilities, auth), Testing (coverage adequate?), Documentation (REFERENCE/ updated?), Conventions (ABOUT comments, project patterns).
+
+**Completion requirements (MANDATORY):**
+- [ ] Tests exist and pass (95%+ coverage)
+- [ ] Documentation updated (check REFERENCE/ for implementation work)
+- [ ] Code quality verified (conventions, no secrets, clean history)
+Flag any missing requirement as 🔴 Critical Issue blocking merge.
+
+**Output format:**
+### ✅ Completion Requirements Met?
+### ✅ Well Done
+### 🔴 Critical Issues
+### ⚠️ Suggestions
+### 💡 Nice-to-Haves
+
+Use file:line references. Be practical. Post nothing — return findings only."
 
 Wait for the review to complete.
 
