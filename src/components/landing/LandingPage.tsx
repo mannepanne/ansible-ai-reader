@@ -79,8 +79,7 @@ function NoiseField() {
             top: `${p.y}%`,
             width: p.size,
             height: p.size,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ['--p-opacity' as any]: p.opacity,
+            ['--p-opacity' as string]: p.opacity,
             opacity: p.opacity,
             animation: `noiseDrift ${p.duration}s ease-in-out ${p.delay}s infinite`,
           }}
