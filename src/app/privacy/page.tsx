@@ -36,7 +36,7 @@ export default function PrivacyPage() {
         <h1 className="font-serif text-3xl sm:text-4xl font-medium mb-2">
           Privacy Policy
         </h1>
-        <p className="text-sm text-muted-foreground mb-12">Last updated: 4 April 2026</p>
+        <p className="text-sm text-muted-foreground mb-12">Last updated: 5 April 2026</p>
 
         <div className="prose prose-neutral max-w-none space-y-8 text-[15px] leading-relaxed text-foreground/85">
           <section>
@@ -54,19 +54,15 @@ export default function PrivacyPage() {
 
             <h3 className="font-semibold text-base text-foreground mt-6 mb-2">Email addresses</h3>
             <p>
-              When you enter your email address to access the interactive demo, we store it for one
-              reason only:{' '}
-              <strong>
-                to gauge interest in a wider rollout of Ansible and, if we proceed, to notify you
-                once you can sign up.
-              </strong>
+              When you enter your email address to access the interactive demo, we store it to gauge
+              interest in a wider rollout of Ansible and, if we proceed, to notify you once you can
+              sign up.
             </p>
             <p className="mt-3">
-              Your email will never be used to build a newsletter subscriber list. We will never
-              send you general updates, marketing emails, or any communication about Ansible beyond
-              a one-time launch notification — and even that notification will include a clear option
-              to unsubscribe. We will never share, sell, or transfer your email address to any third
-              party for any purpose.
+              We may also contact you on a one-off basis to invite you to opt in to occasional
+              updates about Ansible&apos;s development — but you will never be subscribed to anything
+              without your explicit consent. We will never share, sell, or transfer your email
+              address to any third party for any purpose.
             </p>
             <p className="mt-3">
               If Ansible does not proceed to a wider rollout, all collected email addresses will be
@@ -123,6 +119,16 @@ export default function PrivacyPage() {
               Data is stored in a Supabase-hosted PostgreSQL database with encryption at rest
               (AES-256) and encryption in transit (TLS). Access to stored data is restricted to the
               project administrator only, via authenticated access with row-level security policies.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="font-serif text-xl font-medium text-foreground mb-3">Advertising</h2>
+            <p>
+              We may in the future display simple advertisements to help support the running costs of
+              this project. If we do, these will be contextual and non-personalised — they will never
+              be targeted based on your email address, browsing history, or demo usage. We will not
+              share any personal information with advertisers.
             </p>
           </section>
 
