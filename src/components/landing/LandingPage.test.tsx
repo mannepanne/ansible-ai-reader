@@ -48,6 +48,8 @@ vi.mock('lucide-react', () => ({
 describe('LandingPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // jsdom doesn't implement scrollIntoView — mock it so scroll-based nav tests don't throw
+    window.HTMLElement.prototype.scrollIntoView = vi.fn();
   });
 
   describe('Content', () => {
@@ -136,6 +138,45 @@ describe('LandingPage', () => {
       expect(screen.getByRole('button', { name: /features/i })).toBeDefined();
       expect(screen.getByRole('button', { name: /how it works/i })).toBeDefined();
       expect(screen.getByRole('button', { name: /try the demo/i })).toBeDefined();
+    });
+  });
+
+  describe('Navigation tracking — nav_click labels', () => {
+    it('fires nav_click with label "features" when Features nav button clicked', async () => {
+      const user = userEvent.setup();
+      render(<LandingPage />);
+      await user.click(screen.getByRole('button', { name: /features/i }));
+      expect(mockTrackPageEvent).toHaveBeenCalledWith('nav_click', { label: 'features' });
+    });
+
+    it('fires nav_click with label "how_it_works" when How it works nav button clicked', async () => {
+      const user = userEvent.setup();
+      render(<LandingPage />);
+      await user.click(screen.getByRole('button', { name: /how it works/i }));
+      expect(mockTrackPageEvent).toHaveBeenCalledWith('nav_click', { label: 'how_it_works' });
+    });
+
+    it('fires nav_click with label "try_demo" when Try the demo nav button clicked', async () => {
+      const user = userEvent.setup();
+      render(<LandingPage />);
+      await user.click(screen.getByRole('button', { name: /try the demo/i }));
+      expect(mockTrackPageEvent).toHaveBeenCalledWith('nav_click', { label: 'try_demo' });
+    });
+
+    it('fires nav_click with label "footer_privacy" when footer privacy link clicked', async () => {
+      const user = userEvent.setup();
+      render(<LandingPage />);
+      // Footer link text is "Privacy" (capital P); consent links say "privacy policy"
+      const footerPrivacyLink = screen.getByRole('link', { name: /^Privacy$/ });
+      await user.click(footerPrivacyLink);
+      expect(mockTrackPageEvent).toHaveBeenCalledWith('nav_click', { label: 'footer_privacy' });
+    });
+
+    it('fires nav_click with label "footer_login" when login link clicked', async () => {
+      const user = userEvent.setup();
+      render(<LandingPage />);
+      await user.click(screen.getByRole('link', { name: /login/i }));
+      expect(mockTrackPageEvent).toHaveBeenCalledWith('nav_click', { label: 'footer_login' });
     });
   });
 
