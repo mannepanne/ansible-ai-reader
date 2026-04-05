@@ -88,13 +88,23 @@ Public site key for the Cloudflare Turnstile CAPTCHA widget on the `/contact` pa
 
 **Where to find:** Cloudflare Dashboard → Turnstile → your site → Site Key
 
-**Note:** This is a `NEXT_PUBLIC_` var — it is safe to expose in the client bundle (it identifies your site to the Turnstile widget, it cannot bypass verification). For local dev, use Cloudflare's always-pass test key: `1x00000000000000000000AA`
+**⚠️ Build-time var — requires TWO registrations:**
+`NEXT_PUBLIC_` variables are baked into the client bundle by Next.js at **build time**, not injected at runtime. This means it must be set in two places:
+
+1. **Cloudflare Worker secret** (for `wrangler dev` / runtime):
+   ```bash
+   npx wrangler secret put NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY
+   ```
+
+2. **GitHub Actions secret** (so the CI build step can bake it into the bundle):
+   GitHub repo → Settings → Secrets and variables → Actions → New repository secret
+   Name: `NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY`
+
+Without the GitHub secret, the production build will initialise the Turnstile widget with an empty string, making the contact form permanently un-submittable. The other `NEXT_PUBLIC_` vars (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) have the same requirement and are already set as GitHub secrets.
+
+For local dev, use Cloudflare's always-pass test key: `1x00000000000000000000AA`
 
 **Required for:** Main app only
-
-```bash
-npx wrangler secret put NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY
-```
 
 #### CLOUDFLARE_TURNSTILE_SECRET_KEY
 Secret key used server-side to verify Turnstile tokens with Cloudflare's siteverify API.
@@ -375,6 +385,7 @@ Before deploying to production:
 
 - [ ] All core infrastructure secrets set via `wrangler secret put`
 - [ ] Main app secrets set (10 secrets)
+- [ ] `NEXT_PUBLIC_` vars also set as GitHub Actions secrets (baked at build time — see note above)
 - [ ] Consumer worker secrets set (4 secrets)
 - [ ] Cron worker secrets set (2 secrets)
 - [ ] Supabase RLS policies verified
