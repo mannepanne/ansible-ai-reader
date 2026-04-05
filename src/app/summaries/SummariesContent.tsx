@@ -61,9 +61,10 @@ interface RegenerateStatus {
 
 interface SummariesContentProps {
   userEmail: string;
+  isAdmin?: boolean;
 }
 
-export default function SummariesContent({ userEmail }: SummariesContentProps) {
+export default function SummariesContent({ userEmail, isAdmin = false }: SummariesContentProps) {
   const [items, setItems] = useState<ReaderItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -574,6 +575,7 @@ export default function SummariesContent({ userEmail }: SummariesContentProps) {
         }
         onRegenerateTags={handleRegenerateTags}
         isRegenerating={regenerating}
+        isAdmin={isAdmin}
       />
 
       {/* Main content */}

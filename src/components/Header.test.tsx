@@ -243,6 +243,18 @@ describe('Header', () => {
     expect(mockOnRegenerate).not.toHaveBeenCalled();
   });
 
+  it('does not show Admin link by default', () => {
+    render(<Header userEmail="test@example.com" />);
+    expect(screen.queryByRole('link', { name: /admin/i })).not.toBeInTheDocument();
+  });
+
+  it('shows Admin link when isAdmin is true', () => {
+    render(<Header userEmail="test@example.com" isAdmin={true} />);
+    const adminLink = screen.getByRole('link', { name: /admin/i });
+    expect(adminLink).toBeInTheDocument();
+    expect(adminLink).toHaveAttribute('href', '/admin');
+  });
+
   it('renders with all props', () => {
     const mockOnSync = vi.fn();
 

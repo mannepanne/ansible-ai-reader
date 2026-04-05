@@ -13,5 +13,16 @@ export default async function SettingsPage() {
     redirect('/');
   }
 
-  return <SettingsContent userEmail={session.user.email || ''} />;
+  const { data: userData } = await supabase
+    .from('users')
+    .select('is_admin')
+    .eq('id', session.user.id)
+    .single();
+
+  return (
+    <SettingsContent
+      userEmail={session.user.email || ''}
+      isAdmin={userData?.is_admin ?? false}
+    />
+  );
 }
