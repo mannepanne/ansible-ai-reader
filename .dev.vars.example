@@ -11,3 +11,14 @@ PERPLEXITY_API_KEY=your-perplexity-api-key-here
 
 # Resend Email (Phase 2)
 RESEND_API_KEY=your-resend-api-key-here
+
+# Contact Form (Cloudflare Turnstile CAPTCHA)
+# Create a Turnstile site at: https://dash.cloudflare.com/?to=/:account/turnstile
+# For local testing, use Cloudflare's always-pass test keys:
+#   Site key:   1x00000000000000000000AA
+#   Secret key: 1x0000000000000000000000000000000AA
+NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY=your-turnstile-site-key-here
+CLOUDFLARE_TURNSTILE_SECRET_KEY=your-turnstile-secret-key-here
+
+# Contact form recipient — never exposed to the client
+CONTACT_EMAIL=your-email@example.com

@@ -142,13 +142,10 @@ export default function PrivacyPage() {
               </li>
             </ul>
             <p className="mt-3">
-              To exercise any of these rights, email{' '}
-              <a
-                href="mailto:magnus.hultberg@gmail.com"
-                className="underline hover:text-foreground transition-colors"
-              >
-                magnus.hultberg@gmail.com
-              </a>
+              To exercise any of these rights,{' '}
+              <Link href="/contact" className="underline hover:text-foreground transition-colors">
+                contact us
+              </Link>
               .
             </p>
           </section>
@@ -180,13 +177,10 @@ export default function PrivacyPage() {
           <section>
             <h2 className="font-serif text-xl font-medium text-foreground mb-3">Contact</h2>
             <p>
-              For any questions about this privacy policy or your data, contact{' '}
-              <a
-                href="mailto:magnus.hultberg@gmail.com"
-                className="underline hover:text-foreground transition-colors"
-              >
-                magnus.hultberg@gmail.com
-              </a>
+              For any questions about this privacy policy or your data, use our{' '}
+              <Link href="/contact" className="underline hover:text-foreground transition-colors">
+                contact form
+              </Link>
               .
             </p>
           </section>
