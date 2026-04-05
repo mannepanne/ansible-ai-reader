@@ -55,15 +55,18 @@ The consent checkbox is required before the submit button becomes active. `conse
 
 ### Navigation Tracking
 
-Every nav bar item fires a `nav_click` page event with a `label` payload:
+Every interactive link fires a `nav_click` page event with a `label` payload. The admin dashboard aggregates these into the Navigation Clicks bar chart:
 
-```typescript
-trackPageEvent('nav_click', { target: 'features' });
-trackPageEvent('nav_click', { target: 'how-it-works' });
-trackPageEvent('nav_click', { target: 'try-demo' });
-```
+| Label | Trigger |
+|---|---|
+| `features` | Navbar → Features |
+| `how_it_works` | Navbar → How it works |
+| `try_demo` | Navbar → Try the demo |
+| `go_to_demo` | "See Ansible in action" button (hero or CTA, after email submitted) |
+| `footer_privacy` | Footer → Privacy link |
+| `footer_login` | Footer → Login link |
 
-The admin dashboard aggregates these into the Navigation Clicks bar chart.
+The BarChart renders underscore labels with spaces (`how_it_works` → "how it works").
 
 ---
 
