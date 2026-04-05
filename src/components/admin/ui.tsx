@@ -1,7 +1,9 @@
 // ABOUT: Shared UI primitives for the admin analytics dashboard
 // ABOUT: StatCard, BarChart, section heading styles, and duration formatter
 
-export const SECTION_HEADING: React.CSSProperties = {
+import type { CSSProperties } from 'react';
+
+export const SECTION_HEADING: CSSProperties = {
   fontSize: '0.8em',
   fontWeight: 600,
   color: '#495057',
@@ -10,7 +12,7 @@ export const SECTION_HEADING: React.CSSProperties = {
   letterSpacing: '0.06em',
 };
 
-const CARD: React.CSSProperties = {
+const CARD: CSSProperties = {
   background: '#fff',
   border: '1px solid #dee2e6',
   borderRadius: '8px',
