@@ -5,6 +5,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 const ContactSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   message: z
@@ -100,9 +108,9 @@ export async function POST(request: NextRequest) {
         reply_to: email,
         subject: `Message via Ansible contact form`,
         html: `
-          <p><strong>From:</strong> ${email}</p>
+          <p><strong>From:</strong> ${escapeHtml(email)}</p>
           <p><strong>Message:</strong></p>
-          <p style="white-space: pre-wrap;">${message}</p>
+          <p style="white-space: pre-wrap;">${escapeHtml(message)}</p>
         `,
       }),
     });

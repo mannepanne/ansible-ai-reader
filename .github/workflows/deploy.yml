@@ -40,6 +40,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY }}
 
       - name: Deploy consumer worker
         uses: cloudflare/wrangler-action@v3

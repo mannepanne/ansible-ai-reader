@@ -4,10 +4,10 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { Turnstile } from '@marsidev/react-turnstile';
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 
 type FormState = 'idle' | 'submitting' | 'success' | 'error';
 
@@ -17,9 +17,11 @@ export default function ContactPage() {
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [formState, setFormState] = useState<FormState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   const isSubmittable =
     email.trim().length > 0 &&
+    email.includes('@') &&
     message.trim().length >= 10 &&
     turnstileToken !== null &&
     formState !== 'submitting';
@@ -44,10 +46,15 @@ export default function ContactPage() {
         const data = (await res.json()) as { error?: string };
         setErrorMessage(data.error ?? 'Something went wrong. Please try again.');
         setFormState('error');
+        // Reset Turnstile — tokens are single-use; reusing one will fail Cloudflare's replay check
+        turnstileRef.current?.reset();
+        setTurnstileToken(null);
       }
     } catch {
       setErrorMessage('Could not reach the server. Please check your connection and try again.');
       setFormState('error');
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
     }
   }
 
@@ -120,6 +127,7 @@ export default function ContactPage() {
             </div>
 
             <Turnstile
+              ref={turnstileRef}
               siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY ?? ''}
               onSuccess={(token) => setTurnstileToken(token)}
               onExpire={() => setTurnstileToken(null)}

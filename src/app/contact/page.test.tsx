@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import React from 'react';
 import ContactPage from './page';
 
 // Mock Next.js Link
@@ -20,11 +21,14 @@ vi.mock('lucide-react', () => ({
 
 // Mock Turnstile — simulates widget already verified by default
 let onSuccessCallback: ((token: string) => void) | null = null;
+const mockTurnstileReset = vi.fn();
 vi.mock('@marsidev/react-turnstile', () => ({
-  Turnstile: ({ onSuccess, onExpire, onError }: any) => {
+  // Must use forwardRef so the component can call turnstileRef.current.reset()
+  Turnstile: React.forwardRef(({ onSuccess }: any, ref: any) => {
     onSuccessCallback = onSuccess;
+    if (ref) ref.current = { reset: mockTurnstileReset };
     return <div data-testid="turnstile-widget" />;
-  },
+  }),
 }));
 
 // Mock fetch for API calls
@@ -102,6 +106,18 @@ describe('ContactPage', () => {
 
       await user.type(screen.getByLabelText(/your email address/i), 'test@example.com');
       await user.type(screen.getByLabelText(/message/i), 'Short');
+      await simulateTurnstileSuccess();
+
+      const button = screen.getByRole('button', { name: /send message/i }) as HTMLButtonElement;
+      expect(button.disabled).toBe(true);
+    });
+
+    it('remains disabled when email has no @ symbol', async () => {
+      const user = userEvent.setup();
+      render(<ContactPage />);
+
+      await user.type(screen.getByLabelText(/your email address/i), 'notanemail');
+      await user.type(screen.getByLabelText(/message/i), 'This is a long enough message');
       await simulateTurnstileSuccess();
 
       const button = screen.getByRole('button', { name: /send message/i }) as HTMLButtonElement;
@@ -187,6 +203,26 @@ describe('ContactPage', () => {
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeDefined();
         expect(screen.getByText(/check your connection/i)).toBeDefined();
+      });
+    });
+
+    it('resets Turnstile widget after a failed submission', async () => {
+      const user = userEvent.setup();
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'CAPTCHA verification failed' }),
+      });
+
+      render(<ContactPage />);
+
+      await user.type(screen.getByLabelText(/your email address/i), 'test@example.com');
+      await user.type(screen.getByLabelText(/message/i), 'This is a long enough message');
+      await simulateTurnstileSuccess();
+
+      await user.click(screen.getByRole('button', { name: /send message/i }));
+
+      await waitFor(() => {
+        expect(mockTurnstileReset).toHaveBeenCalled();
       });
     });
   });
