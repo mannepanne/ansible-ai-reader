@@ -22,14 +22,16 @@ vi.mock('lucide-react', () => ({
 // Mock Turnstile — simulates widget already verified by default
 let onSuccessCallback: ((token: string) => void) | null = null;
 const mockTurnstileReset = vi.fn();
-vi.mock('@marsidev/react-turnstile', () => ({
+vi.mock('@marsidev/react-turnstile', () => {
   // Must use forwardRef so the component can call turnstileRef.current.reset()
-  Turnstile: React.forwardRef(({ onSuccess }: any, ref: any) => {
+  const Turnstile = React.forwardRef(({ onSuccess }: any, ref: any) => {
     onSuccessCallback = onSuccess;
     if (ref) ref.current = { reset: mockTurnstileReset };
     return <div data-testid="turnstile-widget" />;
-  }),
-}));
+  });
+  Turnstile.displayName = 'Turnstile';
+  return { Turnstile };
+});
 
 // Mock fetch for API calls
 const mockFetch = vi.fn();
