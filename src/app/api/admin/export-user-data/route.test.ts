@@ -59,6 +59,22 @@ describe('GET /api/admin/export-user-data', () => {
     expect(res.status).toBe(400);
   });
 
+  it('returns 500 when a Supabase query fails', async () => {
+    mockGetSession.mockResolvedValue({
+      data: { session: { user: { id: 'admin-1', email: 'admin@example.com' } } },
+    });
+    mockSingle.mockResolvedValue({ data: { is_admin: true }, error: null });
+
+    mockFrom.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } }),
+      }),
+    });
+
+    const res = await GET(makeRequest('victim@example.com'));
+    expect(res.status).toBe(500);
+  });
+
   it('returns JSON file download with all data for the given email', async () => {
     mockGetSession.mockResolvedValue({
       data: { session: { user: { id: 'admin-1', email: 'admin@example.com' } } },

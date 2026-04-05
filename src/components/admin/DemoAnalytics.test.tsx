@@ -65,6 +65,8 @@ describe('DemoAnalytics', () => {
     const mockClick = vi.fn();
     const mockAnchor = { href: '', download: '', click: mockClick };
     vi.spyOn(document, 'createElement').mockReturnValueOnce(mockAnchor as unknown as HTMLElement);
+    vi.spyOn(document.body, 'appendChild').mockReturnValueOnce(mockAnchor as unknown as Node);
+    vi.spyOn(document.body, 'removeChild').mockReturnValueOnce(mockAnchor as unknown as Node);
 
     const exportButtons = screen.getAllByRole('button', { name: /export/i });
     expect(exportButtons.length).toBe(2); // one per session with email (alice has 2 sessions)

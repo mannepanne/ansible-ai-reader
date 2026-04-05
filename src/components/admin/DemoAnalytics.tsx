@@ -1,5 +1,5 @@
 // ABOUT: Demo session analytics panel for the admin dashboard
-// ABOUT: Shows session metrics, event breakdown, and per-user GDPR delete
+// ABOUT: Shows session metrics, event breakdown, and per-user GDPR export and delete
 
 'use client';
 
@@ -44,7 +44,9 @@ export default function DemoAnalytics({ stats }: DemoAnalyticsProps) {
     const a = document.createElement('a');
     a.href = url;
     a.download = '';
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
   };
 
   const handleDelete = async (email: string) => {
