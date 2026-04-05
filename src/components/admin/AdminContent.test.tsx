@@ -149,7 +149,7 @@ describe('AdminContent', () => {
     expect(screen.getByText('Anonymous')).toBeDefined();
   });
 
-  it('shows delete button for email sessions', async () => {
+  it('shows delete and export buttons for email sessions only', async () => {
     const user = userEvent.setup();
     render(
       <AdminContent
@@ -162,6 +162,8 @@ describe('AdminContent', () => {
     await user.click(screen.getByRole('tab', { name: /^demo$/i }));
 
     const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+    const exportButtons = screen.getAllByRole('button', { name: /export/i });
     expect(deleteButtons.length).toBe(1); // only for sessions with email
+    expect(exportButtons.length).toBe(1); // only for sessions with email
   });
 });

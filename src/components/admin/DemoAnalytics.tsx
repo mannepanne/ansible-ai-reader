@@ -39,6 +39,14 @@ export default function DemoAnalytics({ stats }: DemoAnalyticsProps) {
   const [deletingEmail, setDeletingEmail] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const handleExport = (email: string) => {
+    const url = `/api/admin/export-user-data?email=${encodeURIComponent(email)}`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '';
+    a.click();
+  };
+
   const handleDelete = async (email: string) => {
     if (!confirm(`Delete all data for ${email}? This cannot be undone.`)) return;
 
@@ -152,22 +160,39 @@ export default function DemoAnalytics({ stats }: DemoAnalyticsProps) {
                     </td>
                     <td style={{ padding: '8px 12px', textAlign: 'right' }}>
                       {session.email && (
-                        <button
-                          onClick={() => handleDelete(session.email!)}
-                          disabled={deletingEmail === session.email}
-                          aria-label={`Delete data for ${session.email}`}
-                          style={{
-                            background: 'transparent',
-                            border: '1px solid #dc3545',
-                            color: deletingEmail === session.email ? '#adb5bd' : '#dc3545',
-                            padding: '3px 10px',
-                            borderRadius: '4px',
-                            cursor: deletingEmail === session.email ? 'not-allowed' : 'pointer',
-                            fontSize: '0.8em',
-                          }}
-                        >
-                          {deletingEmail === session.email ? 'Deleting…' : 'Delete'}
-                        </button>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={() => handleExport(session.email!)}
+                            aria-label={`Export data for ${session.email}`}
+                            style={{
+                              background: 'transparent',
+                              border: '1px solid #6c757d',
+                              color: '#6c757d',
+                              padding: '3px 10px',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.8em',
+                            }}
+                          >
+                            Export
+                          </button>
+                          <button
+                            onClick={() => handleDelete(session.email!)}
+                            disabled={deletingEmail === session.email}
+                            aria-label={`Delete data for ${session.email}`}
+                            style={{
+                              background: 'transparent',
+                              border: '1px solid #dc3545',
+                              color: deletingEmail === session.email ? '#adb5bd' : '#dc3545',
+                              padding: '3px 10px',
+                              borderRadius: '4px',
+                              cursor: deletingEmail === session.email ? 'not-allowed' : 'pointer',
+                              fontSize: '0.8em',
+                            }}
+                          >
+                            {deletingEmail === session.email ? 'Deleting…' : 'Delete'}
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
