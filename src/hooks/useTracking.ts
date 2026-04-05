@@ -120,7 +120,7 @@ export function useTracking() {
       .then(({ error }) => {
         if (error) {
           // Session already exists — just bump last_active_at via RPC
-          void supabase.rpc('update_session_heartbeat', { sid });
+          supabase.rpc('update_session_heartbeat', { sid }).then(() => {});
         }
       });
   }, []);

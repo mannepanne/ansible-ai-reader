@@ -184,13 +184,15 @@ This mirrors how analytics platforms like Google Analytics handle session bounda
 Used on the landing page and privacy page. Records `page_events` rows:
 
 ```typescript
-void supabase.from('page_events').insert({
+supabase.from('page_events').insert({
   visitor_id: vid,
   session_id: sid,
   event_type: eventType,
   event_data: eventData,
-});
+}).then(() => {});
 ```
+
+> **⚠️ Supabase lazy thenable trap:** Supabase JS v2 query builders implement `PromiseLike`, not native `Promise`. The HTTP request only fires when `.then()` is called. `void builder` without chaining `.then()` means the fetch **never executes** — silently discarding the write with no error. All fire-and-forget Supabase calls must chain `.then(() => {})` to trigger execution.
 
 Each row links both visitor and session IDs, enabling the admin to distinguish "how many people visited" (unique visitor IDs) from "how many visits" (total rows with `event_type = 'landing_page_view'`).
 
@@ -199,21 +201,16 @@ Each row links both visitor and session IDs, enabling the admin to distinguish "
 More sophisticated. On mount it creates a `demo_sessions` row:
 
 ```typescript
-void supabase.from('demo_sessions').insert({
+supabase.from('demo_sessions').insert({
   session_id: sid,
   email,            // null if user hasn't captured email yet
   started_at: now,
   last_active_at: now,
   total_events: 0,
-});
-```
-
-If a row for this session already exists (returning visitor), the INSERT fails and the error handler fires a heartbeat RPC instead of treating it as an error:
-
-```typescript
-.then(({ error }) => {
+}).then(({ error }) => {
   if (error) {
-    void supabase.rpc('update_session_heartbeat', { sid });
+    // Row already exists for this session (returning visitor) — fire heartbeat instead
+    supabase.rpc('update_session_heartbeat', { sid }).then(() => {});
   }
 });
 ```
@@ -223,7 +220,7 @@ A **30-second heartbeat** keeps `last_active_at` current throughout the demo:
 ```typescript
 const interval = setInterval(() => {
   touchLastActive();
-  void supabase.rpc('update_session_heartbeat', { sid: sessionId.current });
+  supabase.rpc('update_session_heartbeat', { sid: sessionId.current }).then(() => {});
 }, 30000);
 ```
 
@@ -234,8 +231,8 @@ Session duration displayed in the admin dashboard is `last_active_at - started_a
 Each demo event writes to `demo_events` AND increments the session's `total_events` counter via an RPC:
 
 ```typescript
-void supabase.from('demo_events').insert({ session_id: sid, email, event_type, event_data });
-void supabase.rpc('increment_session_events', { sid });
+supabase.from('demo_events').insert({ session_id: sid, email, event_type, event_data }).then(() => {});
+supabase.rpc('increment_session_events', { sid }).then(() => {});
 ```
 
 The RPC exists because `demo_events` and `demo_sessions` are separate tables — the anon client cannot run an UPDATE on `demo_sessions` directly (that would require read+write access to the row, which RLS blocks). A `SECURITY DEFINER` RPC can do it safely.
@@ -302,6 +299,8 @@ Written by `trackEvent()` on each interaction.
 | `created_at` | timestamptz | Auto-set |
 
 Note: There are no foreign key constraints between these tables. The session_id is a shared UUID, but the analytics tables are designed to be independent — this simplifies RLS (each can have its own INSERT policy) and avoids cascade complexity in GDPR deletes.
+
+**RLS policy summary:** All four tables have INSERT policies for the `anon` role (public landing page visitors) and `email_captures`, `demo_sessions`, and `demo_events` also have INSERT policies for the `authenticated` role (logged-in users who visit the demo). Both the `increment_session_events` and `update_session_heartbeat` RPCs have EXECUTE grants for both roles.
 
 ---
 

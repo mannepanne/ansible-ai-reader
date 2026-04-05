@@ -128,6 +128,9 @@ Auto-loaded when working with files in this directory. Documents architectural d
 
 **Format:** Listed chronologically (newest first)
 
+- **[2026-04-05-no-fk-constraints-on-analytics-tables.md](./2026-04-05-no-fk-constraints-on-analytics-tables.md)** — Analytics tables are independent with no FK constraints; simplifies RLS and GDPR deletes
+- **[2026-04-05-cookie-free-localStorage-analytics.md](./2026-04-05-cookie-free-localStorage-analytics.md)** — Custom-built cookie-free analytics over third-party tools (Plausible, PostHog, GA)
+- **[2026-04-05-direct-anon-supabase-client-for-tracking.md](./2026-04-05-direct-anon-supabase-client-for-tracking.md)** — Public tracking hooks use direct anon Supabase client, not the SSR client used elsewhere
 - **[2026-04-05-tailwind-v3-for-shadcn.md](./2026-04-05-tailwind-v3-for-shadcn.md)** — Use Tailwind v3 (not v4) for landing page/demo UI; shadcn/ui compatibility
 
 ---
