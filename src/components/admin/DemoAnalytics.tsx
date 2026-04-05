@@ -32,6 +32,9 @@ const statCard = (label: string, value: string | number) => (
 
 export default function DemoAnalytics({ stats }: DemoAnalyticsProps) {
   const [sessions, setSessions] = useState<DemoSessionRow[]>(stats.sessions);
+  const [emailCaptureCount, setEmailCaptureCount] = useState(stats.emailCaptureCount);
+  const [sessionCount, setSessionCount] = useState(stats.sessionCount);
+  const [totalInteractions, setTotalInteractions] = useState(stats.totalInteractions);
   const [deletingEmail, setDeletingEmail] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -47,7 +50,14 @@ export default function DemoAnalytics({ stats }: DemoAnalyticsProps) {
         { method: 'DELETE' }
       );
       if (!res.ok) throw new Error('Delete failed');
+
+      const deletedRows = sessions.filter(s => s.email === email);
+      const deletedInteractions = deletedRows.reduce((sum, s) => sum + s.totalEvents, 0);
+
       setSessions(prev => prev.filter(s => s.email !== email));
+      setEmailCaptureCount(prev => prev - 1);
+      setSessionCount(prev => prev - deletedRows.length);
+      setTotalInteractions(prev => prev - deletedInteractions);
     } catch {
       setDeleteError(`Failed to delete data for ${email}`);
     } finally {
@@ -64,9 +74,9 @@ export default function DemoAnalytics({ stats }: DemoAnalyticsProps) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Key metrics */}
       <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-        {statCard('Email Captures', stats.emailCaptureCount)}
-        {statCard('Demo Sessions', stats.sessionCount)}
-        {statCard('Interactions', stats.totalInteractions)}
+        {statCard('Email Captures', emailCaptureCount)}
+        {statCard('Demo Sessions', sessionCount)}
+        {statCard('Interactions', totalInteractions)}
         {statCard('Avg Duration', `${stats.avgDurationMinutes} min`)}
       </div>
 

@@ -32,7 +32,7 @@ export async function DELETE(request: Request) {
 
   const db = createServiceRoleClient();
 
-  // Cascade delete: events → sessions → captures (order matters for referential integrity)
+  // Delete from all analytics tables (no FK constraints between them, safe to parallelize)
   const [eventsResult, sessionsResult, capturesResult] = await Promise.all([
     db.from('demo_events').delete().eq('email', email),
     db.from('demo_sessions').delete().eq('email', email),
