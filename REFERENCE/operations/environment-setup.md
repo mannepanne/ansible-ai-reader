@@ -81,6 +81,66 @@ npx wrangler secret put RESEND_API_KEY
 # Enter: re_xxxxxxxxx
 ```
 
+### Contact Form Variables
+
+#### NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY
+Public site key for the Cloudflare Turnstile CAPTCHA widget on the `/contact` page.
+
+**Where to find:** Cloudflare Dashboard → Turnstile → your site → Site Key
+
+**⚠️ Build-time var — requires TWO registrations:**
+`NEXT_PUBLIC_` variables are baked into the client bundle by Next.js at **build time**, not injected at runtime. This means it must be set in two places:
+
+1. **Cloudflare Worker secret** (for `wrangler dev` / runtime):
+   ```bash
+   npx wrangler secret put NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY
+   ```
+
+2. **GitHub Actions secret** (so the CI build step can bake it into the bundle):
+   GitHub repo → Settings → Secrets and variables → Actions → New repository secret
+   Name: `NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY`
+
+Without the GitHub secret, the production build will initialise the Turnstile widget with an empty string, making the contact form permanently un-submittable. The other `NEXT_PUBLIC_` vars (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) have the same requirement and are already set as GitHub secrets.
+
+For local dev, use Cloudflare's always-pass test key: `1x00000000000000000000AA`
+
+**Required for:** Main app only
+
+#### CLOUDFLARE_TURNSTILE_SECRET_KEY
+Secret key used server-side to verify Turnstile tokens with Cloudflare's siteverify API.
+
+**Where to find:** Cloudflare Dashboard → Turnstile → your site → Secret Key
+
+**⚠️ Warning:** Never expose this to the client. For local dev, use test key: `1x0000000000000000000000000000000AA`
+
+**Required for:** Main app only
+
+```bash
+npx wrangler secret put CLOUDFLARE_TURNSTILE_SECRET_KEY
+```
+
+#### RESEND_FROM_EMAIL
+The verified sender address used in the `from` field when sending contact form emails via Resend.
+
+**Value:** Must be an address on a domain verified in your Resend account (e.g. `ansible@hultberg.org`)
+
+**Required for:** Main app only
+
+```bash
+npx wrangler secret put RESEND_FROM_EMAIL
+# Enter: ansible@hultberg.org
+```
+
+#### CONTACT_EMAIL
+Recipient address for contact form submissions. Never sent to the client — lives only in the server-side worker.
+
+**Required for:** Main app only
+
+```bash
+npx wrangler secret put CONTACT_EMAIL
+# Enter: your-email@example.com
+```
+
 ### Integration Variables
 
 #### READER_API_TOKEN
@@ -177,6 +237,12 @@ PERPLEXITY_API_KEY=pplx-xxxxx
 
 # Automation
 CRON_SECRET=your_generated_secret
+
+# Contact Form (use Cloudflare's always-pass test keys for local dev)
+NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY=1x00000000000000000000AA
+CLOUDFLARE_TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+RESEND_FROM_EMAIL=ansible@hultberg.org
+CONTACT_EMAIL=your-email@example.com
 ```
 
 **Usage:**
@@ -233,6 +299,22 @@ CRON_SECRET=your_generated_secret
    - SMTP User: `resend`
    - SMTP Pass: Your Resend API key
    - Sender email: `noreply@hultberg.org`
+
+### Cloudflare Turnstile
+
+Used for CAPTCHA on the `/contact` page.
+
+1. **Create a Turnstile site:**
+   - Cloudflare Dashboard → Turnstile → Add site
+   - Name: `Ansible`
+   - Domain: `ansible.hultberg.org`
+   - Widget type: Managed (recommended)
+
+2. **Copy keys:**
+   - Site Key → `NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY`
+   - Secret Key → `CLOUDFLARE_TURNSTILE_SECRET_KEY`
+
+3. **Local development:** Use the always-pass test keys (see `.dev.vars` example above) — no Cloudflare account needed locally.
 
 ### Readwise Reader
 
@@ -302,7 +384,8 @@ See REFERENCE/operations/environment-setup.md for configuration details.
 Before deploying to production:
 
 - [ ] All core infrastructure secrets set via `wrangler secret put`
-- [ ] Main app secrets set (6 secrets)
+- [ ] Main app secrets set (10 secrets)
+- [ ] `NEXT_PUBLIC_` vars also set as GitHub Actions secrets (baked at build time — see note above)
 - [ ] Consumer worker secrets set (4 secrets)
 - [ ] Cron worker secrets set (2 secrets)
 - [ ] Supabase RLS policies verified
@@ -323,6 +406,10 @@ Before deploying to production:
 4. `RESEND_API_KEY`
 5. `READER_API_TOKEN`
 6. `CRON_SECRET`
+7. `NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY`
+8. `CLOUDFLARE_TURNSTILE_SECRET_KEY`
+9. `RESEND_FROM_EMAIL`
+10. `CONTACT_EMAIL`
 
 ### Consumer Worker (`wrangler-consumer.toml`)
 1. `NEXT_PUBLIC_SUPABASE_URL`

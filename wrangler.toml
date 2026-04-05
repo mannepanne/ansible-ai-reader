@@ -34,6 +34,11 @@ binding = "PROCESSING_QUEUE"
 #   - SUPABASE_SECRET_KEY
 #   - RESEND_API_KEY
 #   - CRON_SECRET (for /api/cron/auto-sync endpoint authentication)
+#   - NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY (contact form CAPTCHA — also required at build time in CI)
+#   - CLOUDFLARE_TURNSTILE_SECRET_KEY (contact form CAPTCHA server-side verification)
+#   - RESEND_FROM_EMAIL (contact form sender address — verified Resend domain)
+#   - CONTACT_EMAIL (contact form recipient — never exposed to client)
 #
 # Note: CRON_SECRET is also required in the cron worker (wrangler-cron.toml)
-# See REFERENCE/environment-setup.md for values and configuration details.
+# Note: NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY must also be in the CI build step env (baked at build time)
+# See REFERENCE/operations/environment-setup.md for values and configuration details.
