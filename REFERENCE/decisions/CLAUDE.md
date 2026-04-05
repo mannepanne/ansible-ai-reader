@@ -128,7 +128,7 @@ Auto-loaded when working with files in this directory. Documents architectural d
 
 **Format:** Listed chronologically (newest first)
 
-*(No ADRs yet - this section will be updated as decisions are recorded)*
+- **[2026-04-05-tailwind-v3-for-shadcn.md](./2026-04-05-tailwind-v3-for-shadcn.md)** — Use Tailwind v3 (not v4) for landing page/demo UI; shadcn/ui compatibility
 
 ---
 

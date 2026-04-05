@@ -71,22 +71,6 @@ export function clearStoredEmail() {
   localStorage.removeItem('ansible_email');
 }
 
-export async function verifyStoredEmail(): Promise<boolean> {
-  if (typeof window === 'undefined') return false;
-  const email = localStorage.getItem('ansible_email');
-  if (!email) return false;
-  const { data, error } = await supabase.rpc('email_exists', { check_email: email });
-  if (error) {
-    // Supabase error (table not migrated yet, network issue) — fail open, keep email
-    return true;
-  }
-  if (!data) {
-    // RPC confirmed email does not exist in DB — revoke access
-    localStorage.removeItem('ansible_email');
-    return false;
-  }
-  return true;
-}
 
 export async function captureEmail(
   email: string,
@@ -124,7 +108,7 @@ export function useTracking() {
     const email = getStoredEmail();
     const now = new Date().toISOString();
 
-    supabase
+    void supabase
       .from('demo_sessions')
       .insert({
         session_id: sid,
@@ -135,26 +119,18 @@ export function useTracking() {
       })
       .then(({ error }) => {
         if (error) {
-          // Session already exists — just bump last_active_at
-          supabase
-            .from('demo_sessions')
-            .update({ last_active_at: now, email })
-            .eq('session_id', sid)
-            .then();
+          // Session already exists — just bump last_active_at via RPC
+          void supabase.rpc('update_session_heartbeat', { sid });
         }
       });
   }, []);
 
-  // Heartbeat: update last_active_at every 30s
+  // Heartbeat: update last_active_at every 30s via SECURITY DEFINER RPC
   useEffect(() => {
     const interval = setInterval(() => {
       touchLastActive();
       if (!sessionId.current) return;
-      supabase
-        .from('demo_sessions')
-        .update({ last_active_at: new Date().toISOString() })
-        .eq('session_id', sessionId.current)
-        .then();
+      void supabase.rpc('update_session_heartbeat', { sid: sessionId.current });
     }, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -166,17 +142,16 @@ export function useTracking() {
       const sid = sessionId.current;
       if (!sid) return;
 
-      supabase
+      void supabase
         .from('demo_events')
         .insert({
           session_id: sid,
           email,
           event_type: eventType,
           event_data: eventData,
-        })
-        .then();
+        });
 
-      supabase.rpc('increment_session_events', { sid }).then();
+      void supabase.rpc('increment_session_events', { sid });
     },
     []
   );
@@ -202,15 +177,14 @@ export function usePageTracking() {
       touchLastActive();
       const vid = visitorId.current || getVisitorId();
       const sid = sessionId.current || getSessionId();
-      supabase
+      void supabase
         .from('page_events')
         .insert({
           visitor_id: vid,
           session_id: sid,
           event_type: eventType,
           event_data: eventData,
-        })
-        .then();
+        });
     },
     []
   );

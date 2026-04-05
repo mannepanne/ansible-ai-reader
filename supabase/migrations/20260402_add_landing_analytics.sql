@@ -44,7 +44,7 @@ CREATE TABLE page_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   visitor_id text NOT NULL,       -- anonymous UUID stored in localStorage
   session_id text NOT NULL,       -- 30-min session window
-  event_type text NOT NULL,       -- 'landing_page_view' | 'nav_click' | 'privacy_page_view' | 'demo_signup'
+  event_type text NOT NULL,       -- 'landing_page_view' | 'nav_click' | 'demo_signup'
   event_data jsonb,
   created_at timestamptz DEFAULT now()
 );
@@ -68,27 +68,21 @@ ALTER TABLE demo_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE demo_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE page_events ENABLE ROW LEVEL SECURITY;
 
--- email_captures: anonymous users can insert, authenticated admin can read all
+-- email_captures: anonymous users can insert (consent required), authenticated admin can read all
 CREATE POLICY "Public can insert email captures"
   ON email_captures FOR INSERT
   TO anon
-  WITH CHECK (true);
+  WITH CHECK (consented = true);
 
 CREATE POLICY "Authenticated users can read email captures"
   ON email_captures FOR SELECT
   TO authenticated
   USING (true);
 
--- demo_sessions: anonymous users can insert and update their own session
+-- demo_sessions: anonymous users can insert; all mutations use SECURITY DEFINER RPCs
 CREATE POLICY "Public can insert demo sessions"
   ON demo_sessions FOR INSERT
   TO anon
-  WITH CHECK (true);
-
-CREATE POLICY "Public can update own demo sessions"
-  ON demo_sessions FOR UPDATE
-  TO anon
-  USING (true)
   WITH CHECK (true);
 
 CREATE POLICY "Authenticated users can read demo sessions"
@@ -126,6 +120,7 @@ CREATE OR REPLACE FUNCTION increment_session_events(sid text)
 RETURNS void
 LANGUAGE sql
 SECURITY DEFINER
+SET search_path = public
 AS $$
   UPDATE demo_sessions
   SET total_events = total_events + 1,
@@ -133,13 +128,15 @@ AS $$
   WHERE session_id = sid;
 $$;
 
--- Privacy-safe email existence check (returns boolean, no data exposure)
-CREATE OR REPLACE FUNCTION email_exists(check_email text)
-RETURNS boolean
+-- Update session heartbeat (last_active_at) — replaces direct anon UPDATE
+-- Called every 30s while user is active in the demo
+CREATE OR REPLACE FUNCTION update_session_heartbeat(sid text)
+RETURNS void
 LANGUAGE sql
 SECURITY DEFINER
+SET search_path = public
 AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM email_captures WHERE email = check_email
-  );
+  UPDATE demo_sessions
+  SET last_active_at = now()
+  WHERE session_id = sid;
 $$;

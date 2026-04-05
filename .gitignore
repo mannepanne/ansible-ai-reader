@@ -62,3 +62,6 @@ tmp/
 
 # Tools
 .entire/
+
+# Imported prototype — reference only, not part of the application
+imported/

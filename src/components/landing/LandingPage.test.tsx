@@ -26,7 +26,6 @@ vi.mock('@/hooks/useTracking', () => ({
   captureEmail: vi.fn(),
   setSessionEmail: vi.fn(),
   getStoredEmail: vi.fn(() => null),
-  verifyStoredEmail: vi.fn(async () => false),
 }));
 
 // Mock Lucide icons

@@ -10,7 +10,6 @@ import {
   captureEmail,
   setSessionEmail,
   getStoredEmail,
-  verifyStoredEmail,
   usePageTracking,
 } from '@/hooks/useTracking';
 import { Button } from '@/components/ui/button';
@@ -154,7 +153,7 @@ function Navbar({
 }
 
 // ============================================================================
-// Verified email hook — checks localStorage against database on mount
+// Email hook — reads stored email from localStorage
 // ============================================================================
 
 function useVerifiedEmail() {
@@ -163,16 +162,11 @@ function useVerifiedEmail() {
     return !!getStoredEmail();
   });
 
-  useEffect(() => {
-    if (hasSubmitted) {
-      verifyStoredEmail().then((valid) => {
-        if (!valid) setHasSubmitted(false);
-      });
-    }
-  }, [hasSubmitted]);
-
   return [hasSubmitted, setHasSubmitted] as const;
 }
+
+// Basic email format check — accepts anything with @ and a dotted domain
+const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 // ============================================================================
 // Hero section with email capture
@@ -187,7 +181,7 @@ function HeroSection() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email.trim() && consented) {
+    if (email.trim() && consented && isValidEmail(email.trim())) {
       captureEmail(email.trim(), 'hero', true);
       setSessionEmail(email.trim());
       trackPageEvent('demo_signup', { source: 'hero' });
@@ -753,7 +747,7 @@ function FinalCTA() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email.trim() && consented) {
+    if (email.trim() && consented && isValidEmail(email.trim())) {
       captureEmail(email.trim(), 'cta', true);
       setSessionEmail(email.trim());
       trackPageEvent('demo_signup', { source: 'cta' });
