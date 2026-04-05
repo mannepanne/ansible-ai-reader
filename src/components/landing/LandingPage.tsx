@@ -106,7 +106,7 @@ function Navbar({
   };
 
   const handleTryDemo = () => {
-    trackPageEvent('nav_click', { target: 'try-demo' });
+    trackPageEvent('nav_click', { label: 'try_demo' });
     if (getStoredEmail()) {
       router.push('/demo');
     } else {
@@ -124,7 +124,7 @@ function Navbar({
           <button
             onClick={() => {
               scrollTo('features');
-              trackPageEvent('nav_click', { target: 'features' });
+              trackPageEvent('nav_click', { label: 'features' });
             }}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
@@ -133,7 +133,7 @@ function Navbar({
           <button
             onClick={() => {
               scrollTo('how-it-works');
-              trackPageEvent('nav_click', { target: 'how-it-works' });
+              trackPageEvent('nav_click', { label: 'how_it_works' });
             }}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
@@ -210,7 +210,10 @@ function HeroSection() {
             <Button
               size="lg"
               className="h-12 rounded-full px-8 text-base font-medium gap-2 bg-blue-600 hover:bg-blue-700"
-              onClick={() => router.push('/demo')}
+              onClick={() => {
+                trackPageEvent('nav_click', { label: 'hero_go_to_demo' });
+                router.push('/demo');
+              }}
             >
               See Ansible in action
               <ArrowRight className="h-4 w-4" />
@@ -769,7 +772,10 @@ function FinalCTA() {
             <Button
               size="lg"
               className="h-12 rounded-full px-8 text-base font-medium gap-2 bg-blue-600 hover:bg-blue-700"
-              onClick={() => router.push('/demo')}
+              onClick={() => {
+                trackPageEvent('nav_click', { label: 'cta_go_to_demo' });
+                router.push('/demo');
+              }}
             >
               See Ansible in action
               <ArrowRight className="h-4 w-4" />
@@ -834,6 +840,8 @@ function FinalCTA() {
 // ============================================================================
 
 function Footer() {
+  const { trackPageEvent } = usePageTracking();
+
   return (
     <footer className="border-t border-gray-100 px-6 py-8">
       <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -844,12 +852,14 @@ function Footer() {
           </p>
           <Link
             href="/privacy"
+            onClick={() => trackPageEvent('nav_click', { label: 'footer_privacy' })}
             className="text-xs text-muted-foreground hover:text-foreground transition-colors underline"
           >
             Privacy
           </Link>
           <Link
             href="/login"
+            onClick={() => trackPageEvent('nav_click', { label: 'footer_login' })}
             className="text-xs text-muted-foreground hover:text-foreground transition-colors underline"
           >
             Login
