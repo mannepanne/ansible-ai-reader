@@ -1,41 +1,23 @@
 // ABOUT: Demo session analytics panel for the admin dashboard
-// ABOUT: Shows session metrics, event breakdown, and per-user GDPR export and delete
+// ABOUT: Shows session metrics, engagement bar charts, email captures with GDPR actions, and session table
 
 'use client';
 
 import { useState } from 'react';
-import type { DemoStats, DemoSessionRow } from './types';
+import type { DemoStats, DemoSessionRow, EmailCaptureRow } from './types';
+import { StatCard, BarChart, SECTION_HEADING, formatDuration } from './ui';
 
 interface DemoAnalyticsProps {
   stats: DemoStats;
 }
 
-const statCard = (label: string, value: string | number) => (
-  <div
-    key={label}
-    style={{
-      background: '#fff',
-      border: '1px solid #dee2e6',
-      borderRadius: '6px',
-      padding: '16px 20px',
-      minWidth: '140px',
-    }}
-  >
-    <div style={{ fontSize: '0.75em', color: '#6c757d', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-      {label}
-    </div>
-    <div style={{ fontSize: '1.8em', fontWeight: 700, color: '#212529' }}>
-      {value}
-    </div>
-  </div>
-);
-
 export default function DemoAnalytics({ stats }: DemoAnalyticsProps) {
+  const [emailCaptures, setEmailCaptures] = useState<EmailCaptureRow[]>(stats.emailCaptures);
   const [sessions, setSessions] = useState<DemoSessionRow[]>(stats.sessions);
   const [emailCaptureCount, setEmailCaptureCount] = useState(stats.emailCaptureCount);
   const [sessionCount, setSessionCount] = useState(stats.sessionCount);
   const [totalInteractions, setTotalInteractions] = useState(stats.totalInteractions);
-  const [avgDurationMinutes, setAvgDurationMinutes] = useState(stats.avgDurationMinutes);
+  const [avgDurationSeconds, setAvgDurationSeconds] = useState(stats.avgDurationSeconds);
   const [deletingEmail, setDeletingEmail] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -50,7 +32,10 @@ export default function DemoAnalytics({ stats }: DemoAnalyticsProps) {
   };
 
   const handleDelete = async (email: string) => {
-    if (!confirm(`Delete all data for ${email}? This cannot be undone.`)) return;
+    const captureCount = emailCaptures.filter(c => c.email === email).length;
+    const sessionCountForEmail = sessions.filter(s => s.email === email).length;
+    const confirmMsg = `Delete all data for ${email}?\n\nThis will permanently remove ${captureCount} email capture(s) and ${sessionCountForEmail} demo session(s).\n\nThis cannot be undone.`;
+    if (!confirm(confirmMsg)) return;
 
     setDeletingEmail(email);
     setDeleteError(null);
@@ -62,18 +47,20 @@ export default function DemoAnalytics({ stats }: DemoAnalyticsProps) {
       );
       if (!res.ok) throw new Error('Delete failed');
 
-      const deletedRows = sessions.filter(s => s.email === email);
-      const remainingRows = sessions.filter(s => s.email !== email);
-      const deletedInteractions = deletedRows.reduce((sum, s) => sum + s.totalEvents, 0);
-      const newAvg = remainingRows.length > 0
-        ? Math.round(remainingRows.reduce((sum, s) => sum + s.durationMinutes, 0) / remainingRows.length)
+      const remainingCaptures = emailCaptures.filter(c => c.email !== email);
+      const deletedSessions = sessions.filter(s => s.email === email);
+      const remainingSessions = sessions.filter(s => s.email !== email);
+      const deletedInteractions = deletedSessions.reduce((sum, s) => sum + s.totalEvents, 0);
+      const newAvg = remainingSessions.length > 0
+        ? Math.round(remainingSessions.reduce((sum, s) => sum + s.durationSeconds, 0) / remainingSessions.length)
         : 0;
 
-      setSessions(remainingRows);
+      setEmailCaptures(remainingCaptures);
+      setSessions(remainingSessions);
       setEmailCaptureCount(prev => prev - 1);
-      setSessionCount(prev => prev - deletedRows.length);
+      setSessionCount(prev => prev - deletedSessions.length);
       setTotalInteractions(prev => prev - deletedInteractions);
-      setAvgDurationMinutes(newAvg);
+      setAvgDurationSeconds(newAvg);
     } catch {
       setDeleteError(`Failed to delete data for ${email}`);
     } finally {
@@ -86,53 +73,110 @@ export default function DemoAnalytics({ stats }: DemoAnalyticsProps) {
       day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
     });
 
+  const maxEventCount = stats.eventTypeBreakdown[0]?.count ?? 0;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Key metrics */}
-      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-        {statCard('Email Captures', emailCaptureCount)}
-        {statCard('Demo Sessions', sessionCount)}
-        {statCard('Interactions', totalInteractions)}
-        {statCard('Avg Duration', `${avgDurationMinutes} min`)}
+      <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+        <StatCard icon="✉" label="Unique Emails" value={emailCaptureCount} />
+        <StatCard icon="🖥" label="Demo Sessions" value={sessionCount} />
+        <StatCard icon="⚡" label="Interactions" value={totalInteractions} />
+        <StatCard icon="⏱" label="Avg Engagement" value={formatDuration(avgDurationSeconds)} />
       </div>
 
-      {/* Event type breakdown */}
-      {stats.eventTypeBreakdown.length > 0 && (
-        <div>
-          <h3 style={{ fontSize: '0.9em', fontWeight: 600, color: '#495057', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Event Breakdown
-          </h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9em' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #dee2e6' }}>
-                <th style={{ textAlign: 'left', padding: '8px 12px', color: '#6c757d', fontWeight: 600 }}>Event</th>
-                <th style={{ textAlign: 'right', padding: '8px 12px', color: '#6c757d', fontWeight: 600 }}>Count</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.eventTypeBreakdown.map(({ eventType, count }) => (
-                <tr key={eventType} style={{ borderBottom: '1px solid #f1f3f4' }}>
-                  <td style={{ padding: '8px 12px', color: '#212529' }}>{eventType.replace(/_/g, ' ')}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', color: '#212529' }}>{count}</td>
-                </tr>
+      {/* Two-column middle section */}
+      <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        {/* Email Captures */}
+        <div style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '8px', padding: '20px 24px', flex: '1 1 300px' }}>
+          <div style={SECTION_HEADING}>Email Captures</div>
+
+          {deleteError && (
+            <p style={{ color: '#dc3545', fontSize: '0.8em', marginBottom: '10px' }}>{deleteError}</p>
+          )}
+
+          {emailCaptures.length === 0 ? (
+            <p style={{ color: '#6c757d', fontSize: '0.85em' }}>No email captures yet.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {emailCaptures.map((capture) => (
+                <div
+                  key={capture.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    background: '#f8f9fa',
+                    borderRadius: '6px',
+                    fontSize: '0.82em',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, color: '#212529', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {capture.email}
+                    </div>
+                    <div style={{ color: '#6c757d', marginTop: '2px' }}>
+                      via {capture.source} &middot; {formatDate(capture.createdAt)}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
+                    <button
+                      onClick={() => handleExport(capture.email)}
+                      aria-label={`Export data for ${capture.email}`}
+                      title="Export GDPR data"
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid #6c757d',
+                        color: '#6c757d',
+                        padding: '3px 9px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.9em',
+                      }}
+                    >
+                      ↓
+                    </button>
+                    <button
+                      onClick={() => handleDelete(capture.email)}
+                      disabled={deletingEmail === capture.email}
+                      aria-label={`Delete data for ${capture.email}`}
+                      title="Delete all data for this email"
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid #dc3545',
+                        color: deletingEmail === capture.email ? '#adb5bd' : '#dc3545',
+                        padding: '3px 9px',
+                        borderRadius: '4px',
+                        cursor: deletingEmail === capture.email ? 'not-allowed' : 'pointer',
+                        fontSize: '0.9em',
+                      }}
+                    >
+                      {deletingEmail === capture.email ? '…' : '✕'}
+                    </button>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Engagement Breakdown */}
+        <div style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '8px', padding: '20px 24px', flex: '1 1 260px' }}>
+          <div style={SECTION_HEADING}>Engagement Breakdown</div>
+          <BarChart
+            items={stats.eventTypeBreakdown.map(({ eventType, count }) => ({ label: eventType, count }))}
+            maxValue={maxEventCount}
+          />
+        </div>
+      </div>
 
       {/* Session table */}
-      <div>
-        <h3 style={{ fontSize: '0.9em', fontWeight: 600, color: '#495057', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          Recent Sessions
-        </h3>
-
-        {deleteError && (
-          <p style={{ color: '#dc3545', fontSize: '0.85em', marginBottom: '8px' }}>{deleteError}</p>
-        )}
+      <div style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '8px', padding: '20px 24px' }}>
+        <div style={SECTION_HEADING}>Recent Sessions</div>
 
         {sessions.length === 0 ? (
-          <p style={{ color: '#6c757d', fontSize: '0.9em' }}>No demo sessions recorded yet.</p>
+          <p style={{ color: '#6c757d', fontSize: '0.85em' }}>No demo sessions recorded yet.</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85em' }}>
@@ -142,7 +186,6 @@ export default function DemoAnalytics({ stats }: DemoAnalyticsProps) {
                   <th style={{ textAlign: 'left', padding: '8px 12px', color: '#6c757d', fontWeight: 600 }}>Started</th>
                   <th style={{ textAlign: 'right', padding: '8px 12px', color: '#6c757d', fontWeight: 600 }}>Duration</th>
                   <th style={{ textAlign: 'right', padding: '8px 12px', color: '#6c757d', fontWeight: 600 }}>Events</th>
-                  <th style={{ textAlign: 'right', padding: '8px 12px', color: '#6c757d', fontWeight: 600 }}>GDPR</th>
                 </tr>
               </thead>
               <tbody>
@@ -155,47 +198,10 @@ export default function DemoAnalytics({ stats }: DemoAnalyticsProps) {
                       {formatDate(session.startedAt)}
                     </td>
                     <td style={{ padding: '8px 12px', textAlign: 'right', color: '#495057' }}>
-                      {session.durationMinutes}m
+                      {formatDuration(session.durationSeconds)}
                     </td>
                     <td style={{ padding: '8px 12px', textAlign: 'right', color: '#495057' }}>
                       {session.totalEvents}
-                    </td>
-                    <td style={{ padding: '8px 12px', textAlign: 'right' }}>
-                      {session.email && (
-                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                          <button
-                            onClick={() => handleExport(session.email!)}
-                            aria-label={`Export data for ${session.email}`}
-                            style={{
-                              background: 'transparent',
-                              border: '1px solid #6c757d',
-                              color: '#6c757d',
-                              padding: '3px 10px',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontSize: '0.8em',
-                            }}
-                          >
-                            Export
-                          </button>
-                          <button
-                            onClick={() => handleDelete(session.email!)}
-                            disabled={deletingEmail === session.email}
-                            aria-label={`Delete data for ${session.email}`}
-                            style={{
-                              background: 'transparent',
-                              border: '1px solid #dc3545',
-                              color: deletingEmail === session.email ? '#adb5bd' : '#dc3545',
-                              padding: '3px 10px',
-                              borderRadius: '4px',
-                              cursor: deletingEmail === session.email ? 'not-allowed' : 'pointer',
-                              fontSize: '0.8em',
-                            }}
-                          >
-                            {deletingEmail === session.email ? 'Deleting…' : 'Delete'}
-                          </button>
-                        </div>
-                      )}
                     </td>
                   </tr>
                 ))}

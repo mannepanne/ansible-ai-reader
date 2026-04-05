@@ -21,16 +21,20 @@ vi.mock('@/utils/supabase/server', () => ({
     auth: { getSession: mockGetSession },
     from: () => ({ select: mockSelect }),
   })),
-  createServiceRoleClient: vi.fn(() => ({
-    from: () => ({
-      select: vi.fn(() => ({
-        count: 'exact',
-        head: true,
-        eq: vi.fn(() => Promise.resolve({ count: 0, data: [], error: null })),
-        order: vi.fn(() => ({ limit: vi.fn(() => Promise.resolve({ data: [], error: null })) })),
-      })),
-    }),
-  })),
+  createServiceRoleClient: vi.fn(() => {
+    const resolved = Promise.resolve({ count: 0, data: [], error: null });
+    const chain: Record<string, unknown> = {
+      eq: vi.fn(() => resolved),
+      order: vi.fn(() => chain),
+      limit: vi.fn(() => resolved),
+      then: resolved.then.bind(resolved),
+      catch: resolved.catch.bind(resolved),
+      finally: resolved.finally.bind(resolved),
+    };
+    return {
+      from: () => ({ select: vi.fn(() => chain) }),
+    };
+  }),
 }));
 
 // Mock AdminContent

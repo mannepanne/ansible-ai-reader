@@ -31,6 +31,7 @@ export default async function AdminPage() {
   const [
     landingVisitsResult,
     visitorIdsResult,
+    privacyViewsResult,
     signupsResult,
     navClicksResult,
     emailCapturesResult,
@@ -41,9 +42,10 @@ export default async function AdminPage() {
   ] = await Promise.all([
     db.from('page_events').select('*', { count: 'exact', head: true }).eq('event_type', 'landing_page_view'),
     db.from('page_events').select('visitor_id').eq('event_type', 'landing_page_view'),
+    db.from('page_events').select('*', { count: 'exact', head: true }).eq('event_type', 'privacy_page_view'),
     db.from('page_events').select('*', { count: 'exact', head: true }).eq('event_type', 'demo_signup'),
     db.from('page_events').select('event_data').eq('event_type', 'nav_click'),
-    db.from('email_captures').select('email, source'),
+    db.from('email_captures').select('id, email, source, created_at').order('created_at', { ascending: false }).limit(100),
     db.from('demo_sessions').select('*', { count: 'exact', head: true }),
     db.from('demo_events').select('*', { count: 'exact', head: true }),
     db.from('demo_sessions')
@@ -66,7 +68,7 @@ export default async function AdminPage() {
 
   const sourceCounts: Record<string, number> = {};
   const capturedEmails = new Set<string>();
-  (emailCapturesResult.data ?? []).forEach((e: { email: string; source: string }) => {
+  (emailCapturesResult.data ?? []).forEach((e: { id: string; email: string; source: string; created_at: string }) => {
     sourceCounts[e.source] = (sourceCounts[e.source] ?? 0) + 1;
     capturedEmails.add(e.email);
   });
@@ -74,6 +76,8 @@ export default async function AdminPage() {
   const landingStats: LandingStats = {
     totalVisits: landingVisitsResult.count ?? 0,
     uniqueVisitors,
+    privacyPageViews: privacyViewsResult.count ?? 0,
+    demoSessions: sessionCountResult.count ?? 0,
     totalSignups: signupsResult.count ?? 0,
     navClicks: Object.entries(navClickCounts)
       .map(([label, count]) => ({ label, count }))
@@ -100,24 +104,37 @@ export default async function AdminPage() {
       sessionId: s.session_id,
       email: s.email,
       startedAt: s.started_at,
-      durationMinutes: Math.max(0, Math.round(durationMs / 60000)),
+      durationSeconds: Math.max(0, Math.round(durationMs / 1000)),
       totalEvents: s.total_events,
     };
   });
 
-  const avgDurationMinutes = sessions.length > 0
-    ? Math.round(sessions.reduce((acc: number, s: { durationMinutes: number }) => acc + s.durationMinutes, 0) / sessions.length)
+  const avgDurationSeconds = sessions.length > 0
+    ? Math.round(sessions.reduce((acc: number, s: { durationSeconds: number }) => acc + s.durationSeconds, 0) / sessions.length)
     : 0;
+
+  const emailCaptures = (emailCapturesResult.data ?? []).map((e: {
+    id: string;
+    email: string;
+    source: string;
+    created_at: string;
+  }) => ({
+    id: e.id,
+    email: e.email,
+    source: e.source,
+    createdAt: e.created_at,
+  }));
 
   const demoStats: DemoStats = {
     emailCaptureCount: capturedEmails.size,
     sessionCount: sessionCountResult.count ?? 0,
     totalInteractions: interactionsResult.count ?? 0,
-    avgDurationMinutes,
+    avgDurationSeconds,
     eventTypeBreakdown: Object.entries(eventTypeCounts)
       .map(([eventType, count]) => ({ eventType, count }))
       .sort((a, b) => b.count - a.count),
     sessions,
+    emailCaptures,
   };
 
   return (
