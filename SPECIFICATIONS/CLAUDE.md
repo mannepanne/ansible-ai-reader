@@ -17,10 +17,11 @@ Development followed 5 sequential phases (all complete). Active work is now feat
 
 ### Active Feature Specs
 
-- 🔄 **[11-interest-signals-phase1.md](./11-interest-signals-phase1.md)** - Interest Signals Phase 1: append-only event log of local engagement actions (click-through, note added, ratings)
+_(none)_
 
 ### Completed Feature Specs
 
+- ✅ **[ARCHIVE/features/11-interest-signals-phase1.md](./ARCHIVE/features/11-interest-signals-phase1.md)** - Interest Signals Phase 1: append-only event log of local engagement actions (Apr 2026)
 - ✅ **[ARCHIVE/features/10-landing-page-and-admin.md](./ARCHIVE/features/10-landing-page-and-admin.md)** - Public landing page, interactive demo, privacy page & admin analytics dashboard (Apr 2026)
 - ✅ **[ARCHIVE/features/09-archive-sync.md](./ARCHIVE/features/09-archive-sync.md)** - Archive Sync: mirror Reader archive state to Ansible during sync (Apr 2026)
 - ✅ **[ARCHIVE/features/08-commentariat.md](./ARCHIVE/features/08-commentariat.md)** - Commentariat: intellectual stress-testing of content via Perplexity (Apr 2026)

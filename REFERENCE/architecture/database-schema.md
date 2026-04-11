@@ -173,21 +173,71 @@ CREATE POLICY "Users can manage own sync logs" ON sync_log
   FOR ALL USING (auth.uid() = user_id);
 ```
 
+### item_signals
+Append-only engagement event log. Each user action that signals interest in an item generates a row. Never updated or deleted — full history is preserved.
+
+```sql
+CREATE TABLE item_signals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  item_id UUID NOT NULL REFERENCES reader_items(id) ON DELETE CASCADE,
+  signal_type TEXT NOT NULL CHECK (signal_type IN (
+    'click_through',
+    'note_added',
+    'rated_interesting',
+    'rated_not_interesting'
+  )),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+**Signal types (Phase 1):**
+- `click_through` — User clicked "Open in Reader" (every click recorded, no deduplication)
+- `note_added` — User saved a note for the first time on this item (not on edits)
+- `rated_interesting` — User rated the item 💡 (recorded for every rating change, including toggles)
+- `rated_not_interesting` — User rated the item 🤷 (same)
+
+**Phase 2 signal types** (pending #26 archive sync): `reader_highlights`, `reader_inline_notes`
+
+**Indexes:**
+```sql
+CREATE INDEX item_signals_item_id_idx ON item_signals(item_id);
+CREATE INDEX item_signals_user_id_idx ON item_signals(user_id);
+CREATE INDEX item_signals_signal_type_idx ON item_signals(signal_type);
+CREATE INDEX item_signals_created_at_idx ON item_signals(created_at);
+```
+
+**RLS Policy:**
+```sql
+-- Append-only: users can insert and read own signals, no update or delete
+CREATE POLICY "Users can insert own signals" ON item_signals
+  FOR INSERT TO authenticated WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can read own signals" ON item_signals
+  FOR SELECT TO authenticated USING (user_id = auth.uid());
+```
+
+**Design rationale:** Append-only event log (not current-state). Enables future pattern analysis of `signals × tags` to surface which topics consistently trigger engagement. `reader_items.rating` remains the authoritative current rating state; `item_signals` records the full history.
+
+---
+
 ## Relationships
 
 ```
 users (1) ──── (many) reader_items
 users (1) ──── (many) processing_jobs
 users (1) ──── (many) sync_log
+users (1) ──── (many) item_signals
 
 reader_items (1) ──── (many) processing_jobs
+reader_items (1) ──── (many) item_signals
 
 sync_log (1) ──── (many) processing_jobs
 ```
 
 **Cascade Behavior:**
 - Deleting a user deletes all their data (CASCADE)
-- Deleting a reader_item deletes associated processing_jobs (CASCADE)
+- Deleting a reader_item deletes associated processing_jobs and item_signals (CASCADE)
 - Deleting a sync_log sets processing_jobs.sync_log_id to NULL (SET NULL)
 
 ## Row-Level Security (RLS)
@@ -214,6 +264,7 @@ supabase db push
 - `20260312_add_sync_log_id.sql` - Add sync_log_id to processing_jobs for sync tracking
 - `20260324_add_auto_sync_settings.sql` - Add sync_interval, last_auto_sync_at to users
 - `20260401_add_regenerate_batch_id.sql` - Add regenerate_batch_id to processing_jobs for tag regeneration tracking
+- `20260411_add_item_signals.sql` - Add item_signals engagement event log table
 
 ## Query Patterns
 

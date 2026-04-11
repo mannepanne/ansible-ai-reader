@@ -96,6 +96,16 @@ ADD COLUMN document_note TEXT;
 
 **Migration:** `20260319_add_document_note.sql`
 
+### Interest Signal Side-Effect
+
+When a note is saved, the endpoint checks whether this is the **first** note on the item (previous `document_note` was null or whitespace-only). If so, it writes a `note_added` signal to the `item_signals` engagement log.
+
+Subsequent edits to an existing note do **not** generate a new signal — only the transition from no-note to having-a-note counts.
+
+Signal writes are fire-and-forget: a failed signal insert never causes the note save to fail. See [interest-signals.md](./interest-signals.md) for full context.
+
+---
+
 ## Error Handling
 
 ### Partial Success (502)

@@ -612,7 +612,7 @@ describe('POST /api/reader/note', () => {
       expect(signalInsertMock).not.toHaveBeenCalled();
     });
 
-    it('does not insert signal when previous note was whitespace-only', async () => {
+    it('inserts signal when previous note was whitespace-only (treated as empty)', async () => {
       mockWithNote('   ');
 
       const request = new NextRequest('http://localhost:3000/api/reader/note', {

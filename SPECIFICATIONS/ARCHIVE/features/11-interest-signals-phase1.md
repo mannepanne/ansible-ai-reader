@@ -1,6 +1,6 @@
 # Feature: Interest Signals — Phase 1 (Local Actions)
 
-**Status**: Spec — Ready for Implementation
+**Status**: Implemented — Merged PR #94
 **Last Updated**: 2026-04-11
 **Dependencies**: Phase 5 ✅ (Notes & Rating), Phase 3 ✅ (Reader Integration)
 **Related Issue**: [#58](https://github.com/mannepanne/ansible-ai-reader/issues/58)
