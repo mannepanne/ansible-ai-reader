@@ -412,4 +412,103 @@ describe('POST /api/reader/rating', () => {
       expect(data).toEqual({ success: true });
     });
   });
+
+  describe('Signal Recording', () => {
+    const ITEM_ID = '123e4567-e89b-12d3-a456-426614174000';
+
+    function mockTableAware(insertMock: ReturnType<typeof vi.fn>) {
+      mockSupabase.from = vi.fn((table: string) => {
+        if (table === 'item_signals') {
+          return { insert: insertMock };
+        }
+        return {
+          update: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                select: vi.fn(() =>
+                  Promise.resolve({
+                    data: [{ id: ITEM_ID, rating: 4 }],
+                    error: null,
+                  })
+                ),
+              })),
+            })),
+          })),
+        };
+      });
+    }
+
+    beforeEach(() => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user-123', email: 'test@example.com' } },
+        error: null,
+      });
+    });
+
+    it('records rated_interesting signal when rating is 4', async () => {
+      const insertMock = vi.fn().mockResolvedValue({ error: null });
+      mockTableAware(insertMock);
+
+      request = new Request('http://localhost/api/reader/rating', {
+        method: 'POST',
+        body: JSON.stringify({ itemId: ITEM_ID, rating: 4 }),
+      });
+
+      await POST(request);
+
+      expect(insertMock).toHaveBeenCalledWith({
+        user_id: 'user-123',
+        item_id: ITEM_ID,
+        signal_type: 'rated_interesting',
+      });
+    });
+
+    it('records rated_not_interesting signal when rating is 1', async () => {
+      const insertMock = vi.fn().mockResolvedValue({ error: null });
+      mockTableAware(insertMock);
+
+      request = new Request('http://localhost/api/reader/rating', {
+        method: 'POST',
+        body: JSON.stringify({ itemId: ITEM_ID, rating: 1 }),
+      });
+
+      await POST(request);
+
+      expect(insertMock).toHaveBeenCalledWith({
+        user_id: 'user-123',
+        item_id: ITEM_ID,
+        signal_type: 'rated_not_interesting',
+      });
+    });
+
+    it('does not record signal when rating is null (unrate)', async () => {
+      const insertMock = vi.fn().mockResolvedValue({ error: null });
+      mockTableAware(insertMock);
+
+      request = new Request('http://localhost/api/reader/rating', {
+        method: 'POST',
+        body: JSON.stringify({ itemId: ITEM_ID, rating: null }),
+      });
+
+      await POST(request);
+
+      expect(insertMock).not.toHaveBeenCalled();
+    });
+
+    it('still returns success even when signal insert fails', async () => {
+      const insertMock = vi.fn().mockResolvedValue({ error: { message: 'DB error' } });
+      mockTableAware(insertMock);
+
+      request = new Request('http://localhost/api/reader/rating', {
+        method: 'POST',
+        body: JSON.stringify({ itemId: ITEM_ID, rating: 4 }),
+      });
+
+      const response = await POST(request);
+      expect(response.status).toBe(200);
+
+      const data = (await response.json()) as { success: boolean };
+      expect(data).toEqual({ success: true });
+    });
+  });
 });

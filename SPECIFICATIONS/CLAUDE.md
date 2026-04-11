@@ -17,7 +17,7 @@ Development followed 5 sequential phases (all complete). Active work is now feat
 
 ### Active Feature Specs
 
-_(none)_
+- 🔄 **[11-interest-signals-phase1.md](./11-interest-signals-phase1.md)** - Interest Signals Phase 1: append-only event log of local engagement actions (click-through, note added, ratings)
 
 ### Completed Feature Specs
 

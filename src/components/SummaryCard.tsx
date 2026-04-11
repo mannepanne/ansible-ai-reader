@@ -25,6 +25,7 @@ interface SummaryCardProps {
   onSaveRating: (id: string, rating: number | null) => Promise<void>;
   onRegenerateSummary: (id: string) => Promise<void>;
   onGenerateCommentariat: (id: string) => Promise<void>;
+  onClickThrough?: (id: string) => void;
 }
 
 const TRUNCATE_THRESHOLD = 200;
@@ -47,6 +48,7 @@ export default function SummaryCard({
   onSaveRating,
   onRegenerateSummary,
   onGenerateCommentariat,
+  onClickThrough,
 }: SummaryCardProps) {
   // Tab state
   const [activeTab, setActiveTab] = useState<'summary' | 'commentariat'>('summary');
@@ -790,6 +792,7 @@ export default function SummaryCard({
           href={url}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => onClickThrough?.(id)}
           style={{
             flex: 1,
             background: '#007bff',

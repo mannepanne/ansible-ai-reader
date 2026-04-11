@@ -500,6 +500,17 @@ export default function SummariesContent({ userEmail, isAdmin = false }: Summari
     }
   }
 
+  function handleClickThrough(itemId: string) {
+    // Fire-and-forget signal capture — never blocks or awaits
+    fetch('/api/reader/signal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemId }),
+    }).catch((err) => {
+      console.error('[Signal] Failed to record click_through:', err);
+    });
+  }
+
   async function handleRegenerateSummary(itemId: string) {
     const response = await fetch('/api/reader/regenerate-summary', {
       method: 'POST',
@@ -892,6 +903,7 @@ export default function SummariesContent({ userEmail, isAdmin = false }: Summari
                 onSaveRating={handleSaveRating}
                 onRegenerateSummary={handleRegenerateSummary}
                 onGenerateCommentariat={handleGenerateCommentariat}
+                onClickThrough={handleClickThrough}
               />
             ))}
           </div>
