@@ -78,10 +78,10 @@ export async function POST(request: NextRequest) {
 
     const { itemId, note } = validated.data;
 
-    // 3. Verify item belongs to user
+    // 3. Verify item belongs to user; also fetch document_note to detect first-note signal
     const { data: item, error: itemError } = await supabase
       .from('reader_items')
-      .select('id, reader_id')
+      .select('id, reader_id, document_note')
       .eq('id', itemId)
       .eq('user_id', user.id)
       .single();
@@ -108,7 +108,24 @@ export async function POST(request: NextRequest) {
 
     console.log('[Note] Note saved successfully for item:', itemId);
 
-    // 5. Sync to Reader API using shared client (inline sync for immediate feedback)
+    // 5. Record note_added signal on first note creation — fire-and-forget, never blocks response
+    const isFirstNote = !item.document_note || item.document_note.trim() === '';
+    if (isFirstNote) {
+      try {
+        const { error: signalError } = await supabase.from('item_signals').insert({
+          user_id: user.id,
+          item_id: itemId,
+          signal_type: 'note_added',
+        });
+        if (signalError) {
+          console.error('[Note] Failed to record note_added signal:', signalError);
+        }
+      } catch (signalError) {
+        console.error('[Note] Unexpected signal error:', signalError);
+      }
+    }
+
+    // 6. Sync to Reader API using shared client (inline sync for immediate feedback)
     const readerToken = process.env.READER_API_TOKEN;
     if (!readerToken) {
       console.error('[Note] Reader API token not configured');
@@ -150,7 +167,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 6. Return success
+    // 7. Return success
     return NextResponse.json({
       success: true,
       note: note,

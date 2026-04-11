@@ -75,6 +75,23 @@ export async function POST(request: Request) {
 
     console.log(`[Rating] Updated rating for item ${itemId}: ${rating}`);
 
+    // Record engagement signal — fire-and-forget, never blocks the rating response
+    if (rating !== null) {
+      try {
+        const signalType = rating === 4 ? 'rated_interesting' : 'rated_not_interesting';
+        const { error: signalError } = await supabase.from('item_signals').insert({
+          user_id: user.id,
+          item_id: itemId,
+          signal_type: signalType,
+        });
+        if (signalError) {
+          console.error('[Rating] Failed to record signal:', signalError);
+        }
+      } catch (signalError) {
+        console.error('[Rating] Unexpected signal error:', signalError);
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[Rating] Unexpected error:', error);

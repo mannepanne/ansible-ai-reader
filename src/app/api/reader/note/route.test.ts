@@ -543,4 +543,104 @@ describe('POST /api/reader/note', () => {
 
     vi.useRealTimers();
   });
+
+  describe('Signal Recording', () => {
+    function mockWithNote(existingNote: string | null) {
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'reader_items') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: { id: validItemId, reader_id: 'reader-123', document_note: existingNote },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+            update: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockResolvedValue({ error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'item_signals') {
+          return { insert: signalInsertMock };
+        }
+      });
+    }
+
+    let signalInsertMock: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      signalInsertMock = vi.fn().mockResolvedValue({ error: null });
+
+      mockGetUser.mockResolvedValue({ data: { user: mockUser } });
+
+      mockFetch.mockResolvedValue({ ok: true, status: 200 });
+    });
+
+    it('inserts note_added signal when saving first note', async () => {
+      mockWithNote(null);
+
+      const request = new NextRequest('http://localhost:3000/api/reader/note', {
+        method: 'POST',
+        body: JSON.stringify({ itemId: validItemId, note: 'My first note' }),
+      });
+
+      await POST(request);
+
+      expect(signalInsertMock).toHaveBeenCalledWith({
+        user_id: mockUser.id,
+        item_id: validItemId,
+        signal_type: 'note_added',
+      });
+    });
+
+    it('does not insert signal when editing an existing note', async () => {
+      mockWithNote('Previous note content');
+
+      const request = new NextRequest('http://localhost:3000/api/reader/note', {
+        method: 'POST',
+        body: JSON.stringify({ itemId: validItemId, note: 'Updated note content' }),
+      });
+
+      await POST(request);
+
+      expect(signalInsertMock).not.toHaveBeenCalled();
+    });
+
+    it('inserts signal when previous note was whitespace-only (treated as empty)', async () => {
+      mockWithNote('   ');
+
+      const request = new NextRequest('http://localhost:3000/api/reader/note', {
+        method: 'POST',
+        body: JSON.stringify({ itemId: validItemId, note: 'Now a real note' }),
+      });
+
+      await POST(request);
+
+      expect(signalInsertMock).toHaveBeenCalledWith(
+        expect.objectContaining({ signal_type: 'note_added' })
+      );
+    });
+
+    it('still saves note successfully even when signal insert fails', async () => {
+      signalInsertMock = vi.fn().mockResolvedValue({ error: { message: 'DB error' } });
+      mockWithNote(null);
+
+      const request = new NextRequest('http://localhost:3000/api/reader/note', {
+        method: 'POST',
+        body: JSON.stringify({ itemId: validItemId, note: 'A note' }),
+      });
+
+      const response = await POST(request);
+      expect(response.status).toBe(200);
+
+      const data = (await response.json()) as any;
+      expect(data.success).toBe(true);
+    });
+  });
 });

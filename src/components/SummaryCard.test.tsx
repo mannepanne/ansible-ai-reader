@@ -209,6 +209,23 @@ describe('SummaryCard', () => {
     expect(readerLink).toHaveAttribute('target', '_blank');
   });
 
+  it('calls onClickThrough when Open in Reader is clicked', () => {
+    const mockOnClickThrough = vi.fn();
+    render(<SummaryCard {...defaultProps} onClickThrough={mockOnClickThrough} />);
+
+    const readerLink = screen.getByRole('link', { name: /open in reader/i });
+    fireEvent.click(readerLink);
+
+    expect(mockOnClickThrough).toHaveBeenCalledWith('item-1');
+  });
+
+  it('does not throw when onClickThrough is not provided', () => {
+    render(<SummaryCard {...defaultProps} />);
+
+    const readerLink = screen.getByRole('link', { name: /open in reader/i });
+    expect(() => fireEvent.click(readerLink)).not.toThrow();
+  });
+
   it('applies different colors to tags', () => {
     const { container } = render(
       <SummaryCard

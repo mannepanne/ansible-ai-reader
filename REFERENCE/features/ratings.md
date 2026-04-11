@@ -174,6 +174,17 @@ const handleRatingClick = async (targetRating: number) => {
 - RLS policies ensure users can only access their own items
 - Double-checking user_id in query provides defense-in-depth
 
+### Interest Signal Side-Effect
+
+After a successful rating update, the endpoint also writes to the `item_signals` engagement log:
+- `rating=4` → inserts `rated_interesting` signal
+- `rating=1` → inserts `rated_not_interesting` signal
+- `rating=null` (unrate) → no signal recorded
+
+Every rating change is recorded, including toggles — the full history is preserved. This is intentional: flip-flopping on a rating is itself meaningful engagement data.
+
+Signal writes are fire-and-forget: a failed signal insert never causes the rating update to fail. See [interest-signals.md](./interest-signals.md) for full context.
+
 ## Why Binary (Not 5-Point Scale)?
 
 **Simplicity wins:**
