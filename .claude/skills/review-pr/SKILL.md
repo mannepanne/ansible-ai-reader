@@ -30,11 +30,10 @@ Spawn a **`general-purpose`** agent with this task (the `code-reviewer` custom a
 
 **Context gathering:** Run `gh pr view $ARGUMENTS` and `gh pr diff $ARGUMENTS`. Read `CLAUDE.md` in the repo root. Read any changed files in full where needed.
 
-**Review dimensions:** Functionality (bugs, edge cases), Code quality (readability, naming), Security (vulnerabilities, auth), Testing (coverage adequate?), Documentation (REFERENCE/ updated?), Conventions (ABOUT comments, project patterns).
+**Review dimensions:** Functionality (bugs, edge cases), Code quality (readability, naming), Security (vulnerabilities, auth), Testing (coverage adequate?), Conventions (ABOUT comments, project patterns).
 
 **Completion requirements (MANDATORY):**
 - [ ] Tests exist and pass (95%+ coverage)
-- [ ] Documentation updated (check REFERENCE/ for implementation work)
 - [ ] Code quality verified (conventions, no secrets, clean history)
 Flag any missing requirement as 🔴 Critical Issue blocking merge.
 
@@ -51,18 +50,28 @@ Wait for the review to complete.
 
 ---
 
-### Step 2: Post Results
+### Step 2: Spawn Documentation Reviewer Agent
 
-After the review is complete:
+After the code review completes, spawn a **`technical-writer`** subagent for a documentation pass:
 
-Post the review as a comment on the PR using:
+**Task:** "Conduct a documentation review of PR #$ARGUMENTS. Run `gh pr view $ARGUMENTS` and `gh pr diff $ARGUMENTS` to see what changed. Check whether REFERENCE/ docs were updated, CLAUDE.md is current, new files have ABOUT comments, and no temporal language was introduced. Post nothing — return findings only."
+
+Wait for the documentation review to complete.
+
+---
+
+### Step 3: Post Combined Results
+
+After both reviews are complete, combine their findings and post as a single comment on the PR:
 
 ```bash
-gh pr comment $ARGUMENTS --body "[markdown content from review]"
+gh pr comment $ARGUMENTS --body "[combined markdown from both reviews]"
 ```
 
+Structure the combined comment with code review findings first, documentation findings second. If the documentation reviewer found no issues, a brief "✅ Documentation: No issues found" is sufficient.
+
 Provide user summary:
-- Total issues found (critical vs suggestions)
+- Total issues found (critical vs suggestions), split by code vs documentation
 - Clear recommendation (approve/request changes)
 - Key action items
 - Link to PR comment

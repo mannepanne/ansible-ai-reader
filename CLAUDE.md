@@ -128,14 +128,15 @@ Documentation is organized by **function** (what you're trying to do), not build
 ### Implementation Steps
 
 1. **Create feature branch** (see Step 0 above - ALREADY DONE)
-2. **Check specifications:** Review `SPECIFICATIONS/` for relevant specs
-3. **Implement with tests:** `npm test && npx tsc --noEmit`
-4. **Create PR for review:**
-   - **`/review-pr`** - Fast single-reviewer (regular PRs, 1-2 min)
-   - **`/review-pr-team`** - Multi-perspective agent team (critical changes, 5-10 min)
+2. **Write or review spec:** Active specs live in `SPECIFICATIONS/`
+3. **Run spec review:** `/review-spec <spec-file>` — requirements auditor, technical skeptic, and devil's advocate challenge the spec before any code is written. Address blocking issues before proceeding.
+4. **Implement with tests:** `npm test && npx tsc --noEmit`
+5. **Create PR for review:**
+   - **`/review-pr`** - Fast single-reviewer + documentation check (regular PRs, 1-2 min)
+   - **`/review-pr-team`** - Multi-perspective agent team incl. technical writer (critical changes, 5-10 min)
    - **See:** [REFERENCE/development/pr-review-workflow.md](./REFERENCE/development/pr-review-workflow.md)
-5. **Wait for approval:** Do not merge until PR is reviewed and approved
-6. **Merge only after approval:** Once approved, merge to main (auto-deploys via CI/CD)
+6. **Wait for approval:** Do not merge until PR is reviewed and approved
+7. **Merge only after approval:** Once approved, merge to main (auto-deploys via CI/CD)
 
 **Why this matters:**
 - CI/CD automatically deploys from main to production
