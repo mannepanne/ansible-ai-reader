@@ -87,6 +87,8 @@ https://github.com/mannepanne/ansible-ai-reader/settings/secrets/actions
 
 **Note:** All secrets except `CLOUDFLARE_API_TOKEN` should match the values in your local `.dev.vars` file.
 
+**Build-time `NEXT_PUBLIC_*` vars also require GitHub Actions secrets** so the CI build can bake them into the client bundle. This includes `NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY` (contact form) and `NEXT_PUBLIC_CF_ANALYTICS_TOKEN` (Cloudflare Web Analytics beacon). See [environment-setup.md](./environment-setup.md) for the full dual-registration pattern and silent-failure modes when the GHA secret is missing.
+
 ### Setting Up GitHub Secrets
 
 1. Go to repository Settings → Secrets and variables → Actions
