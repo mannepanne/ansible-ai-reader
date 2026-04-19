@@ -23,9 +23,15 @@ vi.mock('next/script', () => ({
 import { render } from '@testing-library/react';
 import RootLayout, { metadata } from './layout';
 
+// Test fixture — the literal value is irrelevant; assertions read the stubbed
+// env var back so tests stay valid if the real production token is ever rotated.
+// vi.stubEnv runs in beforeEach (after module import) — safe here because layout.tsx
+// reads process.env inside the component body, not at module top level.
+const TEST_CF_ANALYTICS_TOKEN = 'test-cf-analytics-token';
+
 describe('RootLayout', () => {
   beforeEach(() => {
-    vi.stubEnv('NEXT_PUBLIC_CF_ANALYTICS_TOKEN', '352ed335bdae446cbc1c9ac0bebc2716');
+    vi.stubEnv('NEXT_PUBLIC_CF_ANALYTICS_TOKEN', TEST_CF_ANALYTICS_TOKEN);
   });
 
   afterEach(() => {
@@ -83,7 +89,7 @@ describe('Metadata', () => {
 
 describe('Cloudflare Web Analytics beacon', () => {
   beforeEach(() => {
-    vi.stubEnv('NEXT_PUBLIC_CF_ANALYTICS_TOKEN', '352ed335bdae446cbc1c9ac0bebc2716');
+    vi.stubEnv('NEXT_PUBLIC_CF_ANALYTICS_TOKEN', TEST_CF_ANALYTICS_TOKEN);
   });
 
   afterEach(() => {
@@ -116,7 +122,7 @@ describe('Cloudflare Web Analytics beacon', () => {
     const beaconConfig = beacon?.getAttribute('data-cf-beacon');
     expect(beaconConfig).toBeTruthy();
     const parsed = JSON.parse(beaconConfig as string);
-    expect(parsed.token).toBe('352ed335bdae446cbc1c9ac0bebc2716');
+    expect(parsed.token).toBe(process.env.NEXT_PUBLIC_CF_ANALYTICS_TOKEN);
   });
 
   it('uses afterInteractive strategy so it does not block rendering', () => {

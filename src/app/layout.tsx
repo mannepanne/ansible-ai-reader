@@ -32,6 +32,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Empty string fallback is the CI-build-without-secret case: beacon ships
+  // inert (Cloudflare rejects unknown tokens without affecting page load).
   const cfAnalyticsToken = process.env.NEXT_PUBLIC_CF_ANALYTICS_TOKEN ?? '';
 
   return (

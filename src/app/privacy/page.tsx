@@ -89,6 +89,10 @@ export default function PrivacyPage() {
               information unless you separately provide your email to access the demo. It is used
               solely for aggregate analytics (e.g. &ldquo;how many unique visitors this week&rdquo;).
             </p>
+            <p className="mt-3">
+              Separately, we also use Cloudflare Web Analytics to measure aggregate page traffic
+              and site performance. See &ldquo;Cookies and tracking&rdquo; below for details.
+            </p>
 
             <h3 className="font-semibold text-base text-foreground mt-6 mb-2">
               Demo engagement data
