@@ -38,7 +38,9 @@ binding = "PROCESSING_QUEUE"
 #   - CLOUDFLARE_TURNSTILE_SECRET_KEY (contact form CAPTCHA server-side verification)
 #   - RESEND_FROM_EMAIL (contact form sender address — verified Resend domain)
 #   - CONTACT_EMAIL (contact form recipient — never exposed to client)
+#   - NEXT_PUBLIC_CF_ANALYTICS_TOKEN (Cloudflare Web Analytics public site token — also required at build time in CI)
 #
 # Note: CRON_SECRET is also required in the cron worker (wrangler-cron.toml)
 # Note: NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY must also be in the CI build step env (baked at build time)
+# Note: NEXT_PUBLIC_CF_ANALYTICS_TOKEN must also be in the CI build step env (baked at build time)
 # See REFERENCE/operations/environment-setup.md for values and configuration details.

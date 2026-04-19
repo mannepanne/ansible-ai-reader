@@ -1,8 +1,9 @@
 // ABOUT: Root layout component for Ansible AI Reader
-// ABOUT: Defines HTML structure, global styles, and font variables for public pages
+// ABOUT: Defines HTML structure, global styles, and the Cloudflare Web Analytics beacon
 
 import type { Metadata } from 'next';
 import { DM_Sans, Newsreader } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 
 const dmSans = DM_Sans({
@@ -31,14 +32,16 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cfAnalyticsToken = process.env.NEXT_PUBLIC_CF_ANALYTICS_TOKEN ?? '';
+
   return (
     <html lang="en" className={`${dmSans.variable} ${newsreader.variable}`}>
       <body>
         {children}
-        <script
-          defer
+        <Script
+          strategy="afterInteractive"
           src="https://static.cloudflareinsights.com/beacon.min.js"
-          data-cf-beacon='{"token": "352ed335bdae446cbc1c9ac0bebc2716"}'
+          data-cf-beacon={JSON.stringify({ token: cfAnalyticsToken })}
         />
       </body>
     </html>

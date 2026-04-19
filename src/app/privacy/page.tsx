@@ -36,7 +36,7 @@ export default function PrivacyPage() {
         <h1 className="font-serif text-3xl sm:text-4xl font-medium mb-2">
           Privacy Policy
         </h1>
-        <p className="text-sm text-muted-foreground mb-12">Last updated: 5 April 2026</p>
+        <p className="text-sm text-muted-foreground mb-12">Last updated: 19 April 2026</p>
 
         <div className="prose prose-neutral max-w-none space-y-8 text-[15px] leading-relaxed text-foreground/85">
           <section>
@@ -162,10 +162,17 @@ export default function PrivacyPage() {
             </h2>
             <p>
               We do not use cookies. We use your browser&apos;s local storage to store a randomly
-              generated visitor identifier and session timing data. This data stays on your device
-              and is never sent to third parties. You can clear it at any time by clearing your
-              browser&apos;s local storage or site data. We do not use any third-party analytics
-              services.
+              generated visitor identifier and session timing data. This local storage data stays on
+              your device and is never sent to third parties. You can clear it at any time by
+              clearing your browser&apos;s local storage or site data.
+            </p>
+            <p className="mt-3">
+              We use Cloudflare Web Analytics to measure aggregate page traffic and site
+              performance. It is cookieless and does not fingerprint visitors — it aggregates
+              anonymous signals (URL path, referrer, approximate country, and device type) sent by
+              your browser when it loads a page. No individual visitor can be identified from this
+              data, and it is not combined with your email address or any information you provide
+              elsewhere on the site.
             </p>
           </section>
 

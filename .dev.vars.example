@@ -24,3 +24,7 @@ CLOUDFLARE_TURNSTILE_SECRET_KEY=your-turnstile-secret-key-here
 # RESEND_FROM_EMAIL must be a verified sender in your Resend account
 RESEND_FROM_EMAIL=your-verified-sender@example.com
 CONTACT_EMAIL=your-recipient-email@example.com
+
+# Cloudflare Web Analytics (public site token, cookieless pageview + CWV beacon)
+# Get one at: https://dash.cloudflare.com → Analytics & Logs → Web Analytics → Add a site
+NEXT_PUBLIC_CF_ANALYTICS_TOKEN=your-cloudflare-web-analytics-token-here

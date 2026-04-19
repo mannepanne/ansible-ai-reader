@@ -1,7 +1,7 @@
 // ABOUT: Tests for root layout component
-// ABOUT: Verifies children rendering and metadata exports
+// ABOUT: Verifies children rendering, metadata exports, and Cloudflare Web Analytics beacon
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // next/font/google cannot run in a Node test environment — mock it to return
 // CSS-variable-based font objects that match the expected shape.
@@ -9,10 +9,29 @@ vi.mock('next/font/google', () => ({
   DM_Sans: vi.fn(() => ({ variable: '--font-sans', className: 'dm-sans' })),
   Newsreader: vi.fn(() => ({ variable: '--font-serif', className: 'newsreader' })),
 }));
+
+// next/script does not render synchronously in jsdom (it queues via Next's client
+// loader). Replace with a pass-through <script> so assertions can inspect the
+// rendered DOM for the beacon src, token, and strategy attribute.
+vi.mock('next/script', () => ({
+  default: (props: Record<string, unknown>) => {
+    const { strategy, ...rest } = props;
+    return <script data-test-strategy={strategy as string} {...rest} />;
+  },
+}));
+
 import { render } from '@testing-library/react';
 import RootLayout, { metadata } from './layout';
 
 describe('RootLayout', () => {
+  beforeEach(() => {
+    vi.stubEnv('NEXT_PUBLIC_CF_ANALYTICS_TOKEN', '352ed335bdae446cbc1c9ac0bebc2716');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('renders children correctly', () => {
     const { getByTestId } = render(
       <RootLayout>
@@ -63,6 +82,14 @@ describe('Metadata', () => {
 });
 
 describe('Cloudflare Web Analytics beacon', () => {
+  beforeEach(() => {
+    vi.stubEnv('NEXT_PUBLIC_CF_ANALYTICS_TOKEN', '352ed335bdae446cbc1c9ac0bebc2716');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('injects the Cloudflare beacon script', () => {
     const { container } = render(
       <RootLayout>
@@ -76,7 +103,7 @@ describe('Cloudflare Web Analytics beacon', () => {
     expect(beacon).not.toBeNull();
   });
 
-  it('configures the beacon with the Ansible site token', () => {
+  it('configures the beacon with the token from NEXT_PUBLIC_CF_ANALYTICS_TOKEN', () => {
     const { container } = render(
       <RootLayout>
         <div>content</div>
@@ -92,7 +119,7 @@ describe('Cloudflare Web Analytics beacon', () => {
     expect(parsed.token).toBe('352ed335bdae446cbc1c9ac0bebc2716');
   });
 
-  it('loads the beacon with defer so it does not block rendering', () => {
+  it('uses afterInteractive strategy so it does not block rendering', () => {
     const { container } = render(
       <RootLayout>
         <div>content</div>
@@ -102,6 +129,22 @@ describe('Cloudflare Web Analytics beacon', () => {
     const beacon = container.querySelector<HTMLScriptElement>(
       'script[src="https://static.cloudflareinsights.com/beacon.min.js"]'
     );
-    expect(beacon?.hasAttribute('defer')).toBe(true);
+    expect(beacon?.getAttribute('data-test-strategy')).toBe('afterInteractive');
+  });
+
+  it('ships beacon with empty token when env var is unset (CI build without secret)', () => {
+    vi.stubEnv('NEXT_PUBLIC_CF_ANALYTICS_TOKEN', '');
+
+    const { container } = render(
+      <RootLayout>
+        <div>content</div>
+      </RootLayout>
+    );
+
+    const beacon = container.querySelector<HTMLScriptElement>(
+      'script[src="https://static.cloudflareinsights.com/beacon.min.js"]'
+    );
+    const parsed = JSON.parse(beacon?.getAttribute('data-cf-beacon') as string);
+    expect(parsed.token).toBe('');
   });
 });

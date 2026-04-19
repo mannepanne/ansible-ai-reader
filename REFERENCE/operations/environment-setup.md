@@ -141,6 +141,31 @@ npx wrangler secret put CONTACT_EMAIL
 # Enter: your-email@example.com
 ```
 
+### Analytics Variables
+
+#### NEXT_PUBLIC_CF_ANALYTICS_TOKEN
+Cloudflare Web Analytics public site token. The beacon (`src/app/layout.tsx`) uses it to attribute pageviews and Core Web Vitals to the correct site in the Cloudflare dashboard. Public by design — safe to ship in the client bundle.
+
+**Where to find:** Cloudflare Dashboard → Analytics & Logs → Web Analytics → your site → site token (hex string).
+
+**⚠️ Build-time var — requires TWO registrations:**
+`NEXT_PUBLIC_` variables are baked into the client bundle by Next.js at build time, so this must be set in two places:
+
+1. **Cloudflare Worker secret** (for `wrangler dev` / runtime):
+   ```bash
+   npx wrangler secret put NEXT_PUBLIC_CF_ANALYTICS_TOKEN
+   ```
+
+2. **GitHub Actions secret** (so the CI build step can bake it into the bundle):
+   GitHub repo → Settings → Secrets and variables → Actions → New repository secret
+   Name: `NEXT_PUBLIC_CF_ANALYTICS_TOKEN`
+
+Without the GitHub secret, the production build will ship with an empty token and the beacon will silently skip reporting (no error — just no data in the dashboard).
+
+For local dev, any placeholder string is acceptable — CF will reject unknown tokens server-side without breaking the app.
+
+**Required for:** Main app only
+
 ### Integration Variables
 
 #### READER_API_TOKEN

@@ -20,8 +20,9 @@ Automated PR review skills and workflow using agent teams.
 
 ## Skills Available
 
-- **`/review-pr`** - Fast single-reviewer (1-2 min)
-- **`/review-pr-team`** - Collaborative multi-perspective (5-10 min)
+- **`/review-spec`** - Pre-implementation spec review by a challenger team (requirements auditor, technical skeptic, devil's advocate) — runs *before* any code is written
+- **`/review-pr`** - Fast full-stack reviewer + documentation check on a PR (2-3 min)
+- **`/review-pr-team`** - Collaborative multi-perspective PR review with four specialists (5-10 min)
 
 ---
 
@@ -33,6 +34,15 @@ This project uses automated PR review skills powered by agent teams. Reviews use
 
 ## Quick Reference
 
+### Use `/review-spec` for:
+✅ Validating a feature spec before any code is written
+✅ Surfacing missing edge cases, unstated assumptions, or unclear user flows
+✅ Challenging the "why" and "is there a simpler way" framing
+✅ Avoiding sunk-cost fights with an implementation built on a shaky spec
+
+**Time:** 3-5 minutes
+**Reviewers:** Requirements auditor, technical skeptic, devil's advocate
+
 ### Use `/review-pr` for:
 ✅ Regular implementation PRs
 ✅ Quick sanity checks
@@ -41,8 +51,8 @@ This project uses automated PR review skills powered by agent teams. Reviews use
 ✅ Documentation updates
 ✅ When you want fast feedback
 
-**Time:** 1-2 minutes
-**Reviewer:** Single full-stack developer with fresh context
+**Time:** 2-3 minutes
+**Reviewers:** Full-stack code reviewer + technical writer (documentation completeness pass)
 
 ### Use `/review-pr-team` for:
 ✅ Critical infrastructure changes
@@ -53,19 +63,47 @@ This project uses automated PR review skills powered by agent teams. Reviews use
 ✅ When you want thorough collaborative analysis
 
 **Time:** 5-10 minutes
-**Reviewers:** Security Specialist, Product Manager, Senior Architect (agent team with collaborative discussion)
+**Reviewers:** Security Specialist, Product Manager, Senior Architect, Technical Writer (agent team of four with collaborative discussion)
+
+---
+
+## How `/review-spec` Works
+
+**Pre-implementation challenger team:**
+1. Takes a spec file (or a section of `SPECIFICATIONS/`) as input
+2. Spawns three challenger agents who each attack the spec from a different angle
+3. Agents debate and challenge each other's findings to surface blind spots
+4. Posts findings back so the spec can be revised before code is written
+
+**The three challengers:**
+
+**Requirements Auditor** 📋
+- Completeness — missing edge cases, error states, undefined behaviour
+- Unclear user flows, unstated assumptions
+- Acceptance criteria that cannot be objectively verified
+
+**Technical Skeptic** 🧪
+- Buildability — DB implications, blast radius on existing features
+- Hidden complexity, integration risks, security surface area
+- Things that look simple in the spec but aren't in this codebase
+
+**Devil's Advocate** 😈
+- Challenges the "why" — is this the right solution at all?
+- Simpler alternatives, cheaper framings
+- Baked-in assumptions that could be wrong
+
+**When to use:** any time a new feature spec is being prepared. Much cheaper to rework a spec than to rework code built from a weak spec.
 
 ---
 
 ## How `/review-pr` Works
 
-**Fresh context approach:**
-1. Spawns independent subagent (not main session)
-2. Agent loads project context (CLAUDE.md, relevant specs)
-3. Reviews PR comprehensively across all dimensions
-4. Posts findings as PR comment
+**Two-stage fresh-context review:**
+1. Stage 1 — spawns a full-stack code reviewer (not main session) who loads project context and reviews the PR across all dimensions
+2. Stage 2 — spawns a technical writer who checks documentation completeness (REFERENCE/ updates, CLAUDE.md currency, ABOUT comments, no temporal language)
+3. Both post findings as PR comments
 
-**Review dimensions:**
+**Review dimensions (code reviewer):**
 - Code quality (readability, naming, error handling)
 - Functionality (bugs, edge cases, correctness)
 - Security (vulnerabilities, secrets management)
@@ -74,6 +112,13 @@ This project uses automated PR review skills powered by agent teams. Reviews use
 - Testing (coverage, quality of tests)
 - TypeScript/types (type safety, proper usage)
 - Best practices (conventions, no deprecated patterns)
+
+**Review dimensions (technical writer):**
+- REFERENCE/ docs updated for the change
+- CLAUDE.md current (test counts, feature status)
+- ABOUT comments present on new files
+- No temporal language ("new", "improved", "recently added")
+- New features documented
 
 **Output format:**
 - ✅ **Well Done** - What's good
@@ -86,12 +131,12 @@ This project uses automated PR review skills powered by agent teams. Reviews use
 ## How `/review-pr-team` Works
 
 **Agent team collaboration:**
-1. Creates agent team with 3 specialized reviewers
+1. Creates agent team with 4 specialized reviewers
 2. **Phase 1: Independent Review** - Each reviews from their perspective
 3. **Phase 2: Collaborative Discussion** - Reviewers debate, challenge, reach consensus
 4. Posts synthesized findings with discussion highlights
 
-**The three reviewers:**
+**The four reviewers:**
 
 **Security Specialist** 🛡️
 - Authentication, authorization, secrets
@@ -108,11 +153,17 @@ This project uses automated PR review skills powered by agent teams. Reviews use
 - Scalability, maintainability, testing
 - Technical debt, performance, architectural fit
 
+**Technical Writer** ✍️
+- REFERENCE/ docs updated for the change
+- CLAUDE.md current, ABOUT comments present
+- No temporal language, new features documented
+- Cross-references and links stay accurate
+
 **Key difference from `/review-pr`:**
 - Reviewers **actually discuss** findings with each other
 - They **challenge** each other's severity assessments
 - They **debate** tradeoffs and propose solutions together
-- Lead synthesizes collaborative insights (not just 3 independent reports)
+- Lead synthesizes collaborative insights (not just four independent reports)
 
 **Output includes:**
 - Team consensus on critical issues
@@ -146,7 +197,7 @@ The skill will:
 The skill will:
 1. Fetch PR #42 details
 2. Gather project context
-3. Create agent team (3 reviewers)
+3. Create agent team (4 reviewers: security, product, architect, technical writer)
 4. Reviewers independently analyze
 5. Reviewers discuss and debate findings
 6. Lead synthesizes collaborative analysis
@@ -215,26 +266,29 @@ git diff                 # Review your own changes first
 ### Standard Workflow
 
 1. Create feature branch: `git checkout -b feature/feature-name`
-2. Check relevant specs in `SPECIFICATIONS/`
-3. Implement with tests: `npm test && npx tsc --noEmit`
-4. Create PR
-5. **Run `/review-pr`** for quick validation
-6. Address feedback
-7. Merge when approved
+2. Write or review the spec in `SPECIFICATIONS/`
+3. **Run `/review-spec <spec-file>`** to surface missing requirements, hidden complexity, or framing issues *before* writing code
+4. Implement with tests: `npm test && npx tsc --noEmit`
+5. Create PR
+6. **Run `/review-pr`** for quick validation (code + docs)
+7. Address feedback
+8. Merge when approved
 
 ### Critical Changes Workflow
 
 1. Create feature branch
-2. Review specs and architectural guidelines
-3. Consider using plan mode (`EnterPlanMode` Claude Code tool) for complex features
-4. Implement with comprehensive tests
-5. Self-review: `git diff`, verify no secrets/debug code
-6. Create PR with detailed description
-7. **Run `/review-pr-team`** for multi-perspective analysis
-8. Reviewers discuss findings collaboratively
-9. Address critical issues and consensus concerns
-10. Document decisions on split opinions
-11. Merge when approved
+2. Write or review spec
+3. **Run `/review-spec <spec-file>`** — surfaces missing requirements, hidden complexity, and framing issues before sunk cost starts
+4. Address blocking spec issues; iterate on spec until challengers clear it
+5. Consider using plan mode (`EnterPlanMode` Claude Code tool) for complex features
+6. Implement with comprehensive tests
+7. Self-review: `git diff`, verify no secrets/debug code
+8. Create PR with detailed description
+9. **Run `/review-pr-team`** for multi-perspective analysis (4 reviewers including documentation)
+10. Reviewers discuss findings collaboratively
+11. Address critical issues and consensus concerns
+12. Document decisions on split opinions
+13. Merge when approved
 
 ---
 
