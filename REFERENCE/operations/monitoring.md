@@ -480,6 +480,25 @@ WHERE created_at > NOW() - INTERVAL '30 days';
 
 ---
 
+## Web Analytics (Traffic & Core Web Vitals)
+
+Public-facing pageview traffic and Core Web Vitals are captured by the **Cloudflare Web Analytics beacon**, embedded in the root layout (`src/app/layout.tsx`).
+
+**Why a manual beacon:** Ansible is deployed as a Cloudflare Worker (not a Pages project), so Cloudflare's automatic beacon injection does not apply. The beacon is loaded via a `<script defer>` tag with the site-specific token.
+
+**Where to view:** Cloudflare Dashboard → Analytics & Logs → Web Analytics → select the `ansible.hultberg.org` site.
+
+**What it captures:**
+- Pageviews (path, referrer, country, device)
+- Core Web Vitals (LCP, FID/INP, CLS)
+- No cookies, no PII — no consent banner required
+
+**Distinct from admin analytics:** In-app engagement events (interest signals, rating actions, session analytics) are tracked separately via Supabase and surfaced through the admin analytics feature — see [features/admin-analytics.md](../features/admin-analytics.md). The Cloudflare beacon is for traffic/performance only.
+
+**Subdomain isolation:** The beacon on `hultberg.org` is hostname-scoped to the apex domain and does **not** cascade to subdomains. Each subdomain needs its own beacon setup.
+
+---
+
 ## Related Documentation
 
 - [Deployment](./deployment.md) - Production deployment configuration

@@ -33,7 +33,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${dmSans.variable} ${newsreader.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <script
+          defer
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon='{"token": "352ed335bdae446cbc1c9ac0bebc2716"}'
+        />
+      </body>
     </html>
   );
 }

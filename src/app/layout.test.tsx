@@ -61,3 +61,47 @@ describe('Metadata', () => {
     expect(metadata.description).toBe('Depth-of-engagement triage for Readwise Reader content');
   });
 });
+
+describe('Cloudflare Web Analytics beacon', () => {
+  it('injects the Cloudflare beacon script', () => {
+    const { container } = render(
+      <RootLayout>
+        <div>content</div>
+      </RootLayout>
+    );
+
+    const beacon = container.querySelector(
+      'script[src="https://static.cloudflareinsights.com/beacon.min.js"]'
+    );
+    expect(beacon).not.toBeNull();
+  });
+
+  it('configures the beacon with the Ansible site token', () => {
+    const { container } = render(
+      <RootLayout>
+        <div>content</div>
+      </RootLayout>
+    );
+
+    const beacon = container.querySelector<HTMLScriptElement>(
+      'script[src="https://static.cloudflareinsights.com/beacon.min.js"]'
+    );
+    const beaconConfig = beacon?.getAttribute('data-cf-beacon');
+    expect(beaconConfig).toBeTruthy();
+    const parsed = JSON.parse(beaconConfig as string);
+    expect(parsed.token).toBe('352ed335bdae446cbc1c9ac0bebc2716');
+  });
+
+  it('loads the beacon with defer so it does not block rendering', () => {
+    const { container } = render(
+      <RootLayout>
+        <div>content</div>
+      </RootLayout>
+    );
+
+    const beacon = container.querySelector<HTMLScriptElement>(
+      'script[src="https://static.cloudflareinsights.com/beacon.min.js"]'
+    );
+    expect(beacon?.hasAttribute('defer')).toBe(true);
+  });
+});
