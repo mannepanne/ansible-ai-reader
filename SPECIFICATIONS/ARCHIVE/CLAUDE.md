@@ -37,6 +37,10 @@ Auto-loaded when working with files in this directory. Completed implementation 
 **Implementation docs:**
 - [phase-2-implementation.md](./implementation/phase-2-implementation.md) - Authentication architecture, clients, middleware, session management
 
+## Other Archived Documents
+
+- **[documentation-refactor-plan.md](./documentation-refactor-plan.md)** - March 26, 2026 plan to reorganise REFERENCE/ from phase-based to functional structure. Substantively executed (REFERENCE/{architecture,features,operations,development,patterns,decisions}/ all populated); checkboxes inside were never ticked off but the structural work landed across multiple PRs.
+
 ## Link convention for archived specs
 
 Archived specs sit one directory deeper than their original `SPECIFICATIONS/` location. Outbound relative links must use `../../` (not `../`) to reach project-root-relative paths like `REFERENCE/`, `CLAUDE.md`, etc. When moving a spec into this directory, walk every `](../...)` link and add one extra `../` segment. A markdown link checker can catch missed updates.

@@ -60,7 +60,6 @@ Some docs don't fit cleanly in a category but are important:
 - **[development/pr-review-workflow.md](./development/pr-review-workflow.md)** - Using `/review-pr` and `/review-pr-team`
 - **[safety-harness.md](./safety-harness.md)** - PreToolUse safety-harness hook: block/ask tiers, what's caught, bypass mechanics, extension guide
 - **[scratch-write-hook.md](./scratch-write-hook.md)** - PreToolUse hook that auto-approves writes under `SCRATCH/`; what it approves, fail-closed semantics, rollback path
-- **[documentation-refactor-plan.md](./documentation-refactor-plan.md)** - Refactor plan and implementation status
 
 ## Navigation Tips
 
