@@ -1,0 +1,1 @@
+{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": "Blocked: dd writing to a raw disk device \u2014 this overwrites the device. Prefix the command inline with SAFETY_HARNESS_OFF=1 if you really mean it."}}

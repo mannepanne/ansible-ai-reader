@@ -1,0 +1,1 @@
+{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": "git reset --hard discards all uncommitted changes and any commits ahead of the target. Continue?"}}

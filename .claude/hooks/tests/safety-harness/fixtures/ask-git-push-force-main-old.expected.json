@@ -1,0 +1,1 @@
+{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": "git push --force rewrites branch history. Continue if this is your personal branch and you intended to rebase."}}

@@ -1,0 +1,1 @@
+{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "allow", "permissionDecisionReason": "Auto-approved: Write into project SCRATCH directory. See REFERENCE/decisions/2026-04-26-scratch-write-pretooluse-hook.md for why the hook is needed instead of an allow-list entry."}}
