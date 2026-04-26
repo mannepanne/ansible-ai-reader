@@ -1,0 +1,12 @@
+{
+  "prReviewMode": "prompt-on-first-use",
+
+  "_meta": {
+    "description": "Project-level configuration for template features. Checked in to git so team members share the same settings. For the canonical gate logic and schema, see '.claude/skills/review-gate.md'. For a user-facing overview and the local-override pattern, see '.claude/CLAUDE.md' → 'Automated PR review system' and 'REFERENCE/pr-review-workflow.md' → 'Configuration'.",
+
+    "prReviewMode": {
+      "options": ["enabled", "disabled", "prompt-on-first-use"],
+      "description": "Gates the automated PR review skills (/review-pr, /review-pr-team, /review-spec). 'enabled' runs them normally. 'disabled' turns every review skill into a no-op — useful for throwaway experiments where the token cost isn't worth it. 'prompt-on-first-use' means Claude will ask you at the first review-relevant conversational moment (or the first /review-* invocation) and persist your answer here."
+    }
+  }
+}

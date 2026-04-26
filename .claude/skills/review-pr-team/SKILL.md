@@ -51,6 +51,12 @@ This project template comes with it enabled. When copying this skill to a differ
 
 When this skill is invoked with a PR number (e.g., `/review-pr-team 1`):
 
+### Step 0: Review-mode gate
+
+Run the gate defined in [`.claude/skills/review-gate.md`](../review-gate.md) → "Gate logic". When rendering the disabled message, substitute this skill's name: `review-pr-team`. If the gate tells you to stop, stop. If it tells you to proceed, continue to Step 1.
+
+*(If you were invoked by `/review-pr` auto-escalating to team tier, the dispatcher has already passed this check — the resolved flag will be `"enabled"` when you get here, and the gate is a fast no-op.)*
+
 ### Step 1: Create Agent Team
 
 **CRITICAL:** You must create an **agent team**, not spawn sequential subagents. The reviewers need to discuss findings with each other, not just report back to you.
@@ -90,7 +96,7 @@ Each teammate:
 
 **PHASE 2: Collaborative Discussion**
 
-After all three reviewers complete their independent analysis:
+After all teammates complete their independent analysis:
 
 1. **Share findings** via broadcast:
    - Each reviewer shares their complete findings with the team
@@ -130,7 +136,7 @@ After the collaborative discussion, each teammate should have refined their find
 **Team Coordination:**
 - All teammates work from the shared task list in parallel
 - Each reviewer conducts their independent review simultaneously
-- Once all three are done, open discussion begins for debate and consensus-building
+- Once all teammates are done, open discussion begins for debate and consensus-building
 
 Start the review process now."
 
@@ -144,7 +150,7 @@ While the team works:
 2. **Encourage debate** if the discussion is too polite - tell them: "Challenge each other's conclusions more directly"
 3. **Intervene if stuck** - If reviewers can't reach consensus on a critical issue, ask them to document both positions clearly
 
-**If teammates aren't discussing:** Send a message to all three: "Please share your findings with each other via broadcast and debate the severity ratings."
+**If teammates aren't discussing:** Send a message to all teammates: "Please share your findings with each other via broadcast and debate the severity ratings."
 
 ---
 
@@ -152,7 +158,7 @@ While the team works:
 
 After all teammates complete the discussion phase:
 
-1. **Gather final findings** from all three reviewers (after they've refined based on team discussion)
+1. **Gather final findings** from all teammates (after they've refined based on team discussion)
 
 2. **Create unified review** that captures the collaborative analysis:
 
@@ -163,7 +169,7 @@ After all teammates complete the discussion phase:
 
 ### ✅ Completion Requirements Met?
 - [ ] Tests exist and pass (95%+ coverage shown)
-- [ ] Documentation updated (REFERENCE/ current, CLAUDE.md updated, ABOUT comments present)
+- [ ] Documentation updated (check REFERENCE/ if implementation work)
 - [ ] Code quality verified (conventions, no secrets, clean history)
 
 ### 🔴 Critical Issues - Must Fix Before Merge
@@ -239,11 +245,15 @@ After all teammates complete the discussion phase:
 *This review was conducted by an agent team using collaborative discussion. Reviewers independently analyzed the PR, then shared findings, challenged each other's conclusions, and reached consensus through structured debate.*
 ```
 
-3. **Post the synthesized review** as a comment on the PR:
+3. **Post the synthesized review** as a comment on the PR. Build the body as a string, write it to a temp file via the Write tool (path `SCRATCH/review-pr-$ARGUMENTS-team.md`), then post with `--body-file`:
 
 ```bash
-gh pr comment $ARGUMENTS --body "[markdown content from above]"
+gh pr comment $ARGUMENTS --body-file SCRATCH/review-pr-$ARGUMENTS-team.md
 ```
+
+   Using `--body-file` avoids the brittle heredoc-quoting pattern (where the synthesised review containing the literal token `EOF` on its own line would terminate the heredoc early and either mangle the comment or run unintended shell).
+
+   **Read-then-Write fallback (avoid `rm -f`).** If the Write tool errors with *"File has not been read yet"* (because a stale temp file exists at the same path from a prior abandoned run), call **Read on the path first** to satisfy the Write prerequisite, then re-issue the Write. Do **not** use `Bash(rm -f SCRATCH/…)` to clear stale files — `rm -f` is not allowlisted (and shouldn't be broadly allowlisted) so it triggers a manual approval prompt; Read-then-Write stays silent. Don't bother cleaning up the temp file after posting either: the next run handles staleness via the same fallback.
 
 4. **Provide user summary:**
    - Total critical issues found
@@ -284,7 +294,7 @@ This will:
 6. Post comprehensive review to PR #1
 7. Clean up team
 
-Expected time: 5-10 minutes (depending on PR size and discussion depth)
+Expected time: 2-7 minutes (depending on PR size and discussion depth)
 
 ---
 
@@ -313,7 +323,7 @@ Expected time: 5-10 minutes (depending on PR size and discussion depth)
 - Major architectural decisions
 - Complex multi-file changes
 - When multiple perspectives add real value
-- You want thorough collaborative analysis (5-10 minutes)
+- You want thorough collaborative analysis (2-7 minutes)
 
 ---
 
