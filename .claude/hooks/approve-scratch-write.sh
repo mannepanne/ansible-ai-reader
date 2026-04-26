@@ -4,7 +4,6 @@
 #
 # Decision rationale: REFERENCE/decisions/2026-04-26-scratch-write-pretooluse-hook.md
 # Operations / extension / removal: REFERENCE/scratch-write-hook.md
-# Diagnosis trail: SPECIFICATIONS/ARCHIVE/INVESTIGATION-claude-code-write-path-normalisation.md
 #
 # Scope: only Write tool calls, only paths textually under $CLAUDE_PROJECT_DIR/SCRATCH/.
 # Anything else falls through unchanged. Path matching is textual prefix, not

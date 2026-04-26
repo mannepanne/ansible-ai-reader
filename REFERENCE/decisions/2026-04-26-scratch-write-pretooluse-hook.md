@@ -14,7 +14,7 @@ The hook is the canonical, supported path for SCRATCH/ Write approvals until and
 
 ## Context
 
-The review-skill workflow writes intermediate comment-body files into a top-level `SCRATCH/` directory before posting them via `gh pr comment --body-file`. With `Write(/SCRATCH/*)` in `permissions.allow`, the `Write` call still surfaced a permission prompt in fresh sessions across two repos and at least five distinct sightings (documented in `SPECIFICATIONS/ARCHIVE/INVESTIGATION-claude-code-write-path-normalisation.md`). The investigation walked through three hypotheses:
+The review-skill workflow writes intermediate comment-body files into a top-level `SCRATCH/` directory before posting them via `gh pr comment --body-file`. With `Write(/SCRATCH/*)` in `permissions.allow`, the `Write` call still surfaced a permission prompt in fresh sessions across two repos and at least five distinct sightings (documented in upstream PR [#32](https://github.com/mannepanne/useful-assets-template/pull/32) on `mannepanne/useful-assets-template`). The investigation walked through three hypotheses:
 
 1. Stale in-memory allow-list — eliminated; the prompt fired on fresh-session runs.
 2. Wrong glob shape — eliminated; PR 32 reproduced the prompt with all four shapes simultaneously committed.
@@ -52,9 +52,9 @@ The review-skill workflow writes intermediate comment-body files into a top-leve
 
 **Hook process spawn on every Write call.** The matcher `"Write"` registers the hook for every `Write` invocation, not just SCRATCH/ ones. Each invocation cold-starts python3. On a slow filesystem or under heavy concurrent Writes this is measurable. The cost is acceptable because the hook needs to *see* every Write to decide whether to silence the prompt; an `if`-filter at registration time would not cleanly express "path starts with `$CLAUDE_PROJECT_DIR/SCRATCH/`" because the `if` filter operates on the tool-call shape, not the path. If a third Write-gating hook ever appears, reconsider this trade-off.
 
-**Hook compensates for an unfixed upstream defect.** The root cause in Claude Code's `Write` allow-list matcher is unresolved. This ADR explicitly documents that we are working around the symptom rather than fixing the cause. The investigation document at [`SPECIFICATIONS/ARCHIVE/INVESTIGATION-claude-code-write-path-normalisation.md`](../../SPECIFICATIONS/ARCHIVE/INVESTIGATION-claude-code-write-path-normalisation.md) preserves the diagnosis log so a future upstream-fix verification can replay the test cases.
+**Hook compensates for an unfixed upstream defect.** The root cause in Claude Code's `Write` allow-list matcher is unresolved. This ADR explicitly documents that we are working around the symptom rather than fixing the cause. Upstream PR [#32](https://github.com/mannepanne/useful-assets-template/pull/32) on `mannepanne/useful-assets-template` preserves the diagnosis log so a future upstream-fix verification can replay the test cases.
 
-**Derivative projects need to apply the hook to inherit the fix.** A derivative project that copies only `.claude/settings.json` (without the hook script and its registration) gets dead allow-list entries — actually, gets *no* allow-list entries for `Write(/SCRATCH/...)` after this ADR's cleanup, since they were removed — and the prompt fires. The TEMPLATE-UPDATES migration packet system carries the hook + registration + reference doc as a coherent unit; ad-hoc copying does not. Documented at the top of [`REFERENCE/scratch-write-hook.md`](../scratch-write-hook.md).
+**Derivative projects need to apply the hook to inherit the fix.** A derivative project that copies only `.claude/settings.json` (without the hook script and its registration) gets dead allow-list entries — actually, gets *no* allow-list entries for `Write(/SCRATCH/...)` after this ADR's cleanup, since they were removed — and the prompt fires. The upstream migration-packet system carries the hook + registration + reference doc as a coherent unit; ad-hoc copying does not. Documented at the top of [`REFERENCE/scratch-write-hook.md`](../scratch-write-hook.md).
 
 **Tests are fixture-based, not session-based.** The 7-test suite at `.claude/hooks/tests/approve-scratch-write/` validates the hook's JSON output for synthetic inputs. It does not — and cannot — validate "the hook is registered correctly in `.claude/settings.json` and Claude Code actually fires it before the matcher gates `Write`." That end-to-end behaviour is verified by a fresh-session smoke test (described in the reference doc) and re-verified whenever the hook or its registration changes.
 
@@ -67,7 +67,7 @@ The review-skill workflow writes intermediate comment-body files into a top-leve
 
 **Prevents/complicates:**
 - Hook-shaped logic must be maintained inside `.claude/hooks/`, with an associated test suite and reference doc. The maintenance burden is real but small (one script, ~90 lines).
-- Derivative projects that don't apply the hook see the prompt return. The TEMPLATE-UPDATES packet at `REFERENCE/TEMPLATE-UPDATES/2026-04-threat-model-and-safety-harness/` carries the hook script, the parse helper, the test suite, the registration, this ADR, the ops doc, and the investigation log as one unit — derivative projects applying the packet inherit the fix in full.
+- Derivative projects that don't apply the hook see the prompt return. The upstream migration packet [`2026-04-threat-model-and-safety-harness`](https://github.com/mannepanne/useful-assets-template/blob/main/REFERENCE/TEMPLATE-UPDATES/2026-04-threat-model-and-safety-harness/README.md) carries the hook script, the parse helper, the test suite, the registration, this ADR, and the ops doc as one unit — derivative projects applying the packet inherit the fix in full.
 - Concurrent extension to `Edit`/`MultiEdit` would require either expanding the hook's matcher or registering a sibling hook; not a problem today, but documented so a future change knows to look here.
 
 ---
@@ -83,6 +83,4 @@ The review-skill workflow writes intermediate comment-body files into a top-leve
   - `.claude/hooks/tests/approve-scratch-write/` — fixture-based test suite.
   - `.claude/settings.json` — `hooks.PreToolUse[1]` registers the hook; `permissions._comment_scratch_writes` points at this ADR.
   - `REFERENCE/scratch-write-hook.md` — how-it-works documentation.
-- Investigation log:
-  - `SPECIFICATIONS/ARCHIVE/INVESTIGATION-claude-code-write-path-normalisation.md` — the five-sighting diagnosis trail that produced hypothesis #3.
-- Discussion that produced this ADR: PR 33 review thread on `mannepanne/useful-assets-template`.
+- Discussion that produced this ADR: PR [#33](https://github.com/mannepanne/useful-assets-template/pull/33) review thread on `mannepanne/useful-assets-template` (the diagnosis trail that produced hypothesis #3 lives in PR [#32](https://github.com/mannepanne/useful-assets-template/pull/32) on the same repo).
