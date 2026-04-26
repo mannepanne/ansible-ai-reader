@@ -1,7 +1,7 @@
 ---
 name: devils-advocate
 description: Devil's advocate for spec reviews. Challenges the WHY — is this the right solution? Simpler alternatives? Baked-in assumptions that could be wrong? Used as part of the /review-spec skill.
-tools: Bash, Read, Glob, Grep
+tools: Bash, Read, Glob, Grep, WebFetch
 model: opus
 color: yellow
 ---

@@ -160,6 +160,8 @@ This template ships with three review skills gated by a single project-level fla
 
 **Canonical gate logic:** [`.claude/skills/review-gate.md`](./skills/review-gate.md). That file is the single source of truth for the state machine each skill runs at Step 0, the verbatim pitch text, the local override semantics, and the JSON-write contract. Do not duplicate it — SKILL.md Step 0 blocks are one-line references to that file.
 
+**Threat model & severity calibration:** reviewer-agent severity ratings are calibrated against a single-trusted-contributor / small-trusted-team threat model — see ADR [`REFERENCE/decisions/2026-04-25-pr-review-threat-model.md`](../REFERENCE/decisions/2026-04-25-pr-review-threat-model.md) and the shared contract at [`.claude/agents/CLAUDE.md`](./agents/CLAUDE.md#severity-calibration). Derivative projects whose contributor model differs (open-source PRs from strangers, multi-team setups) follow the ADR's tightening checklist before relying on these defaults.
+
 ### When to proactively surface the pitch (Layer 1 — contextual)
 
 **If and only if** the resolved `prReviewMode` is `"prompt-on-first-use"` (or both config files are missing — which means a fresh clone), proactively surface the pitch at the first *review-adjacent moment* in conversation:

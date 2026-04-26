@@ -1,7 +1,7 @@
 ---
 name: requirements-auditor
 description: Requirements auditor for spec reviews. Checks completeness — edge cases, error states, undefined behaviour, missing user flows, unstated assumptions. Used as part of the /review-spec skill.
-tools: Bash, Read, Glob, Grep
+tools: Bash, Read, Glob, Grep, WebFetch
 model: opus
 color: blue
 ---

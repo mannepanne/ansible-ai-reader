@@ -1,0 +1,1 @@
+{"tool_name": "Bash", "tool_input": {"command": "dd if=/dev/zero of=/dev/disk2 bs=1m count=1"}}

@@ -1,0 +1,1 @@
+{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": "chmod 777 grants read/write/execute to everyone including other users on the system. Usually chmod 750 (owner+group full, others nothing) or chmod 755 (owner full, others read+execute) is what's wanted. Continue with 777?"}}

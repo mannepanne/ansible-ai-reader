@@ -1,0 +1,1 @@
+{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": "Blocked: SQL DROP TABLE/DATABASE/SCHEMA on the command line. Schema changes should go through a migration file. Prefix the command inline with SAFETY_HARNESS_OFF=1 if you really mean it."}}

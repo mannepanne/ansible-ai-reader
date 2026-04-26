@@ -1,7 +1,7 @@
 ---
 name: technical-skeptic
 description: Technical skeptic for spec reviews. Assesses buildability — DB implications, blast radius on existing features, hidden complexity, integration risks, security surface area. Used as part of the /review-spec skill.
-tools: Bash, Read, Glob, Grep
+tools: Bash, Read, Glob, Grep, WebFetch
 model: opus
 color: orange
 ---

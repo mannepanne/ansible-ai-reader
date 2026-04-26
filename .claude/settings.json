@@ -2,7 +2,113 @@
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
+  "permissions": {
+    "_comment": "These allowlist defaults assume a single trusted contributor on personal projects (or a small team of mutually-known, trusted contributors). The bias is silent execution for safe and frequent operations, with prompts reserved for genuinely destructive ones. See REFERENCE/decisions/2026-04-25-pr-review-threat-model.md for the threat model, what's in/out of scope, and the tightening checklist for derivative projects whose contributor model differs (open-source with strangers, multi-team enterprise, regulated environments). If you clone this template and your use case is out of scope, follow that checklist before running reviews.",
+    "_comment_scratch_writes": "Write to <project>/SCRATCH/* is silenced by the PreToolUse hook at .claude/hooks/approve-scratch-write.sh, NOT by a Write(/SCRATCH/*) allow-list entry — the Claude Code matcher does not honour Write entries in fresh sessions across five documented sightings. See REFERENCE/decisions/2026-04-26-scratch-write-pretooluse-hook.md for the decision and REFERENCE/scratch-write-hook.md for operations. Read entries below DO honour the matcher and remain — only Write is broken upstream.",
+    "allow": [
+      "Bash(git fetch *)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh pr comment:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh pr status:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh repo view:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh release view:*)",
+      "Bash(gh release list:*)",
+      "Bash(gh search:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(git status:*)",
+      "Bash(git blame:*)",
+      "Bash(git stash list:*)",
+      "Bash(git config --get:*)",
+      "Bash(git config --list:*)",
+      "Bash(git -C * log *)",
+      "Bash(git -C * show *)",
+      "Bash(git -C * diff *)",
+      "Bash(git -C * status *)",
+      "Bash(git show * | sed -n *)",
+      "Bash(git show * | head *)",
+      "Bash(git show * | tail *)",
+      "Bash(git show * | grep *)",
+      "Bash(git show * | wc *)",
+      "Bash(gh pr diff * | grep *)",
+      "Bash(npm test:*)",
+      "Bash(npm run test:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run lint:*)",
+      "Bash(bun test:*)",
+      "Bash(bun run test:*)",
+      "Bash(bun run typecheck:*)",
+      "Bash(bun run lint:*)",
+      "Bash(node_modules/.bin/vitest:*)",
+      "Bash(node_modules/.bin/jest:*)",
+      "Bash(node_modules/.bin/tsc:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm test * | tail *)",
+      "Bash(npm test * | head *)",
+      "Bash(npm test * | grep *)",
+      "Bash(npm run test * | tail *)",
+      "Bash(npm run test * | head *)",
+      "Bash(npm run test * | grep *)",
+      "Bash(npm run typecheck * | tail *)",
+      "Bash(npm run lint * | tail *)",
+      "Bash(bun run test * | tail *)",
+      "Bash(bun run test * | head *)",
+      "Bash(bun run test * | grep *)",
+      "Bash(bun run typecheck * | tail *)",
+      "Bash(bun run lint * | tail *)",
+      "Bash(node_modules/.bin/vitest * | tail *)",
+      "Bash(node_modules/.bin/vitest * | head *)",
+      "Bash(node_modules/.bin/vitest * | grep *)",
+      "Bash(node_modules/.bin/jest * | tail *)",
+      "Bash(node_modules/.bin/tsc * | tail *)",
+      "Bash(npx vitest * | tail *)",
+      "Bash(npx tsc * | tail *)",
+      "Bash(.claude/hooks/tests/safety-harness/run-tests.sh:*)",
+      "Bash(.claude/hooks/tests/approve-scratch-write/run-tests.sh:*)",
+      "Bash(python3 -m json.tool:*)",
+      "Bash(python3 -m json.tool * > /dev/null)",
+      "Bash(python3 -m json.tool * > /dev/null && echo *)",
+      "Bash(python3 -m json.tool * && echo *)",
+      "Bash(jq:*)",
+      "Bash(jq * | tail *)",
+      "Bash(jq * | head *)",
+      "Bash(jq * | grep *)",
+      "Bash(grep:*)",
+      "Bash(grep * ; echo *)",
+      "Read(/SCRATCH/*)",
+      "Read(/SCRATCH/**)",
+      "Read(SCRATCH/*)",
+      "Read(SCRATCH/**)"
+    ],
+    "deny": []
+  },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "if": "Bash(rm * | dd * | mkfs* | diskutil* | git push * | git reset * | gh repo * | psql * | supabase * | chmod *)",
+        "hooks": [
+          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/safety-harness.sh" }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/approve-scratch-write.sh" }
+        ]
+      }
+    ]
   }
 }
