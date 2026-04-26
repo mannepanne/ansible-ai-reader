@@ -85,5 +85,5 @@ We wanted a gate that:
 - Overview and Layer 1 triggers: [`.claude/CLAUDE.md`](../../.claude/CLAUDE.md) → "Automated PR review system"
 - Config file (committed default): [`.claude/project-config.json`](../../.claude/project-config.json)
 - Local override (gitignored): `.claude/project-config.local.json`
-- User-facing docs: [`REFERENCE/pr-review-workflow.md`](../pr-review-workflow.md) → "Configuration"
+- User-facing docs: [`REFERENCE/development/pr-review-workflow.md`](../development/pr-review-workflow.md) → "Configuration"
 - PR that introduced this pattern: [#15](https://github.com/mannepanne/useful-assets-template/pull/15)
