@@ -25,7 +25,7 @@ src/hooks/useTracking.ts      ← all tracking logic, two hooks, identity helper
 src/app/api/contact/route.ts  ← Turnstile verification + Resend email send
 ```
 
-All three pages are **client components** (`'use client'`). The tracking hook uses a direct Supabase anonymous client (not the Next.js server client), which is an intentional design choice — see [Identity & Supabase Client](#identity--supabase-client) below.
+All three pages are **client components** (`'use client'`). The tracking hook uses a direct Supabase anonymous client (not the Next.js server client), which is an intentional design choice — see [Why a Direct Supabase Client?](#why-a-direct-supabase-client) below.
 
 ---
 

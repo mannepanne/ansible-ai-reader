@@ -23,6 +23,10 @@ Agents define personas, roles, and behaviors that can be spawned by skills. Sepa
 - **[architect-reviewer.md](./architect-reviewer.md)** - Senior architect for design patterns and scalability
 - **[technical-writer.md](./technical-writer.md)** - Documentation reviewer: REFERENCE/ docs, ABOUT comments, temporal language
 
+### Patterns Files
+
+- **[triage-scan-patterns.txt](./triage-scan-patterns.txt)** - Secret-shape regex patterns and data-layer keywords loaded by `triage-reviewer` via `grep -E -f`. Patterns only, one per line — no headers, no comments
+
 ### Spec Review Agents (pre-implementation)
 
 - **[requirements-auditor.md](./requirements-auditor.md)** - Completeness: edge cases, error states, missing flows, unstated assumptions

@@ -126,7 +126,7 @@ graph TB
 - **Tag Regeneration**: Bulk reprocess items missing AI-generated tags
 - **Archive Sync**: Two-way sync with Readwise Reader
 
-See [`REFERENCE/architecture.md`](./REFERENCE/architecture.md) for detailed documentation.
+See [`REFERENCE/architecture/overview.md`](./REFERENCE/architecture/overview.md) for detailed documentation.
 
 ## Development
 
@@ -138,7 +138,7 @@ npm install
 
 # Set up environment variables
 cp .env.example .env.local
-# Edit .env.local with your API keys (see REFERENCE/environment-setup.md)
+# Edit .env.local with your API keys (see REFERENCE/operations/environment-setup.md)
 
 # Run tests
 npm test
@@ -156,10 +156,10 @@ npm run deploy
 ### Documentation
 
 - **[CLAUDE.md](./CLAUDE.md)** - Project navigation and development workflow
-- **[REFERENCE/architecture.md](./REFERENCE/architecture.md)** - System architecture and data flows
-- **[REFERENCE/testing-strategy.md](./REFERENCE/testing-strategy.md)** - Testing approach and coverage
-- **[REFERENCE/deployment-guide.md](./REFERENCE/deployment-guide.md)** - CI/CD and production deployment
-- **[REFERENCE/troubleshooting.md](./REFERENCE/troubleshooting.md)** - Common issues and solutions
+- **[REFERENCE/architecture/overview.md](./REFERENCE/architecture/overview.md)** - System architecture and data flows
+- **[REFERENCE/development/testing-strategy.md](./REFERENCE/development/testing-strategy.md)** - Testing approach and coverage
+- **[REFERENCE/operations/deployment.md](./REFERENCE/operations/deployment.md)** - CI/CD and production deployment
+- **[REFERENCE/operations/troubleshooting.md](./REFERENCE/operations/troubleshooting.md)** - Common issues and solutions
 
 ### Built With
 

@@ -120,7 +120,7 @@ If Claude Code ships a fix that makes `Write(/SCRATCH/*)` actually silence the p
 3. **Remove the hook registration** from `.claude/settings.json` `hooks.PreToolUse` (the entry whose `matcher` is `Write`).
 4. **Delete the hook script** at `.claude/hooks/approve-scratch-write.sh` and the test suite at `.claude/hooks/tests/approve-scratch-write/`.
 5. **Supersede the ADR.** Mark `REFERENCE/decisions/2026-04-26-scratch-write-pretooluse-hook.md` as `Status: Superseded` with a pointer to the new ADR documenting the fix.
-6. **Move the investigation doc** at `SPECIFICATIONS/ARCHIVE/INVESTIGATION-claude-code-write-path-normalisation.md` to a closed state — it has served its purpose.
+6. **Mark the upstream investigation closed** — the diagnosis trail in `mannepanne/useful-assets-template` (PR [#32](https://github.com/mannepanne/useful-assets-template/pull/32) and the issue it tracks) has served its purpose; the upstream maintainer can mark it resolved.
 
 The shared parse helper at `.claude/hooks/lib/parse-tool-input.sh` stays — `safety-harness.sh` still uses it.
 
@@ -168,4 +168,4 @@ The hook depends on `python3` for JSON parsing. If `python3` is missing from `PA
 
 ## Inheriting this fix in a derivative project
 
-The hook + registration + tests + reference doc + ADR all need to land together. The TEMPLATE-UPDATES migration packet at [`REFERENCE/TEMPLATE-UPDATES/2026-04-threat-model-and-safety-harness/`](./TEMPLATE-UPDATES/2026-04-threat-model-and-safety-harness/) carries the SCRATCH-write hook (script, parse helper, registration, test suite, this ops doc, the ADR, and the investigation log) as a coherent unit alongside the safety-harness pieces. Derivative projects that copy `.claude/settings.json` alone will see the SCRATCH/ Write prompt return — apply the migration packet end-to-end, or copy the hook script, the registration, the parse helper at `.claude/hooks/lib/parse-tool-input.sh`, and the supporting docs together with the settings.
+The hook + registration + tests + reference doc + ADR all need to land together. The upstream migration packet at [`mannepanne/useful-assets-template:REFERENCE/TEMPLATE-UPDATES/2026-04-threat-model-and-safety-harness/README.md`](https://github.com/mannepanne/useful-assets-template/blob/main/REFERENCE/TEMPLATE-UPDATES/2026-04-threat-model-and-safety-harness/README.md) carries the SCRATCH-write hook (script, parse helper, registration, test suite, this ops doc, the ADR) as a coherent unit alongside the safety-harness pieces. Derivative projects that copy `.claude/settings.json` alone will see the SCRATCH/ Write prompt return — apply the migration packet end-to-end, or copy the hook script, the registration, the parse helper at `.claude/hooks/lib/parse-tool-input.sh`, and the supporting docs together with the settings.

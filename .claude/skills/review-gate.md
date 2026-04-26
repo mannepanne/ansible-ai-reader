@@ -4,7 +4,7 @@ Canonical state machine for the opt-in flag that gates every `/review-*` skill. 
 
 **Related reading:**
 - Overview: [`.claude/CLAUDE.md`](../CLAUDE.md) → "Automated PR review system"
-- User-facing docs: [`REFERENCE/pr-review-workflow.md`](../../REFERENCE/pr-review-workflow.md) → "Configuration"
+- User-facing docs: [`REFERENCE/development/pr-review-workflow.md`](../../REFERENCE/development/pr-review-workflow.md) → "Configuration"
 - ADR: [`REFERENCE/decisions/2026-04-22-prreviewmode-opt-in-config.md`](../../REFERENCE/decisions/2026-04-22-prreviewmode-opt-in-config.md)
 
 ---

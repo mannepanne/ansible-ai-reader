@@ -111,5 +111,5 @@ Contrast with the other fail-closed paths: parse-failure and `gh`-failure fire o
 - Agent definition: [`.claude/agents/light-reviewer.md`](../../.claude/agents/light-reviewer.md)
 - Dispatcher skill: [`.claude/skills/review-pr/SKILL.md`](../../.claude/skills/review-pr/SKILL.md)
 - Team review skill: [`.claude/skills/review-pr-team/SKILL.md`](../../.claude/skills/review-pr-team/SKILL.md)
-- User-facing workflow guide: [`REFERENCE/pr-review-workflow.md`](../pr-review-workflow.md)
+- User-facing workflow guide: [`REFERENCE/development/pr-review-workflow.md`](../development/pr-review-workflow.md)
 - PR that introduced this pattern: [#13](https://github.com/mannepanne/useful-assets-template/pull/13)

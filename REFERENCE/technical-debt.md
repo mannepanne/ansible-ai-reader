@@ -150,6 +150,13 @@ VALUES ('<user-id-from-above>', '<email>', NOW());
 
 ## Resolved Items
 
+### TD-011: Root README links point at pre-refactor REFERENCE/ paths
+
+- **Resolved:** April 2026 (PR #99, post-rollout cleanup sweep)
+- **Resolution:** Five `[text](path)` links and one bare-path mention in a code-block comment updated to the functional REFERENCE/ subdirectory structure: `REFERENCE/architecture/overview.md`, `REFERENCE/development/testing-strategy.md`, `REFERENCE/operations/deployment.md`, `REFERENCE/operations/troubleshooting.md`, `REFERENCE/operations/environment-setup.md`.
+
+---
+
 ### TD-004: Missing Custom Summary Prompt UI
 - **Resolved:** April 2026 (PR #65, #68)
 - **Resolution:** Full implementation shipped — custom prompt textarea, character counter, reset button, validation, and a Full Prompt tab showing the system and user message templates sent to Perplexity. The entire chain is now wired: UI → API → queue consumer → Perplexity.
