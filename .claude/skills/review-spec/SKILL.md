@@ -45,17 +45,18 @@ Agent teams require the feature flag to be enabled in `.claude/settings.json`:
 
 When this skill is invoked with a spec file path or name (e.g., `/review-spec SPECIFICATIONS/07-new-feature.md`):
 
+### Step 0: Review-mode gate
+
+Run the gate defined in [`.claude/skills/review-gate.md`](../review-gate.md) → "Gate logic". When rendering the disabled message, substitute this skill's name: `review-spec`. If the gate tells you to stop, stop. If it tells you to proceed, continue to Step 1.
+
 ### Step 1: Locate the Spec
 
 Resolve the spec file:
 - If `$ARGUMENTS` is a full path, use it directly
-- If it's a partial name, search `SPECIFICATIONS/` for a matching file:
-  ```bash
-  find SPECIFICATIONS/ -name "*$ARGUMENTS*" -not -path "*/ARCHIVE/*"
-  ```
+- If it's a partial name, search `SPECIFICATIONS/` for a matching file using the `Glob` tool with pattern `SPECIFICATIONS/*$ARGUMENTS*` and (if nothing matches) `SPECIFICATIONS/**/*$ARGUMENTS*`. Filter out any path containing `/ARCHIVE/` from the results.
 - If ambiguous, ask the user to clarify
 
-Confirm the spec file exists and read the first 50 lines to understand its scope before proceeding.
+Use `Glob`, not `find`, so the resolution stays silent — `find` against arbitrary paths prompts; `Glob` doesn't. Confirm the spec file exists and read the first 50 lines with the `Read` tool to understand its scope before proceeding.
 
 ---
 
@@ -245,7 +246,7 @@ After presenting the review:
 /review-spec interest-signals
 ```
 
-Expected time: 5-10 minutes depending on spec size and discussion depth.
+Expected time: 2-7 minutes depending on spec size and discussion depth.
 
 ---
 

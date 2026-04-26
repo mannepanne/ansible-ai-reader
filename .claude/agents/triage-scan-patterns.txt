@@ -1,0 +1,21 @@
+BEGIN [A-Z ]*PRIVATE KEY
+sk-(ant-)?[A-Za-z0-9_-]{20,}
+gh[pousr]_[A-Za-z0-9]{36,}
+xox[baprs]-[A-Za-z0-9-]{10,}
+AKIA[0-9A-Z]{16}
+ASIA[0-9A-Z]{16}
+eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.
+(SECRET|API_KEY|PRIVATE_KEY|TOKEN|PASSWORD)\s*[:=]\s*["']?[A-Za-z0-9+/=_-]{16,}
+SERVICE_ROLE_KEY
+service_role
+auth\.users
+auth\.sessions
+enable row level security
+create policy
+alter policy
+drop policy
+\[\[d1_databases\]\]
+database_id
+database_name
+CLOUDFLARE_API_TOKEN
+CLOUDFLARE_ACCOUNT_ID

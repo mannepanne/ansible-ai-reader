@@ -15,10 +15,13 @@ Agents define personas, roles, and behaviors that can be spawned by skills. Sepa
 
 ### Code Review Agents
 
+- **[triage-reviewer.md](./triage-reviewer.md)** - Lightweight risk classifier: decides whether a PR needs light, standard, or team review
+- **[light-reviewer.md](./light-reviewer.md)** - Narrow-scope sanity check for low-risk PRs (docs, tests, styling, comment-only changes)
 - **[code-reviewer.md](./code-reviewer.md)** - Full-stack developer for comprehensive PR reviews
 - **[security-specialist.md](./security-specialist.md)** - Security-focused reviewer for vulnerabilities and threats
 - **[product-reviewer.md](./product-reviewer.md)** - Product manager perspective on UX and requirements
 - **[architect-reviewer.md](./architect-reviewer.md)** - Senior architect for design patterns and scalability
+- **[technical-writer.md](./technical-writer.md)** - Documentation reviewer: REFERENCE/ docs, ABOUT comments, temporal language
 
 ## Usage Pattern
 

@@ -63,5 +63,11 @@ tmp/
 # Tools
 .entire/
 
+# Per-clone override for the review-mode flag. The committed
+# .claude/project-config.json governs what cloners inherit; this local file
+# lets a maintainer run a different prReviewMode locally (e.g. "enabled" for
+# dogfooding) without flipping the committed default.
+.claude/project-config.local.json
+
 # Imported prototype — reference only, not part of the application
 imported/

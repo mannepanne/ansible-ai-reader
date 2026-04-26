@@ -128,6 +128,8 @@ Auto-loaded when working with files in this directory. Documents architectural d
 
 **Format:** Listed chronologically (newest first)
 
+- **[2026-04-22-prreviewmode-opt-in-config.md](./2026-04-22-prreviewmode-opt-in-config.md)** — Why `prReviewMode` is a tri-state enum (`enabled` / `disabled` / `prompt-on-first-use`), why the template default is the prompt state, why there's a gitignored local override, and why the gate logic is canonical-not-copied
+- **[2026-04-22-tiered-pr-review-dispatcher.md](./2026-04-22-tiered-pr-review-dispatcher.md)** — Why `/review-pr` triages into light/standard/team tiers, why the rubric lives in a prompt, and why `/review-pr-team` stays independent
 - **[2026-04-05-no-fk-constraints-on-analytics-tables.md](./2026-04-05-no-fk-constraints-on-analytics-tables.md)** — Analytics tables are independent with no FK constraints; simplifies RLS and GDPR deletes
 - **[2026-04-05-cookie-free-localStorage-analytics.md](./2026-04-05-cookie-free-localStorage-analytics.md)** — Custom-built cookie-free analytics over third-party tools (Plausible, PostHog, GA)
 - **[2026-04-05-direct-anon-supabase-client-for-tracking.md](./2026-04-05-direct-anon-supabase-client-for-tracking.md)** — Public tracking hooks use direct anon Supabase client, not the SSR client used elsewhere
