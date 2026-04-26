@@ -148,18 +148,14 @@ VALUES ('<user-id-from-above>', '<email>', NOW());
 
 ---
 
+## Resolved Items
+
 ### TD-011: Root README links point at pre-refactor REFERENCE/ paths
 
-- **Location:** `README.md` lines 129, 159–162
-- **Issue:** Five links point at the pre-refactor flat `REFERENCE/` structure (`REFERENCE/architecture.md`, `REFERENCE/testing-strategy.md`, `REFERENCE/deployment-guide.md`, `REFERENCE/troubleshooting.md`). Targets moved to functional subdirectories during the doc reorg (TD-003): `REFERENCE/architecture/overview.md`, `REFERENCE/development/testing-strategy.md`, `REFERENCE/operations/deployment.md`, `REFERENCE/operations/troubleshooting.md`.
-- **Why accepted:** Pre-existing drift surfaced in the post-rollout audit (April 2026). Links are in the public-facing README rather than working docs, so the impact is presentation only, not collaboration. Out of scope for the rollout-cleanup PR.
-- **Risk:** **Low** — readers clicking a broken link can navigate via the live REFERENCE/ index instead.
-- **Future fix:** Sweep `README.md` and update the five links to current paths. ~5 minutes of work.
-- **Phase introduced:** Pre-existing (post-TD-003 doc refactor)
+- **Resolved:** April 2026 (PR #99, post-rollout cleanup sweep)
+- **Resolution:** Five `[text](path)` links and one bare-path mention in a code-block comment updated to the functional REFERENCE/ subdirectory structure: `REFERENCE/architecture/overview.md`, `REFERENCE/development/testing-strategy.md`, `REFERENCE/operations/deployment.md`, `REFERENCE/operations/troubleshooting.md`, `REFERENCE/operations/environment-setup.md`.
 
 ---
-
-## Resolved Items
 
 ### TD-004: Missing Custom Summary Prompt UI
 - **Resolved:** April 2026 (PR #65, #68)
