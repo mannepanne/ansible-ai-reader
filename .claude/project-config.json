@@ -1,5 +1,5 @@
 {
-  "prReviewMode": "prompt-on-first-use",
+  "prReviewMode": "enabled",
 
   "_meta": {
     "description": "Project-level configuration for template features. Checked in to git so team members share the same settings. For the canonical gate logic and schema, see '.claude/skills/review-gate.md'. For a user-facing overview and the local-override pattern, see '.claude/CLAUDE.md' → 'Automated PR review system' and 'REFERENCE/pr-review-workflow.md' → 'Configuration'.",
