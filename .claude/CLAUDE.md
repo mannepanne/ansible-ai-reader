@@ -69,7 +69,7 @@ You'll still maintain all core collaboration principles (Swedish directness, no 
 - Should there be a legitimate reason to compromise The First Rule or any of our rules, let's talk about it. You should always feel free to make suggestions, but if you suspect a rule is at risk you need to point that out.
 
 ### Essential Principles
-- **NEVER push code to main directly** - Before writing ANY code for features or bug fixes, create a feature branch first. ALL code changes MUST go through a pull request. This is as critical as not committing secrets. No exceptions for "small" changes. See Pre-Implementation Checklist below.
+- **NEVER push code to main directly** - Before writing ANY code for features or bug fixes, create a feature branch first. ALL code changes MUST go through a pull request. This is as critical as not committing secrets. No exceptions for "small" changes. See Git Operations and Workflow below.
 - **When in doubt, ask for clarification** - Our collaboration works best when we're both clear on expectations. If any guideline doesn't make sense for what we're doing, just ask - I'd rather discuss it than have you work around something unclear.
 - **Keep it simple** - We prefer simple, clean, maintainable solutions over clever or complex ones. Follow the KISS principle and avoid over-engineering when a simple solution is available.
 - **Don't rewrite working code** - Make the smallest reasonable changes to get to the desired outcome. Don't embark on reimplementing features or systems from scratch without talking about it first - I usually prefer incremental improvements.
@@ -77,24 +77,6 @@ You'll still maintain all core collaboration principles (Swedish directness, no 
 - **Document issues as tasks** - If you notice something that should be fixed but is unrelated to your current task, document it as a new task to potentially do later instead of fixing it immediately.
 - **Keep documentation current** - When making significant changes to architecture, APIs, or core functionality, proactively update project documentation to reflect the new reality. Use the designated documentation folders for implementation details.
 - **Don't waste tokens** - Be succinct and concise.
-
-### Pre-Implementation Checklist
-
-**BEFORE writing ANY code for a feature, bug fix, or code change:**
-
-1. **Check current branch**: Run `git branch` to see what branch you're on
-2. **If on main AND about to write code**: STOP immediately
-3. **Create feature branch**: `git checkout -b feature/descriptive-name` or `fix/bug-name`
-4. **Only then proceed** with implementation
-
-**CRITICAL: This checklist is BLOCKING. You cannot skip it.**
-
-**The ONLY exceptions for committing to main:**
-- Documentation-only changes (README, CLAUDE.md, SPECIFICATIONS/*.md)
-- Updating .gitignore or similar config files
-- Emergency hotfixes (and even these should be PR'd retroactively)
-
-**If you're unsure whether your change qualifies as an exception, ASK FIRST.**
 
 ### Definition of Done
 
@@ -124,28 +106,13 @@ Work is NOT complete until ALL of these are true:
 
 **Project documentation** refers to project-specific CLAUDE.md, README.md, and organized files in the designated documentation folders.
 
-## Documentation Organization Pattern
+## Documentation Organization
 
-Projects use **lifecycle-based documentation** to minimize token usage:
+Two auto-loaded CLAUDE.md files (keep each <300 lines):
+- `.claude/CLAUDE.md` — collaboration principles (this file)
+- `CLAUDE.md` (project root) — project navigation index
 
-**The Two CLAUDE.md Files:**
-- `.claude/CLAUDE.md` (this file) - Collaboration principles, applies across projects
-- `CLAUDE.md` (project root) - Navigation index for project-specific context
-
-**Both auto-load, so keep them lean (<300 lines). Details go in subdirectory files.**
-
-**Documentation Folders:**
-- `SPECIFICATIONS/` - Plans for features being built (active work)
-- `SPECIFICATIONS/ARCHIVE/` - Completed specs (historical)
-- `REFERENCE/` - How-it-works docs for implemented features
-- `.claude/COLLABORATION/` - Behavioral guidance (PM mode, tech preferences, doc standards)
-
-**Lazy-loading pattern:**
-- Subdirectory CLAUDE.md files auto-load when you work in that directory
-- Each acts as a library index for that folder
-- Only pay token cost when relevant
-
-**See project root CLAUDE.md for complete pattern details.**
+Subdirectory `CLAUDE.md` files (in `SPECIFICATIONS/`, `REFERENCE/`, `.claude/COLLABORATION/`) lazy-load only when working in that directory. Details belong there, not here.
 
 ## Automated PR review system
 
@@ -233,14 +200,7 @@ Tests serve dual purposes: **Validation** (verify code works) and **Directional 
 
 I value clean git history, but not at the expense of losing work or slowing down progress.
 
-**⚠️ CRITICAL: BEFORE WRITING ANY CODE ⚠️**
-
-1. **Check current branch**: `git branch` - Are you on main?
-2. **If on main AND about to write code**: STOP
-3. **Create feature branch FIRST**: `git checkout -b feature/name` or `fix/name`
-4. **Only then write code**
-
-**This is non-negotiable. No exceptions for "small" changes. Features and bug fixes ALWAYS start on a branch.**
+**Before writing ANY code:** check current branch (`git branch`). If on main and about to write code, STOP. Create a feature branch first (`git checkout -b feature/name` or `fix/name`). Non-negotiable — no exceptions for "small" changes.
 
 **During active development:**
 - Commit early and often - better to have messy history than lose work
@@ -260,22 +220,13 @@ I value clean git history, but not at the expense of losing work or slowing down
 - See project-specific pr-review-workflow.md in REFERENCE/ for complete guide
 
 **Branch strategy:**
-- Keep main/master clean and deployable
-- Use feature branches for ALL code changes (features, bugs, refactors)
-- WIP branches are fine for exploration and experimentation
-- **CRITICAL: NEVER merge directly to main** - ALL changes MUST go through a pull request
-- **CRITICAL: NEVER push code directly to main** - Always work in a feature branch
-- Create PR when work is complete, wait for review and approval before merging
-- CI/CD automatically deploys from main, so main must only contain reviewed code
-- When finishing up a project milestone, with a code base that is clean and functional, suggest we set a release flag to easily find it and mark our progress
+- Keep main clean and deployable; CI/CD auto-deploys from it
+- Feature branches for ALL code changes — features, bugs, refactors
+- WIP branches are fine for exploration
+- Create PR when work is complete; wait for review and approval before merging
+- At a clean, functional milestone, suggest setting a release flag
 
-**What CAN be pushed to main without a PR:**
-- Documentation-only changes (CLAUDE.md, README.md, SPECIFICATIONS/*.md)
-- .gitignore updates
-- Non-code configuration files
-- Emergency hotfixes (but create a retroactive PR immediately after)
-
-**If unsure whether your change needs a branch, the answer is YES, create a branch.**
+**Exceptions — can push to main without a PR:** documentation-only changes (CLAUDE.md, README.md, SPECIFICATIONS/*.md), .gitignore updates, non-code config, emergency hotfixes (create retroactive PR immediately). If unsure, create a branch.
 
 **Commit message style:**
 - First line: brief summary of what changed
@@ -287,67 +238,21 @@ The goal is tracking our work and enabling collaboration, not perfect git aesthe
 
 ## Claude Code Specific Guidelines
 
-### Tool Usage
-- Use concurrent tool calls when possible (batch independent operations)
-- Prefer Task tool for complex searches to reduce context usage
-- Use TodoWrite/TodoRead for task tracking and project visibility
+### Architecture Decision Records (ADRs)
+When making decisions that affect architecture beyond today's PR (library choice, architectural pattern, API design, deciding NOT to do something):
+- Prompt user: "This decision affects future architecture. Should I create an ADR in REFERENCE/decisions/?"
+- If confirmed, create ADR documenting: decision, context, alternatives considered, reasoning, trade-offs accepted
+- Before making similar decisions, search `REFERENCE/decisions/` for precedent
+- Follow existing ADRs unless new information invalidates the reasoning
+- See [REFERENCE/decisions/CLAUDE.md](../REFERENCE/decisions/CLAUDE.md) for complete ADR guidance
 
-### Communication
-- Be concise in responses (aim for < 4 lines unless detail requested)
-- Use `file_path:line_number` format when referencing code locations
-- Avoid unnecessary preamble or postamble
-- When you are using /compact, please focus on our conversation, your most recent (and most significant) learnings, and what you need to do next. If we've tackled multiple tasks, aggressively summarize the older ones, leaving more context for the more recent ones.
+### /compact instruction
+When using `/compact`, focus on our conversation, recent learnings, and what to do next. Aggressively summarize older tasks; preserve recent context.
 
-### File Operations
-- Always prefer editing existing files over creating new ones
-- Use Read tool before Write/Edit operations
-- Check file structure and patterns before making changes
+## Problem Solving
 
-### Learning and Memory Management
-- Use and update the project documentation frequently to capture technical insights, failed approaches, and user preferences.
-- Before starting complex tasks, search the project documentation for relevant past experiences and lessons learned.
-- Document architectural decisions and their outcomes for future reference.
-- Track patterns in user feedback to improve collaboration over time.
-
-- **Architecture Decision Records (ADRs):** When making decisions that affect architecture beyond today's PR (library choice, architectural pattern, API design, deciding NOT to do something):
-  - Prompt user: "This decision affects future architecture. Should I create an ADR in REFERENCE/decisions/?"
-  - If confirmed, create ADR documenting: decision, context, alternatives considered, reasoning, trade-offs accepted
-  - Before making similar decisions, search `REFERENCE/decisions/` for precedent
-  - Follow existing ADRs unless new information invalidates the reasoning
-  - See [REFERENCE/decisions/CLAUDE.md](../REFERENCE/decisions/CLAUDE.md) for complete ADR guidance
-
-## Problem Solving and Debugging
-
-I value a scientific approach to debugging - let's understand what's actually happening before we start fixing things.
-
-### Core Debugging Mindset
-- **Read the error messages first** - they're usually trying to tell us exactly what's wrong
-- **Look for root causes, not symptoms** - fixing the underlying issue prevents it from coming back
-- **One change at a time** - if we change multiple things, we won't know what actually worked
-- **Check what changed recently** - git diff and recent commits often point to the culprit
-- **Find working examples** - there's usually similar code in the project that works correctly
-
-### When Things Get Tricky
-- **Say "I don't understand X"** rather than guessing - I'd rather help figure it out together
-- **Look for patterns** - is this breaking in similar ways elsewhere? Are we missing a dependency?
-- **Test your hypothesis** - make the smallest change possible to test one specific theory
-- **If the first fix doesn't work, stop and reassess** - piling on more fixes usually makes things worse
-
-### Practical Reality Check
-Sometimes you need to move fast, sometimes the "proper" approach isn't practical. That's fine - just let me know when you're taking shortcuts so we can come back and clean things up later if needed. And as mentioned before, if accruing technical debt or planning to come back later and fix a shortcut, write it down in the project documentation so we don't forget.
-
-The goal is sustainable progress, not perfect process.
+Scientific debugging approach — read errors first, find root causes, change one thing at a time. Detailed mindset: [debugging-mindset.md](./COLLABORATION/debugging-mindset.md).
 
 ## Documentation Standards
 
-We value documentation - it enables picking up projects later and communicating knowledge to others.
-
-**Key principles:**
-- Documentation should explain how everything works and how to use/extend it
-- Preferred format: Markdown (.md)
-- Always maintain README.md in project root
-- Use lifecycle-based structure: ../SPECIFICATIONS/ (active),  ../SPECIFICATIONS/ARCHIVE/ (completed), ../REFERENCE/ (implementation)
-- Keep documentation current alongside code changes
-- Focus on clarity, completeness, and actionability
-
-**Detailed templates and process:** [documentation-standards.md](./COLLABORATION/documentation-standards.md)
+Markdown, lifecycle-based structure (SPECIFICATIONS active, ARCHIVE completed, REFERENCE implementation). Keep documentation current alongside code changes. Templates: [documentation-standards.md](./COLLABORATION/documentation-standards.md).

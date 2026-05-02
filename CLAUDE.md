@@ -103,62 +103,25 @@ Documentation is organized by **function** (what you're trying to do), not build
 
 ## Development Workflow
 
-**⚠️ CRITICAL: ALL CODE CHANGES REQUIRE A FEATURE BRANCH + PR ⚠️**
+**ALL code changes require a feature branch + PR.** See [.claude/CLAUDE.md](./.claude/CLAUDE.md) for branching rules and Definition of Done.
 
-### Step 0: Pre-Implementation Check (DO THIS FIRST!)
-
-**BEFORE writing ANY code for features, bug fixes, or code changes:**
-
-- [ ] Check current branch: `git branch` - Am I on main?
-- [ ] Is this a code change? (not just documentation)
-- [ ] If yes to both: **CREATE FEATURE BRANCH FIRST**
-- [ ] Run: `git checkout -b feature/descriptive-name` or `fix/bug-name`
-
-**If you cannot check all boxes, STOP and ask the user before proceeding.**
-
-**The ONLY exceptions** (can commit to main without PR):
-- Documentation-only changes (CLAUDE.md, README.md, SPECIFICATIONS/*.md)
-- .gitignore or config file updates
-- Emergency hotfixes (create retroactive PR immediately)
-
-**If unsure, the answer is: YES, create a feature branch.**
-
----
-
-### Implementation Steps
-
-1. **Create feature branch** (see Step 0 above - ALREADY DONE)
-2. **Write or review spec:** Active specs live in `SPECIFICATIONS/`
-3. **Run spec review:** `/review-spec <spec-file>` — requirements auditor, technical skeptic, and devil's advocate challenge the spec before any code is written. Address blocking issues before proceeding.
-4. **Implement with tests:** `npm test && npx tsc --noEmit`
-5. **Create PR for review:**
-   - **`/review-pr`** - Smart dispatcher: triages the change and routes to light/standard/team review (1-5 min end-to-end; longer when auto-escalated to team tier)
-   - **`/review-pr-team`** - Force a full multi-perspective team review, skipping triage (2-7 min)
-   - **See:** [REFERENCE/development/pr-review-workflow.md](./REFERENCE/development/pr-review-workflow.md)
-6. **Wait for approval:** Do not merge until PR is reviewed and approved
-7. **Merge only after approval:** Once approved, merge to main (auto-deploys via CI/CD)
-
-**Why this matters:**
-- CI/CD automatically deploys from main to production
-- Main branch must only contain reviewed, tested code
-- PR reviews catch security issues, missing tests, and design problems
+**Implementation steps:**
+1. Create feature branch (`feature/name` or `fix/name`)
+2. Write or review spec in `SPECIFICATIONS/`
+3. Run `/review-spec <spec-file>` for new specs (catches bad assumptions before code)
+4. Implement with tests: `npm test && npx tsc --noEmit`
+5. Run `/review-pr` (smart triage) or `/review-pr-team` (force full review)
+6. Wait for approval, then merge (auto-deploys via CI/CD)
 
 ## Testing
 
-Tests serve dual purpose:
-1. **Validation** - Verify code works
-2. **Directional Context** - Guide AI development
-
-**Commands:**
 ```bash
 npm test                  # Run all tests
 npm run test:watch        # Watch mode
 npm run test:coverage     # Coverage report
 ```
 
-**Coverage target:** 95%+ lines/functions/statements, 90%+ branches
-
-**Current status:** 580 tests passing
+**Coverage target:** 95%+ lines/functions/statements, 90%+ branches. **Current status:** 580 tests passing.
 
 **See:** [REFERENCE/development/testing-strategy.md](./REFERENCE/development/testing-strategy.md)
 
@@ -170,19 +133,9 @@ npm run test:coverage     # Coverage report
 - React 19 and Next.js 15 types included
 - Configured with `@cloudflare/next-on-pages` adapter
 
-## Implementation Phases
+## Implementation History
 
-Development followed 5 sequential phases (all complete). Active work is now feature-by-feature.
-
-1. ✅ **Phase 1: Foundation** - [Archived](./SPECIFICATIONS/ARCHIVE/01-foundation.md) (Mar 10, 2026)
-2. ✅ **Phase 2: Authentication** - [Archived](./SPECIFICATIONS/ARCHIVE/02-authentication.md) (Mar 12, 2026)
-3. ✅ **Phase 3: Reader Integration** - [Archived](./SPECIFICATIONS/ARCHIVE/03-reader-integration.md) (Mar 14, 2026)
-4. ✅ **Phase 4: Perplexity Integration** - [Archived](./SPECIFICATIONS/ARCHIVE/04-perplexity-integration.md) (Mar 15, 2026)
-5. ✅ **Phase 5: Notes & Rating** - [Archived](./SPECIFICATIONS/ARCHIVE/05-notes-rating-polish.md) (Apr 1, 2026)
-
-**Active features:** [SPECIFICATIONS/](./SPECIFICATIONS/) - Feature specs (numbered 07+)
-**On hold:** [future-launch.md](./SPECIFICATIONS/future-launch.md) - Formal launch checklist
-**Implementation history:** [SPECIFICATIONS/ARCHIVE/implementation/](./SPECIFICATIONS/ARCHIVE/implementation/)
+All 5 foundation phases complete (March–April 2026). Active feature work in [SPECIFICATIONS/](./SPECIFICATIONS/), archived phases in [SPECIFICATIONS/ARCHIVE/](./SPECIFICATIONS/ARCHIVE/). Formal launch checklist on hold: [future-launch.md](./SPECIFICATIONS/future-launch.md).
 
 ---
 
