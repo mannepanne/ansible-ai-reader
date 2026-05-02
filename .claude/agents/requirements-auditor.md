@@ -55,7 +55,7 @@ Read the spec file provided. Understand:
 - [ ] What happens with empty states (no data, first use)?
 - [ ] What happens with boundary values (maximum, minimum, zero, null)?
 - [ ] What happens if the user performs actions out of the expected order?
-- [ ] What happens on concurrent access (two users doing the same thing simultaneously)?
+- [ ] What happens on concurrent access (cron worker firing a sync while the user clicks Sync, the same user with multiple tabs open, or the queue consumer processing a job while the user mutates the same row)?
 
 ### Data and State
 

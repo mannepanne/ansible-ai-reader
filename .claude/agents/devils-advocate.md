@@ -44,7 +44,7 @@ Ask: What does the user actually need? What problem are they experiencing? Could
 
 - [ ] Is the problem statement clear and correct?
 - [ ] Is this solving the actual problem, or a proxy for it?
-- [ ] What evidence exists that this problem matters to users?
+- [ ] What concrete scenario or workflow gap motivated this? (a specific case beats abstract "users would want this")
 - [ ] Could the problem be solved by improving an existing feature rather than building a new one?
 
 ### Solution Fit
@@ -64,7 +64,7 @@ Ask: What does the user actually need? What problem are they experiencing? Could
 
 ### Scope and Prioritisation
 
-- [ ] Does this fit the current product priorities?
+- [ ] Does this fit the project's stated scope and purpose (depth-of-engagement triage of Reader content)?
 - [ ] Is the scope right? Too large? Missing important parts?
 - [ ] Is there a smaller version of this that would deliver 80% of the value?
 - [ ] Are there higher-priority problems this effort could address instead?
