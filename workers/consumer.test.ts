@@ -962,6 +962,90 @@ describe('Queue Consumer', () => {
         })
       );
     });
+
+    it('preserves existing tags when Perplexity returns no parseable tags', async () => {
+      const mockAck = vi.fn();
+      const syncLogInsertSpy = vi.fn().mockResolvedValue({ error: null });
+      const itemUpdateSpy = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ error: null }),
+      });
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'processing_jobs') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: { attempts: 0, max_attempts: 3 },
+                  error: null,
+                }),
+              }),
+            }),
+            update: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ error: null }),
+            }),
+          };
+        }
+        if (table === 'reader_items') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    title: 'Some Article',
+                    short_summary: 'A summary that is long enough to derive tags from.',
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+            update: itemUpdateSpy,
+          };
+        }
+        if (table === 'sync_log') {
+          return { insert: syncLogInsertSpy };
+        }
+      });
+
+      // Perplexity returns an empty tag list (e.g. unparseable response, prompt-injection
+      // induced empty output). The consumer must NOT write tags: [] over the user's data.
+      mockGenerateTags.mockResolvedValue({
+        tags: [],
+        model: 'sonar',
+        usage: { prompt_tokens: 100, completion_tokens: 0, total_tokens: 100 },
+      });
+
+      const mockBatch = {
+        messages: [
+          {
+            body: {
+              jobId: 'job-tags-3',
+              userId: 'user-1',
+              readerItemId: 'item-1',
+              readerId: 'reader-123',
+              jobType: 'tags_generation' as const,
+            },
+            ack: mockAck,
+            retry: vi.fn(),
+          },
+        ],
+      };
+
+      await consumer.queue(mockBatch as any, mockEnv);
+
+      // generateTags was called, but the empty result short-circuits the DB update
+      expect(mockGenerateTags).toHaveBeenCalled();
+      expect(itemUpdateSpy).not.toHaveBeenCalled();
+
+      // Permanent error: ack (don't retry) and log to sync_log
+      expect(mockAck).toHaveBeenCalled();
+      expect(syncLogInsertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sync_type: 'tags_generation_failed',
+          items_failed: 1,
+        })
+      );
+    });
   });
 
 });

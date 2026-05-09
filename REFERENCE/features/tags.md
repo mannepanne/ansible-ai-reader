@@ -72,12 +72,12 @@ Response: {
 
 ### Process
 1. Endpoint finds items with summaries but `tags` is `null` or `[]`
-2. Creates jobs with `regenerate_batch_id` for tracking
+2. Creates `tags_generation` jobs with `regenerate_batch_id` for tracking
 3. Enqueues to processing queue
 4. Frontend polls status endpoint for progress updates
-5. Consumer re-fetches content from Reader API
-6. Perplexity generates new summary + tags
-7. Overwrites existing summary and tags in database
+5. Consumer reads the existing `short_summary` from the database (no Reader API fetch)
+6. Perplexity generates fresh tags only, derived from title + existing summary
+7. Updates only the `tags` column — `short_summary` and `perplexity_model` are preserved verbatim
 8. Progress bar shows "X / Y items" with visual indicator
 9. Completion message shown (green/yellow/red based on status)
 
@@ -86,7 +86,7 @@ Response: {
 - Enables querying progress for specific regeneration operation
 - Independent from sync operations (uses `sync_log_id` for sync)
 
-**Note:** Regenerates both summary AND tags (can't regenerate tags alone). This is a known limitation tracked in technical debt (TD-002).
+**Note:** Tag regeneration is dispatched via the dedicated `tags_generation` job type, separately from `summary_generation`. The user's existing summary is preserved untouched, and prompt-token usage is ~95% lower than the previous shared-job-type path. See ADR [`2026-05-09-job-type-per-operation.md`](../decisions/2026-05-09-job-type-per-operation.md).
 
 ### UX Flow
 1. User clicks "Regenerate Tags" button in header
@@ -118,7 +118,6 @@ Response: {
 - Filter items by tag
 - Tag cloud view
 - Custom tag editing
-- Tag-only regeneration
 
 ## Related Documentation
 - [AI Summaries](./ai-summaries.md) - How tags are generated

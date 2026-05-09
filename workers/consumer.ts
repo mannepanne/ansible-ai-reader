@@ -125,7 +125,7 @@ async function trackTokenUsage(
   },
   model: string,
   contentTruncated: boolean,
-  syncType: 'summary_generation' | 'tags_generation' = 'summary_generation'
+  syncType: 'summary_generation' | 'tags_generation'
 ): Promise<void> {
   const { error } = await supabase.from('sync_log').insert({
     user_id: userId,
@@ -156,12 +156,15 @@ async function trackTokenUsage(
  *
  * Both paths share job-state transitions and error handling.
  */
-async function processSummaryGeneration(
+async function processJob(
   message: Message<QueueMessage>,
   env: Env,
   supabase: any
 ): Promise<void> {
   const { jobId, userId, readerItemId, readerId } = message.body;
+  // Backward-compat fallback for in-flight messages enqueued before tags_generation
+  // shipped (deploy ~2026-05-09). Safe to remove after 2026-05-23 — by then any such
+  // messages have either drained through or been retried past the queue's max age.
   const jobType = message.body.jobType ?? 'summary_generation';
 
   console.log(`[Queue Consumer] Processing ${jobType} job:`, jobId);
@@ -215,6 +218,16 @@ async function processSummaryGeneration(
         title: item.title,
         summary: item.short_summary,
       });
+
+      // Defend the existing tags: if Perplexity returned no parseable tags, refuse to
+      // overwrite. Without this guard an unparseable response would wipe the user's
+      // tags to []. Surfaces as `tags_generation_failed` in sync_log; the user can
+      // re-click "Regenerate Tags" to retry.
+      if (result.tags.length === 0) {
+        throw new PermanentError(
+          'Perplexity returned no parseable tags — preserving existing tags'
+        );
+      }
 
       // Update only the tags column — short_summary and perplexity_model are untouched
       const { error: updateError } = await supabase
@@ -297,7 +310,8 @@ async function processSummaryGeneration(
         readerItemId,
         result.usage,
         result.model,
-        result.contentTruncated
+        result.contentTruncated,
+        'summary_generation'
       );
     }
 
@@ -422,7 +436,7 @@ export default {
     );
 
     for (const message of batch.messages) {
-      await processSummaryGeneration(message, env, supabase);
+      await processJob(message, env, supabase);
     }
   },
 };
