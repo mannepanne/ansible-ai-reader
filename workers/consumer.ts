@@ -1,5 +1,5 @@
-// ABOUT: Cloudflare Queue consumer for processing summary generation jobs
-// ABOUT: Fetches content from Reader API, generates AI summaries via Perplexity
+// ABOUT: Cloudflare Queue consumer dispatching summary_generation and tags_generation jobs
+// ABOUT: Summary path fetches Reader content + Perplexity; tags path reuses existing summary
 
 import { createClient } from '@supabase/supabase-js';
 import { generateSummary, generateTags } from '../src/lib/perplexity-api';

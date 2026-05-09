@@ -46,7 +46,7 @@ Adding `tags_generation` required: one Postgres `ALTER TYPE … ADD VALUE` migra
 `ALTER TYPE … ADD VALUE` cannot be referenced in the same transaction it was added in (Postgres limitation), so any new job type requires the migration to ship *before* the app code that emits the new value. This is documented inline in the migration file. The deploy ordering risk (migration must run before the worker auto-deploys on merge) is a real cost, called out in the PR test plan whenever a new job type lands.
 
 **Dispatch switch will grow over time.**
-With three job types the switch is a clean if/else. With six it becomes the natural extraction point for a per-job-type strategy table. We accept the linear growth and will extract when the next job type is added (~115 lines is the current size; the next addition is the inflection point).
+With three job types the dispatch is a clean if/else, but `processJob` is already ~260 lines once both branches are inlined — large enough that the next job type is a sensible point to extract a per-job-type strategy table. We accept the linear growth so far and will extract on the next addition rather than carrying a fourth branch inline.
 
 **Backward-compat fallback for in-flight messages.**
 When a new job type ships, queue messages enqueued by the *previous* worker version don't have the new field. The consumer must default the field for in-flight messages (`?? 'summary_generation'`) for the deploy window. The default is dated and removed once the in-flight window has drained (Cloudflare Queues retention + max retries). This is a known piece of debt every new-job-type ADD takes on, and the dated comment is the contract that prevents it from going permanent.

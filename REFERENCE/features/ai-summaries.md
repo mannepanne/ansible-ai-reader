@@ -145,7 +145,7 @@ const tags = tagsString.split(',').map(tag => tag.trim()).filter(Boolean);
 ### Consumer Worker Flow
 
 ```typescript
-// workers/consumer.ts — processSummaryGeneration()
+// workers/consumer.ts — processJob() (summary_generation branch)
 
 // 1. Fetch article content from Reader API
 const htmlContent = await fetchReaderItem(readerItem.source_url, env.READER_API_KEY);
@@ -171,7 +171,7 @@ await supabase.from('reader_items').update({
 }).eq('id', readerItem.id);
 
 // 5. Update job as completed
-await supabase.from('jobs').update({ status: 'completed' }).eq('id', job.id);
+await supabase.from('processing_jobs').update({ status: 'completed' }).eq('id', job.id);
 ```
 
 ### Batch Processing
