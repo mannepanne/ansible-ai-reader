@@ -85,7 +85,7 @@ CREATE TABLE processing_jobs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   reader_item_id UUID NOT NULL REFERENCES reader_items(id) ON DELETE CASCADE,
-  job_type job_type_enum NOT NULL, -- 'summary_generation' | 'archive_sync'
+  job_type job_type_enum NOT NULL, -- 'summary_generation' | 'tags_generation' | 'archive_sync'
   status job_status_enum NOT NULL DEFAULT 'pending',
   attempts INTEGER DEFAULT 0,
   max_attempts INTEGER DEFAULT 3,
@@ -99,7 +99,7 @@ CREATE TABLE processing_jobs (
 ```
 
 **Columns:**
-- `job_type` - Type of job: `summary_generation` (AI summary + tags) or `archive_sync` (archive in Reader)
+- `job_type` - Type of job: `summary_generation` (AI summary + tags from article content), `tags_generation` (tags only, derived from existing summary), or `archive_sync` (archive in Reader)
 - `status` - Current state: `pending`, `processing`, `completed`, `failed`
 - `sync_log_id` - Links to sync operation (for jobs created during sync)
 - `regenerate_batch_id` - Groups jobs from "Regenerate Tags" operation (enables progress tracking)

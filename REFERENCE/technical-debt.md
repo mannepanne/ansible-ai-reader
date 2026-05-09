@@ -40,22 +40,6 @@ VALUES ('<user-id-from-above>', '<email>', NOW());
 
 ---
 
-### TD-002: Wasteful Tag Regeneration (Re-generates Summaries)
-- **Location:** `src/app/api/reader/regenerate-tags/route.ts` - job creation logic (lines 65-75)
-- **Issue:** Tag regeneration uses `'summary_generation'` job type, which regenerates BOTH summary AND tags via Perplexity API. Since summaries already exist and are correct, this wastes ~80% of API credits for these operations.
-- **Why accepted:** Simpler implementation - reuses existing job type and worker logic. Adding a separate `'tag_generation'` job type would require worker modifications and testing.
-- **Cost impact:** ~$0.001 per item for full summary generation vs ~$0.0002 for tags-only. For 100 items: $0.10 vs $0.02.
-- **Risk:** **Low** - Works correctly, just costs more. Not critical for MVP with low item counts.
-- **Future fix:** Implement one of:
-  1. **New job type** (recommended): Add `'tag_generation'` job type and modify worker to handle tags-only processing with cheaper Perplexity prompt
-  2. **Smart worker**: Modify worker to check if `short_summary` exists and skip summary generation if present
-  3. **Separate endpoint**: Create distinct API for tags-only regeneration with optimized worker
-- **Phase introduced:** UI Design & Tag Regeneration (2026-03-15)
-- **Related code:** `workers/consumer.ts` - processSummaryGeneration(), `src/lib/perplexity-api.ts` - generateSummary()
-
----
-
-
 ### TD-005: No Cost Monitoring for Perplexity API
 - **Location:** No implementation exists — deferred from Phase 4, carried through Phase 5
 - **Issue:** There is no cost tracking for Perplexity API usage. Token counts are not logged, there is no cost report endpoint, and no billing alerts. The only visibility into API spend is the Perplexity dashboard directly.
@@ -149,6 +133,12 @@ VALUES ('<user-id-from-above>', '<email>', NOW());
 ---
 
 ## Resolved Items
+
+### TD-002: Wasteful Tag Regeneration (Re-generates Summaries)
+- **Resolved:** May 2026
+- **Resolution:** Added a dedicated `tags_generation` job type. The "Regenerate Tags" endpoint now enqueues this lighter job, and the queue consumer dispatches to a tags-only path that reads the existing `short_summary` from the DB, calls a focused `generateTags()` Perplexity prompt, and updates only the `tags` column. The user's existing summary is preserved verbatim, and prompt-token usage drops by ~95% versus the previous `summary_generation` reuse. Migration `20260509_add_tags_generation_job_type.sql` adds the enum value.
+
+---
 
 ### TD-011: Root README links point at pre-refactor REFERENCE/ paths
 

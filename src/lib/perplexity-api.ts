@@ -70,6 +70,21 @@ export const ParsedSummarySchema = z.object({
 export type ParsedSummary = z.infer<typeof ParsedSummarySchema>;
 
 /**
+ * Tags-only generation result. Used by the cheap tags_generation job path,
+ * which derives tags from an already-stored summary rather than re-fetching
+ * the article content.
+ */
+export interface TagsGenerationResult {
+  tags: string[];
+  model: string;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
+
+/**
  * Commentariat generation result
  */
 export interface CommentariatResult {
@@ -399,6 +414,133 @@ Your response must include a ## Summary section and a ## Tags section. Structure
         model: validated.model,
         usage: validated.usage,
         contentTruncated: truncated,
+      };
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error('[Perplexity API] Validation error:', error.message);
+        throw new PerplexityAPIError(
+          'Invalid response format from Perplexity API',
+          undefined,
+          false
+        );
+      }
+
+      throw error;
+    }
+  });
+}
+
+/**
+ * Parse a tags-only Perplexity response into a clean tag array.
+ *
+ * The tags_generation prompt asks for a bare comma-separated list with no
+ * headers. Some models still wrap it in a "Tags:" prefix or quote marks, so
+ * we strip those defensively and dedupe.
+ */
+export function parseTagsResponse(text: string): string[] {
+  // Drop a leading "Tags:" or "## Tags" label if the model added one
+  const stripped = text
+    .replace(/^\s*(##\s*)?tags\s*:?\s*/i, '')
+    .trim();
+
+  const seen = new Set<string>();
+  const tags: string[] = [];
+
+  for (const raw of stripped.split(',')) {
+    const tag = raw.trim().replace(/^["'`]|["'`]$/g, '').trim();
+    if (!tag) continue;
+    if (tag.length > 50) continue; // Match ParsedSummarySchema ceiling
+    const key = tag.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    tags.push(tag);
+    if (tags.length >= 10) break;
+  }
+
+  return tags;
+}
+
+/**
+ * Generate tags from an existing summary.
+ *
+ * Cheap, focused alternative to generateSummary() for the tags_generation
+ * job path. Uses the stored short_summary as input, so it doesn't fetch
+ * the article from Reader and uses ~95% fewer prompt tokens than the full
+ * summary regeneration.
+ *
+ * @param apiToken - Perplexity API key
+ * @param item - Article title and existing summary
+ * @returns Tags, token usage, and model
+ * @throws {PerplexityAPIError} On API errors
+ */
+export async function generateTags(
+  apiToken: string,
+  item: { title: string; summary: string }
+): Promise<TagsGenerationResult> {
+  return perplexityQueue.add(async () => {
+    const requestBody: PerplexityRequest = {
+      model: 'sonar',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You generate concise topical tags for articles. Reply with only a comma-separated list — no headers, no commentary, no quotes.',
+        },
+        {
+          role: 'user',
+          content: `Generate 3-5 short topical tags for this article based on its summary. Tags should be lowercase, single words or short phrases (max 3 words).
+
+Title: ${item.title}
+Summary: ${item.summary}
+
+Reply with ONLY a comma-separated list, e.g.: machine learning, ethics, policy`,
+        },
+      ],
+      max_tokens: 100,
+      temperature: 0.2,
+    };
+
+    try {
+      const response = await fetchWithRetry(
+        'https://api.perplexity.ai/chat/completions',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new PerplexityAPIError(
+            'Invalid Perplexity API token',
+            401,
+            false
+          );
+        }
+
+        throw new PerplexityAPIError(
+          `Perplexity API error: ${response.status} ${response.statusText}`,
+          response.status,
+          response.status >= 500
+        );
+      }
+
+      const data = await response.json();
+      const validated = PerplexityResponseSchema.parse(data);
+      const tags = parseTagsResponse(validated.choices[0].message.content);
+
+      console.log(
+        `[Perplexity API] Generated ${tags.length} tags for: ${item.title} (${validated.usage.total_tokens} tokens)`
+      );
+
+      return {
+        tags,
+        model: validated.model,
+        usage: validated.usage,
       };
     } catch (error) {
       if (error instanceof z.ZodError) {

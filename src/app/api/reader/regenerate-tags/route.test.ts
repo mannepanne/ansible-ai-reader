@@ -386,7 +386,7 @@ describe('POST /api/reader/regenerate-tags', () => {
       userId: 'user-123',
       readerItemId: 'item-1',
       readerId: 'reader-1',
-      jobType: 'summary_generation',
+      jobType: 'tags_generation',
     });
   });
 });

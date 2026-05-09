@@ -10,7 +10,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 // Phase 4: Consumer will fetch content from Reader API using readerId
 const jobSchema = z.object({
   userId: z.string().uuid(),
-  jobType: z.enum(['summary_generation', 'archive_sync']),
+  jobType: z.enum(['summary_generation', 'tags_generation', 'archive_sync']),
   readerItemId: z.string().uuid(),
   readerId: z.string(), // Reader API ID for fetching content
 });
@@ -22,7 +22,7 @@ interface QueueMessage {
   userId: string;
   readerItemId: string; // Local DB ID
   readerId: string; // Reader API ID for fetching content
-  jobType: 'summary_generation' | 'archive_sync';
+  jobType: 'summary_generation' | 'tags_generation' | 'archive_sync';
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {

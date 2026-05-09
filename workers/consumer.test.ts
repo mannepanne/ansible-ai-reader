@@ -7,6 +7,7 @@ import consumer from './consumer';
 // Mock dependencies
 const mockFrom = vi.fn();
 const mockGenerateSummary = vi.fn();
+const mockGenerateTags = vi.fn();
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => ({
@@ -16,6 +17,7 @@ vi.mock('@supabase/supabase-js', () => ({
 
 vi.mock('../src/lib/perplexity-api', () => ({
   generateSummary: (...args: any[]) => mockGenerateSummary(...args),
+  generateTags: (...args: any[]) => mockGenerateTags(...args),
 }));
 
 // Mock global fetch for Reader API
@@ -801,6 +803,165 @@ describe('Queue Consumer', () => {
       undefined
     );
     expect(mockAck).toHaveBeenCalled();
+  });
+
+  describe('tags_generation job', () => {
+    it('regenerates tags from existing summary without re-fetching article', async () => {
+      const mockAck = vi.fn();
+      const readerItemUpdateSpy = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ error: null }),
+      });
+
+      mockGenerateTags.mockResolvedValue({
+        tags: ['fresh', 'tags', 'here'],
+        model: 'sonar',
+        usage: { prompt_tokens: 80, completion_tokens: 20, total_tokens: 100 },
+      });
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'processing_jobs') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: { attempts: 0, max_attempts: 3 },
+                  error: null,
+                }),
+              }),
+            }),
+            update: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ error: null }),
+            }),
+          };
+        }
+        if (table === 'reader_items') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    title: 'Existing Article',
+                    short_summary: 'A summary that already exists in the DB.',
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+            update: readerItemUpdateSpy,
+          };
+        }
+        if (table === 'sync_log') {
+          return { insert: vi.fn().mockResolvedValue({ error: null }) };
+        }
+      });
+
+      const mockBatch = {
+        messages: [
+          {
+            body: {
+              jobId: 'job-tags-1',
+              userId: 'user-1',
+              readerItemId: 'item-1',
+              readerId: 'reader-123',
+              jobType: 'tags_generation' as const,
+            },
+            ack: mockAck,
+            retry: vi.fn(),
+          },
+        ],
+      };
+
+      await consumer.queue(mockBatch as any, mockEnv);
+
+      // Reader API must NOT be called for tags_generation
+      expect(global.fetch).not.toHaveBeenCalled();
+
+      // generateTags called with title + existing summary
+      expect(mockGenerateTags).toHaveBeenCalledWith('test-perplexity-key', {
+        title: 'Existing Article',
+        summary: 'A summary that already exists in the DB.',
+      });
+
+      // generateSummary must NOT be called
+      expect(mockGenerateSummary).not.toHaveBeenCalled();
+
+      // Reader item update must include tags but NOT short_summary
+      expect(readerItemUpdateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ tags: ['fresh', 'tags', 'here'] })
+      );
+      const updatePayload = readerItemUpdateSpy.mock.calls[0][0];
+      expect(updatePayload).not.toHaveProperty('short_summary');
+      expect(updatePayload).not.toHaveProperty('perplexity_model');
+
+      expect(mockAck).toHaveBeenCalled();
+    });
+
+    it('fails permanently when item has no summary to derive tags from', async () => {
+      const mockAck = vi.fn();
+      const syncLogInsertSpy = vi.fn().mockResolvedValue({ error: null });
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'processing_jobs') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: { attempts: 0, max_attempts: 3 },
+                  error: null,
+                }),
+              }),
+            }),
+            update: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ error: null }),
+            }),
+          };
+        }
+        if (table === 'reader_items') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: { title: 'No Summary Yet', short_summary: null },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'sync_log') {
+          return { insert: syncLogInsertSpy };
+        }
+      });
+
+      const mockBatch = {
+        messages: [
+          {
+            body: {
+              jobId: 'job-tags-2',
+              userId: 'user-1',
+              readerItemId: 'item-1',
+              readerId: 'reader-123',
+              jobType: 'tags_generation' as const,
+            },
+            ack: mockAck,
+            retry: vi.fn(),
+          },
+        ],
+      };
+
+      await consumer.queue(mockBatch as any, mockEnv);
+
+      expect(mockGenerateTags).not.toHaveBeenCalled();
+      expect(mockAck).toHaveBeenCalled(); // Permanent error: ack, don't retry
+
+      // Failure logged with the tags-specific sync_type
+      expect(syncLogInsertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sync_type: 'tags_generation_failed',
+          items_failed: 1,
+        })
+      );
+    });
   });
 
 });

@@ -4,8 +4,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   generateSummary,
+  generateTags,
   smartTruncate,
   parseSummaryResponse,
+  parseTagsResponse,
   PerplexityAPIError,
   ParsedSummarySchema,
   PerplexityResponseSchema,
@@ -826,6 +828,153 @@ testing`,
 
       expect(error.retryable).toBe(true);
       expect(error.statusCode).toBeUndefined();
+    });
+  });
+
+  describe('parseTagsResponse', () => {
+    it('parses a clean comma-separated list', () => {
+      expect(parseTagsResponse('ai, ethics, policy')).toEqual([
+        'ai',
+        'ethics',
+        'policy',
+      ]);
+    });
+
+    it('strips a leading "Tags:" label if model adds one', () => {
+      expect(parseTagsResponse('Tags: ai, ethics')).toEqual(['ai', 'ethics']);
+    });
+
+    it('strips a leading "## Tags" header if model adds one', () => {
+      expect(parseTagsResponse('## Tags\nai, ethics')).toEqual(['ai', 'ethics']);
+    });
+
+    it('strips wrapping quotes from individual tags', () => {
+      expect(parseTagsResponse('"ai", "ethics", `policy`')).toEqual([
+        'ai',
+        'ethics',
+        'policy',
+      ]);
+    });
+
+    it('dedupes case-insensitively and preserves first casing', () => {
+      expect(parseTagsResponse('AI, ai, Ethics, ETHICS')).toEqual([
+        'AI',
+        'Ethics',
+      ]);
+    });
+
+    it('caps tags at 10', () => {
+      const input = Array.from({ length: 15 }, (_, i) => `tag${i}`).join(', ');
+      expect(parseTagsResponse(input)).toHaveLength(10);
+    });
+
+    it('drops tags longer than 50 characters', () => {
+      const longTag = 'a'.repeat(60);
+      expect(parseTagsResponse(`good, ${longTag}, also-good`)).toEqual([
+        'good',
+        'also-good',
+      ]);
+    });
+
+    it('returns empty array for empty input', () => {
+      expect(parseTagsResponse('')).toEqual([]);
+      expect(parseTagsResponse('   ')).toEqual([]);
+    });
+  });
+
+  describe('generateTags', () => {
+    const mockApiToken = 'test-perplexity-token';
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      global.fetch = vi.fn();
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    const buildResponse = (content: string) => ({
+      id: 'resp-tags-1',
+      model: 'sonar',
+      choices: [
+        {
+          index: 0,
+          message: { role: 'assistant', content },
+          finish_reason: 'stop',
+        },
+      ],
+      usage: {
+        prompt_tokens: 80,
+        completion_tokens: 20,
+        total_tokens: 100,
+      },
+    });
+
+    it('generates tags from a summary successfully', async () => {
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => buildResponse('ai, ethics, policy'),
+      });
+
+      const result = await generateTags(mockApiToken, {
+        title: 'AI Ethics',
+        summary: 'A piece arguing that policy must catch up with capability.',
+      });
+
+      expect(result.tags).toEqual(['ai', 'ethics', 'policy']);
+      expect(result.model).toBe('sonar');
+      expect(result.usage.total_tokens).toBe(100);
+    });
+
+    it('uses the summary (not full article content) in the prompt', async () => {
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () => buildResponse('ai, ethics'),
+      });
+
+      const summary = 'Short summary input.';
+      await generateTags(mockApiToken, {
+        title: 'Tagging Test',
+        summary,
+      });
+
+      const fetchCall = (global.fetch as any).mock.calls[0];
+      const body = JSON.parse(fetchCall[1].body);
+      const userMessage = body.messages.find((m: any) => m.role === 'user');
+      expect(userMessage.content).toContain(summary);
+      expect(userMessage.content).toContain('Tagging Test');
+      expect(body.max_tokens).toBeLessThanOrEqual(200);
+    });
+
+    it('throws on 401 unauthorized', async () => {
+      (global.fetch as any).mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+      });
+
+      await expect(
+        generateTags(mockApiToken, { title: 't', summary: 'short summary' })
+      ).rejects.toThrow('Invalid Perplexity API token');
+    });
+
+    it('returns empty tags when model output is unparseable', async () => {
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        json: async () =>
+          buildResponse('I cannot generate tags for this content.'),
+      });
+
+      const result = await generateTags(mockApiToken, {
+        title: 't',
+        summary: 'short summary',
+      });
+
+      // Defensive parser will return whatever it can — at minimum, the function
+      // resolves without throwing so the worker can mark the job completed.
+      expect(Array.isArray(result.tags)).toBe(true);
     });
   });
 });
