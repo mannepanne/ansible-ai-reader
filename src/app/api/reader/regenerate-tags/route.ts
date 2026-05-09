@@ -67,18 +67,13 @@ export async function POST() {
     // Create processing jobs and enqueue
     for (const item of itemsWithoutTags) {
       try {
-        // Create processing job
-        // TODO: Optimize to avoid regenerating summary (wasteful API usage - see TD-002)
-        // This implementation uses 'summary_generation' job type which regenerates
-        // both summary AND tags. Since summary exists, we waste ~80% of API credits.
-        // See REFERENCE/technical-debt.md TD-002 for cost analysis and future fix options.
         const { data: job, error: jobError } = await supabase
           .from('processing_jobs')
           .insert({
             user_id: userId,
             reader_item_id: item.id,
             sync_log_id: null, // Not part of a sync operation
-            job_type: 'summary_generation', // Re-generates BOTH summary and tags (inefficient)
+            job_type: 'tags_generation', // Tags-only path: reuses existing summary, leaves it untouched
             status: 'pending',
             regenerate_batch_id: regenerateId, // Link to this regeneration batch for progress tracking
           })
@@ -103,7 +98,7 @@ export async function POST() {
               userId: userId,
               readerItemId: item.id,
               readerId: item.reader_id,
-              jobType: 'summary_generation',
+              jobType: 'tags_generation',
             });
 
             jobsCreated++;

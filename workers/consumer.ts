@@ -1,8 +1,8 @@
-// ABOUT: Cloudflare Queue consumer for processing summary generation jobs
-// ABOUT: Fetches content from Reader API, generates AI summaries via Perplexity
+// ABOUT: Cloudflare Queue consumer dispatching summary_generation and tags_generation jobs
+// ABOUT: Summary path fetches Reader content + Perplexity; tags path reuses existing summary
 
 import { createClient } from '@supabase/supabase-js';
-import { generateSummary } from '../src/lib/perplexity-api';
+import { generateSummary, generateTags } from '../src/lib/perplexity-api';
 import { fetchUnreadItems } from '../src/lib/reader-api';
 import { stripHtml } from '../src/lib/html-utils';
 import type { Message, MessageBatch } from '@cloudflare/workers-types';
@@ -21,7 +21,7 @@ interface QueueMessage {
   userId: string;
   readerItemId: string; // Local DB ID
   readerId: string; // Reader API ID for fetching content
-  jobType: 'summary_generation';
+  jobType: 'summary_generation' | 'tags_generation';
 }
 
 // Custom error types for different failure scenarios
@@ -124,11 +124,12 @@ async function trackTokenUsage(
     total_tokens: number;
   },
   model: string,
-  contentTruncated: boolean
+  contentTruncated: boolean,
+  syncType: 'summary_generation' | 'tags_generation'
 ): Promise<void> {
   const { error } = await supabase.from('sync_log').insert({
     user_id: userId,
-    sync_type: 'summary_generation',
+    sync_type: syncType,
     items_created: 1,
     errors: {
       reader_item_id: readerItemId,
@@ -149,16 +150,24 @@ async function trackTokenUsage(
 }
 
 /**
- * Process a single summary generation job
+ * Process a single queue job. Dispatches on jobType:
+ *  - 'summary_generation': fetch article → generate summary + tags (writes both)
+ *  - 'tags_generation': read existing summary → regenerate tags only
+ *
+ * Both paths share job-state transitions and error handling.
  */
-async function processSummaryGeneration(
+async function processJob(
   message: Message<QueueMessage>,
   env: Env,
   supabase: any
 ): Promise<void> {
   const { jobId, userId, readerItemId, readerId } = message.body;
+  // Backward-compat fallback for in-flight messages enqueued before tags_generation
+  // shipped (deploy ~2026-05-09). Safe to remove after 2026-05-23 — by then any such
+  // messages have either drained through or been retried past the queue's max age.
+  const jobType = message.body.jobType ?? 'summary_generation';
 
-  console.log('[Queue Consumer] Processing job:', jobId);
+  console.log(`[Queue Consumer] Processing ${jobType} job:`, jobId);
 
   // 1. Get current job status and retry count
   const { data: job, error: jobFetchError } = await supabase
@@ -183,65 +192,128 @@ async function processSummaryGeneration(
       })
       .eq('id', jobId);
 
-    // 3. Fetch content from Reader API
-    const articleContent = await fetchReaderContent(
-      readerId,
-      env.READER_API_TOKEN
-    );
+    if (jobType === 'tags_generation') {
+      // Tags-only path: skip Reader fetch entirely. Read the existing summary
+      // and ask Perplexity for fresh tags. Cheaper by ~95% in prompt tokens
+      // and preserves the user's existing summary verbatim.
+      const { data: item, error: itemError } = await supabase
+        .from('reader_items')
+        .select('title, short_summary')
+        .eq('id', readerItemId)
+        .single();
 
-    if (!articleContent.content || articleContent.content.length < 100) {
-      throw new PermanentError(
-        'Article content is empty or too short (< 100 characters)'
+      if (itemError || !item) {
+        throw new PermanentError(
+          `Item not found for tags regeneration: ${itemError?.message ?? 'no row'}`
+        );
+      }
+
+      if (!item.short_summary || item.short_summary.length < 10) {
+        throw new PermanentError(
+          'Cannot regenerate tags: item has no summary to derive tags from'
+        );
+      }
+
+      const result = await generateTags(env.PERPLEXITY_API_KEY, {
+        title: item.title,
+        summary: item.short_summary,
+      });
+
+      // Defend the existing tags: if Perplexity returned no parseable tags, refuse to
+      // overwrite. Without this guard an unparseable response would wipe the user's
+      // tags to []. Surfaces as `tags_generation_failed` in sync_log; the user can
+      // re-click "Regenerate Tags" to retry.
+      if (result.tags.length === 0) {
+        throw new PermanentError(
+          'Perplexity returned no parseable tags — preserving existing tags'
+        );
+      }
+
+      // Update only the tags column — short_summary and perplexity_model are untouched
+      const { error: updateError } = await supabase
+        .from('reader_items')
+        .update({
+          tags: result.tags,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', readerItemId);
+
+      if (updateError) {
+        console.error('[Consumer] Failed to update reader_items tags:', updateError);
+        throw new Error(`Database update failed: ${updateError.message}`);
+      }
+
+      await trackTokenUsage(
+        supabase,
+        userId,
+        readerItemId,
+        result.usage,
+        result.model,
+        false,
+        'tags_generation'
+      );
+    } else {
+      // 3. Fetch content from Reader API
+      const articleContent = await fetchReaderContent(
+        readerId,
+        env.READER_API_TOKEN
+      );
+
+      if (!articleContent.content || articleContent.content.length < 100) {
+        throw new PermanentError(
+          'Article content is empty or too short (< 100 characters)'
+        );
+      }
+
+      // 4. Fetch user's custom summary prompt (fall back to default if unavailable)
+      let customPrompt: string | undefined;
+      try {
+        const { data: userSettings } = await supabase
+          .from('users')
+          .select('summary_prompt')
+          .eq('id', userId)
+          .single();
+        customPrompt = userSettings?.summary_prompt ?? undefined;
+      } catch {
+        console.warn('[Queue Consumer] Could not fetch user prompt, using default');
+      }
+
+      // 5. Generate summary via Perplexity API
+      const result = await generateSummary(env.PERPLEXITY_API_KEY, {
+        title: articleContent.title,
+        author: articleContent.author,
+        content: articleContent.content,
+        url: articleContent.url,
+      }, customPrompt);
+
+      // 6. Store summary and tags in database
+      const { error: updateError } = await supabase
+        .from('reader_items')
+        .update({
+          short_summary: result.summary,
+          tags: result.tags,
+          perplexity_model: result.model,
+          content_truncated: result.contentTruncated,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', readerItemId);
+
+      if (updateError) {
+        console.error('[Consumer] Failed to update reader_items:', updateError);
+        throw new Error(`Database update failed: ${updateError.message}`);
+      }
+
+      // 7. Track token usage for cost monitoring
+      await trackTokenUsage(
+        supabase,
+        userId,
+        readerItemId,
+        result.usage,
+        result.model,
+        result.contentTruncated,
+        'summary_generation'
       );
     }
-
-    // 4. Fetch user's custom summary prompt (fall back to default if unavailable)
-    let customPrompt: string | undefined;
-    try {
-      const { data: userSettings } = await supabase
-        .from('users')
-        .select('summary_prompt')
-        .eq('id', userId)
-        .single();
-      customPrompt = userSettings?.summary_prompt ?? undefined;
-    } catch {
-      console.warn('[Queue Consumer] Could not fetch user prompt, using default');
-    }
-
-    // 5. Generate summary via Perplexity API
-    const result = await generateSummary(env.PERPLEXITY_API_KEY, {
-      title: articleContent.title,
-      author: articleContent.author,
-      content: articleContent.content,
-      url: articleContent.url,
-    }, customPrompt);
-
-    // 6. Store summary and tags in database
-    const { error: updateError } = await supabase
-      .from('reader_items')
-      .update({
-        short_summary: result.summary,
-        tags: result.tags,
-        perplexity_model: result.model,
-        content_truncated: result.contentTruncated,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', readerItemId);
-
-    if (updateError) {
-      console.error('[Consumer] Failed to update reader_items:', updateError);
-      throw new Error(`Database update failed: ${updateError.message}`);
-    }
-
-    // 7. Track token usage for cost monitoring
-    await trackTokenUsage(
-      supabase,
-      userId,
-      readerItemId,
-      result.usage,
-      result.model,
-      result.contentTruncated
-    );
 
     // 8. Mark job as completed
     const { error: completeError } = await supabase
@@ -284,7 +356,7 @@ async function processSummaryGeneration(
       // Log failure to sync_log
       await supabase.from('sync_log').insert({
         user_id: userId,
-        sync_type: 'summary_generation_failed',
+        sync_type: `${jobType}_failed`,
         items_failed: 1,
         errors: {
           reader_item_id: readerItemId,
@@ -318,7 +390,7 @@ async function processSummaryGeneration(
       // Log failure to sync_log
       await supabase.from('sync_log').insert({
         user_id: userId,
-        sync_type: 'summary_generation_failed',
+        sync_type: `${jobType}_failed`,
         items_failed: 1,
         errors: {
           reader_item_id: readerItemId,
@@ -364,7 +436,7 @@ export default {
     );
 
     for (const message of batch.messages) {
-      await processSummaryGeneration(message, env, supabase);
+      await processJob(message, env, supabase);
     }
   },
 };

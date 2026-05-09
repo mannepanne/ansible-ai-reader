@@ -145,7 +145,7 @@ const tags = tagsString.split(',').map(tag => tag.trim()).filter(Boolean);
 ### Consumer Worker Flow
 
 ```typescript
-// workers/consumer.ts — processSummaryGeneration()
+// workers/consumer.ts — processJob() (summary_generation branch)
 
 // 1. Fetch article content from Reader API
 const htmlContent = await fetchReaderItem(readerItem.source_url, env.READER_API_KEY);
@@ -171,7 +171,7 @@ await supabase.from('reader_items').update({
 }).eq('id', readerItem.id);
 
 // 5. Update job as completed
-await supabase.from('jobs').update({ status: 'completed' }).eq('id', job.id);
+await supabase.from('processing_jobs').update({ status: 'completed' }).eq('id', job.id);
 ```
 
 ### Batch Processing
@@ -289,29 +289,24 @@ Response: { "summary": string | null, "tags": string[], "contentTruncated": bool
 
 **Implementation:** `src/app/api/reader/regenerate-summary/route.ts`
 
-### Batch Regeneration (all items, queue-based)
+### Retrying Failed Summary Jobs (batch, queue-based)
 
-**Use Case:** User wants to regenerate summaries for all items, e.g. after a significant prompt change.
+**Use Case:** A previous sync or regeneration left some items with failed `summary_generation` jobs (Reader API hiccup, Perplexity rate limit, etc.) and the user wants to re-run them without re-syncing the whole inbox.
 
-### Trigger
+**Endpoint:**
 ```
-POST /api/reader/regenerate-tags
-```
-
-**Body:**
-```json
-{
-  "itemIds": ["uuid1", "uuid2"]
-}
+POST /api/reader/retry
+Body: { "syncId": "uuid" }   // OR { "regenerateId": "uuid" } — exactly one
+Response: { "retriedCount": number }
 ```
 
 **Process:**
-1. Create new jobs for specified items
-2. Enqueue to processing queue
-3. Consumer re-fetches content and regenerates
-4. Overwrites existing summary/tags
+1. Auth check (`syncId`/`regenerateId` must belong to the calling user)
+2. Look up failed `processing_jobs` rows for that operation
+3. Reset their status to `pending` and re-enqueue to `PROCESSING_QUEUE`
+4. Consumer picks them up and runs the same path as the original job (`summary_generation` re-fetches Reader content; `tags_generation` reads existing summary)
 
-**Note:** Full content is re-fetched from Reader (not stored locally).
+**Note:** This is a *retry* of failed jobs, not a "regenerate all summaries" operation. There is no batch endpoint for re-running every summary after a prompt change — use the on-demand single-item refresh above for that, item-by-item. For tag-only refresh of items with summaries-but-no-tags, see [Tags → Tag Regeneration](./tags.md#tag-regeneration).
 
 ## Cost Monitoring
 

@@ -40,22 +40,6 @@ VALUES ('<user-id-from-above>', '<email>', NOW());
 
 ---
 
-### TD-002: Wasteful Tag Regeneration (Re-generates Summaries)
-- **Location:** `src/app/api/reader/regenerate-tags/route.ts` - job creation logic (lines 65-75)
-- **Issue:** Tag regeneration uses `'summary_generation'` job type, which regenerates BOTH summary AND tags via Perplexity API. Since summaries already exist and are correct, this wastes ~80% of API credits for these operations.
-- **Why accepted:** Simpler implementation - reuses existing job type and worker logic. Adding a separate `'tag_generation'` job type would require worker modifications and testing.
-- **Cost impact:** ~$0.001 per item for full summary generation vs ~$0.0002 for tags-only. For 100 items: $0.10 vs $0.02.
-- **Risk:** **Low** - Works correctly, just costs more. Not critical for MVP with low item counts.
-- **Future fix:** Implement one of:
-  1. **New job type** (recommended): Add `'tag_generation'` job type and modify worker to handle tags-only processing with cheaper Perplexity prompt
-  2. **Smart worker**: Modify worker to check if `short_summary` exists and skip summary generation if present
-  3. **Separate endpoint**: Create distinct API for tags-only regeneration with optimized worker
-- **Phase introduced:** UI Design & Tag Regeneration (2026-03-15)
-- **Related code:** `workers/consumer.ts` - processSummaryGeneration(), `src/lib/perplexity-api.ts` - generateSummary()
-
----
-
-
 ### TD-005: No Cost Monitoring for Perplexity API
 - **Location:** No implementation exists — deferred from Phase 4, carried through Phase 5
 - **Issue:** There is no cost tracking for Perplexity API usage. Token counts are not logged, there is no cost report endpoint, and no billing alerts. The only visibility into API spend is the Perplexity dashboard directly.
@@ -138,6 +122,24 @@ VALUES ('<user-id-from-above>', '<email>', NOW());
 
 ---
 
+### TD-012: Production Schema Diverges From `supabase/migrations/`
+- **Location:** Production Supabase project (`spqenzpdmatmuvrllskf`) vs `supabase/migrations/*.sql`
+- **Issue:** The migration files in this repo describe a database that does not match the live production schema. Two concrete forms of drift:
+  1. **No application enum types in production.** Migration `20260309000001_initial_schema.sql` declares `CREATE TYPE job_type_enum`, `job_status_enum`, `sync_status_enum`, etc., and uses them as column types (e.g. `job_type job_type_enum NOT NULL`). The live `public` schema contains zero application enum types. The corresponding columns are plain `text` (verified: `processing_jobs.job_type` and `processing_jobs.status` both `data_type = text`). Inserting any string value succeeds — there is no Postgres-level validation that values come from the intended set.
+  2. **Empty migration ledger.** `supabase_migrations.schema_migrations` is empty even though all 9 application tables (`users`, `reader_items`, `processing_jobs`, `sync_log`, `email_captures`, `demo_sessions`, `demo_events`, `page_events`, `item_signals`) exist and are populated. `supabase db push` against this database lists all 15 migrations as pending and would attempt to re-run them; most are not idempotent (`CREATE TYPE`, `CREATE TABLE` without `IF NOT EXISTS`) and would fail.
+- **Concrete consequence (current PR):** Migration `20260509_add_tags_generation_job_type.sql` is a no-op against production. Running its `ALTER TYPE job_type_enum ADD VALUE IF NOT EXISTS 'tags_generation'` errors with `42704: type "job_type_enum" does not exist`. PR #103 ships safely without applying it because the consumer dispatches on a string compare and the column accepts any text value — but the ADR's "deploy ordering: migration before worker" guidance does not apply on this database.
+- **Why accepted:** Drift discovered while shipping PR #103 (May 2026). The runtime is unaffected and the on-the-fly fix scope (either backfilling enums + converting columns, or stripping the migrations and rewriting affected ADR sections) is materially larger than the PR itself. Both the design intent (enum-typed columns for safety) and the documented contract (migration-per-job-type) remain correct as forward guidance — they're just not enforced on this instance.
+- **Risk:** **Medium** —
+  - **Data integrity (low-medium):** Without enum types, an enqueue route that bypasses the Zod validation can write any string into `job_type` or `status`. Today the only writers are well-validated API routes, so this is latent rather than active.
+  - **Migration tooling (medium):** Cannot run `supabase db push` against prod safely. Schema changes must continue to be applied via dashboard SQL editor. Each new migration adds ledger drift.
+  - **Documentation honesty (medium):** ADRs and feature docs describe enum-typed schema. Anyone diagnosing prod from the docs alone will be misled.
+- **Future fix (two viable directions, pick one):**
+  1. **Reconcile prod toward the migrations:** Create the missing enum types, convert affected columns (`ALTER TABLE ... ALTER COLUMN ... TYPE ... USING ...::text::enum_name`), populate the migration ledger via `supabase migration repair --status applied <timestamp>` for each historical migration. Restores the design intent and unlocks `supabase db push`. Higher-effort.
+  2. **Reconcile the migrations toward prod:** Rewrite affected migration files to declare `text` columns (or use `CHECK (value IN (...))` constraints), drop the enum-related ADR guidance, document that prod is text-typed. Lower-effort, preserves working state, gives up the type-safety the original schema author wanted.
+- **Introduced:** Pre-existing — surfaced May 2026 during PR #103 attempt to apply the new enum migration. Likely originated when the initial schema was applied manually via dashboard SQL editor with the `CREATE TYPE` statements skipped or modified.
+
+---
+
 ### Example Format: TD-XXX: Description
 - **Location:** `src/path/to/file.ts` - `functionName()`
 - **Issue:** Clear description of the limitation or shortcut
@@ -149,6 +151,12 @@ VALUES ('<user-id-from-above>', '<email>', NOW());
 ---
 
 ## Resolved Items
+
+### TD-002: Wasteful Tag Regeneration (Re-generates Summaries)
+- **Resolved:** May 2026
+- **Resolution:** Added a dedicated `tags_generation` job type. The "Regenerate Tags" endpoint now enqueues this lighter job, and the queue consumer dispatches to a tags-only path that reads the existing `short_summary` from the DB, calls a focused `generateTags()` Perplexity prompt, and updates only the `tags` column. The user's existing summary is preserved verbatim, and prompt-token usage drops by ~95% versus the previous `summary_generation` reuse. Migration `20260509_add_tags_generation_job_type.sql` adds the enum value.
+
+---
 
 ### TD-011: Root README links point at pre-refactor REFERENCE/ paths
 
