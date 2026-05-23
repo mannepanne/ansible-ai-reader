@@ -458,7 +458,7 @@ Implement in this order — each step is independently deployable:
 ## Related Documentation
 
 - `imported/project-837462e/` — Source prototype (safe to delete — all PRs merged or pending merge)
-- `REFERENCE/technical-debt.md` — TD-010: Unified User Identity (demo analytics not linked to Ansible user accounts)
+- [GitHub issue #110](https://github.com/mannepanne/ansible-ai-reader/issues/110) — TD-010: Unified User Identity (demo analytics not linked to Ansible user accounts)
 - [REFERENCE/architecture/](../REFERENCE/architecture/) — Auth patterns, service role client usage
 - [REFERENCE/patterns/service-role-client.md](../REFERENCE/patterns/service-role-client.md) — Pattern for admin data reads
 - [REFERENCE/development/testing-strategy.md](../REFERENCE/development/testing-strategy.md) — Testing conventions

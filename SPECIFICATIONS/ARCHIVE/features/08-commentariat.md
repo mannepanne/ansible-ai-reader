@@ -228,5 +228,5 @@ The `generateCommentariat()` function is self-contained. When auto-gen is desire
 - [Root CLAUDE.md](../CLAUDE.md) - Project navigation
 - [REFERENCE/features/ai-summaries.md](../REFERENCE/features/ai-summaries.md) - Summary generation architecture
 - [ARCHIVE/features/07-summary-prompt-ui.md](./ARCHIVE/features/07-summary-prompt-ui.md) - Custom prompt precedent
-- [technical-debt.md](../REFERENCE/technical-debt.md) - Technical debt tracker
+- [GitHub Issues — technical-debt label](https://github.com/mannepanne/ansible-ai-reader/issues?q=is%3Aissue+label%3Atechnical-debt+is%3Aopen) - Technical debt tracker
 - [Issue #22](https://github.com/mannepanne/ansible-ai-reader/issues/22) - Original feature request

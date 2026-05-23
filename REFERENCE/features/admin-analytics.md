@@ -89,7 +89,7 @@ const uniqueVisitors = new Set(
 ).size;
 ```
 
-This works for the current scale but would become slow at very high traffic volumes. See [Technical Debt](../technical-debt.md).
+This works for the current scale but would become slow at very high traffic volumes. Tracked as a [GitHub issue with `technical-debt` label](https://github.com/mannepanne/ansible-ai-reader/issues?q=is%3Aissue+label%3Atechnical-debt+is%3Aopen).
 
 ### Nav Click Aggregation
 
@@ -301,10 +301,10 @@ Types are defined once and shared between the server page (where data is built) 
 ## Known Limitations
 
 ### Unique Visitor Query Scale
-Fetching all visitor IDs to compute unique count in JavaScript works now but becomes inefficient at scale (thousands of rows). A Supabase RPC with `COUNT(DISTINCT visitor_id)` would be more efficient. Tracked in [Technical Debt](../technical-debt.md).
+Fetching all visitor IDs to compute unique count in JavaScript works now but becomes inefficient at scale (thousands of rows). A Supabase RPC with `COUNT(DISTINCT visitor_id)` would be more efficient. Tracked as a [GitHub issue with `technical-debt` label](https://github.com/mannepanne/ansible-ai-reader/issues?q=is%3Aissue+label%3Atechnical-debt+is%3Aopen).
 
 ### Email ↔ Session Backfill
-Sessions started before email capture have `email: null`. The session is linkable via `session_id` but there's no automated backfill that updates historical session rows when an email is captured mid-session. Tracked in [Technical Debt](../technical-debt.md).
+Sessions started before email capture have `email: null`. The session is linkable via `session_id` but there's no automated backfill that updates historical session rows when an email is captured mid-session. Tracked as a [GitHub issue with `technical-debt` label](https://github.com/mannepanne/ansible-ai-reader/issues?q=is%3Aissue+label%3Atechnical-debt+is%3Aopen).
 
 ### Static 200-session limit
 The dashboard shows the most recent 200 sessions. Long-term this could truncate meaningful historical data. A date-range filter would be the right solution.

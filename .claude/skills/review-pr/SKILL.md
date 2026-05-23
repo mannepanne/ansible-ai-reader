@@ -177,15 +177,14 @@ Follow the two-reviewer flow:
 
 (The team skill is user-invocable on its own, so if you prefer to skip the dispatcher entirely, just run `/review-pr-team N` directly — no triage runs and no marker comment is posted.)
 
-### Step 4: User summary
+### Step 4: User summary and follow-through
 
-After posting, always end with a short summary in chat:
+After posting, give a one-line status: tier, recommendation (approve / request changes / block), and link to the PR comment.
 
-- **Tier that ran** and why (one line)
-- **Issues found** (critical count / suggestions count)
-- **Recommendation** (approve / request changes / block)
-- **Link** to the posted PR comment
-- If tier was `light` or `standard`: one-line reminder — *"Run `/review-pr-team N` if you want deeper multi-perspective analysis."*
+Then run the follow-through protocol in [`.claude/skills/post-review-follow-through.md`](../post-review-follow-through.md) — re-bucket findings by action tier, surface decisions, and create GitHub issues for anything genuinely out of scope.
+
+If tier was `light` or `standard` and the review returned no findings, skip the protocol and add:
+*"Run `/review-pr-team N` if you want deeper multi-perspective analysis."*
 
 ---
 

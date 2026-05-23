@@ -461,7 +461,7 @@ npx wrangler rollback [deployment-id] --config wrangler-cron.toml
 | **Logs** | Terminal output | Cloudflare Workers logs |
 | **Cron** | Not active (manual testing) | Active (hourly) |
 
-*Note: Currently using shared database for dev/prod - see [technical-debt.md](../technical-debt.md) TD-001
+*Note: Currently using shared database for dev/prod — see [GitHub issue #104](https://github.com/mannepanne/ansible-ai-reader/issues/104) (TD-001)*
 
 ---
 
@@ -471,4 +471,3 @@ npx wrangler rollback [deployment-id] --config wrangler-cron.toml
 - [Environment Setup](./environment-setup.md) - Configuring API keys and secrets
 - [Monitoring](./monitoring.md) - Production logs and debugging
 - [Troubleshooting](./troubleshooting.md) - Common deployment issues
-- [Technical Debt](../technical-debt.md) - Known limitations
