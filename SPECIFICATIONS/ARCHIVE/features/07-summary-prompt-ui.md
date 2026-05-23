@@ -3,7 +3,7 @@
 **Status**: In Progress
 **Last Updated**: 2026-04-01
 **Dependencies**: Phase 5 ✅ (storage API + validation already implemented)
-**Related Tech Debt**: TD-004 in [technical-debt.md](../REFERENCE/technical-debt.md)
+**Related Tech Debt**: TD-004 (resolved — PR #65, #68)
 
 ---
 
@@ -96,4 +96,4 @@ This feature implements the full chain: wiring the saved prompt into summary gen
 - Summary generation: `src/lib/perplexity-api.ts` — `generateSummary()` line 293
 - Consumer worker: `workers/consumer.ts` — `generateSummary` call line 199
 - Settings UI: `src/app/settings/SettingsContent.tsx`
-- Tech debt entry: [TD-004](../REFERENCE/technical-debt.md)
+- Tech debt entry: TD-004 (resolved — PR #65, #68)
