@@ -245,7 +245,7 @@ Phase [X]: [Phase Name]
 - **Risk:** Low/Medium/High
 - **Future fix:** [How to address this later]
 
-See [technical-debt.md](../REFERENCE/technical-debt.md) for full tracker.
+Track deferred items as GitHub issues with the `technical-debt` label.
 
 ---
 

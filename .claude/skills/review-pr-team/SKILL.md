@@ -255,12 +255,10 @@ gh pr comment $ARGUMENTS --body-file SCRATCH/review-pr-$ARGUMENTS-team.md
 
    **Read-then-Write fallback (avoid `rm -f`).** If the Write tool errors with *"File has not been read yet"* (because a stale temp file exists at the same path from a prior abandoned run), call **Read on the path first** to satisfy the Write prerequisite, then re-issue the Write. Do **not** use `Bash(rm -f SCRATCH/…)` to clear stale files — `rm -f` is not allowlisted (and shouldn't be broadly allowlisted) so it triggers a manual approval prompt; Read-then-Write stays silent. Don't bother cleaning up the temp file after posting either: the next run handles staleness via the same fallback.
 
-4. **Provide user summary:**
-   - Total critical issues found
-   - Key insights from team discussion
-   - Whether reviewers reached consensus
-   - Clear next steps
-   - Link to PR comment
+4. **Provide user summary and follow-through:**
+   Give a one-line status: recommendation (block / approve with changes / approve) and link to the PR comment. Note whether the team reached consensus or had split opinions.
+
+   Then run the follow-through protocol in [`.claude/skills/post-review-follow-through.md`](../post-review-follow-through.md) — re-bucket findings by action tier, surface decisions, and create GitHub issues for anything genuinely out of scope.
 
 ---
 

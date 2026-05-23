@@ -98,7 +98,7 @@ Documentation is organized by **function** (what you're trying to do), not build
 - **Architecture decisions?** → [decisions/](./REFERENCE/decisions/) - ADRs explaining why things are this way
 
 **Other important docs:**
-- **Technical debt** → [REFERENCE/technical-debt.md](./REFERENCE/technical-debt.md)
+- **Known issues?** → GitHub Issues with `technical-debt` label
 - **Project outline** → [SPECIFICATIONS/ORIGINAL_IDEA/ansible-outline.md](./SPECIFICATIONS/ORIGINAL_IDEA/ansible-outline.md)
 
 ## Development Workflow

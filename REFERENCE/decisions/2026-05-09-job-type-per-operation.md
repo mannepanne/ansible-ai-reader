@@ -78,7 +78,7 @@ Postgres enum, Zod enum on the API route, TypeScript queue-message type, consume
 
 ## References
 
-- Resolved technical debt: [`REFERENCE/technical-debt.md` → TD-002](../technical-debt.md#resolved-items)
+- Resolved technical debt: TD-002 (Wasteful Tag Regeneration — resolved May 2026)
 - Migration: `supabase/migrations/20260509_add_tags_generation_job_type.sql`
 - Consumer dispatch: `workers/consumer.ts` (`processJob` function)
 - API enqueue site: `src/app/api/reader/regenerate-tags/route.ts`

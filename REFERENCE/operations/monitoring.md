@@ -14,8 +14,6 @@ Production logs, metrics, debugging, and observability for the Ansible AI Reader
 - [Deployment](./deployment.md) - Production deployment
 - [Troubleshooting](./troubleshooting.md) - Common issues and solutions
 - [Architecture - Workers](../architecture/workers.md) - 3-worker system design
-- [Technical Debt](../technical-debt.md) - Known issues
-
 ---
 
 ## Overview
@@ -508,4 +506,4 @@ Pageview traffic and Core Web Vitals are captured by the **Cloudflare Web Analyt
 - [Deployment](./deployment.md) - Production deployment configuration
 - [Troubleshooting](./troubleshooting.md) - Common issues and solutions
 - [Architecture - Workers](../architecture/workers.md) - Understanding the 3-worker system
-- [Technical Debt](../technical-debt.md) - Known issues and limitations
+- [Service Role Client Pattern](../patterns/service-role-client.md) - Bypassing RLS safely

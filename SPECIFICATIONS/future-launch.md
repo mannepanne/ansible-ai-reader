@@ -124,7 +124,7 @@ Create `REFERENCE/user-guide.md` with:
 Update existing docs:
 - [ ] [environment-setup.md](../REFERENCE/operations/environment-setup.md) - Complete API key setup
 - [ ] [testing-strategy.md](../REFERENCE/development/testing-strategy.md) - Add real-world examples
-- [ ] [technical-debt.md](../REFERENCE/technical-debt.md) - Document known limitations
+- [ ] Open GitHub issues with `technical-debt` label for known limitations
 - [ ] [troubleshooting.md](../REFERENCE/operations/troubleshooting.md) - Common issues and solutions
 
 ### Project README
@@ -222,7 +222,7 @@ Update `README.md` with:
 - [ ] Monitor error logs daily
 - [ ] Track cost (Perplexity API usage)
 - [ ] Note UX friction points
-- [ ] Document bugs/issues in [technical-debt.md](../REFERENCE/technical-debt.md)
+- [ ] Track bugs/issues as GitHub issues with `technical-debt` label
 - [ ] Gather personal feedback
 
 ### Post-Launch (Week 3-4)
@@ -360,5 +360,5 @@ Phase 6 is complete when:
 - **Main spec**: [ansible-outline.md](./ORIGINAL_IDEA/ansible-outline.md)
 - **Testing strategy**: [testing-strategy.md](../REFERENCE/development/testing-strategy.md)
 - **Environment setup**: [environment-setup.md](../REFERENCE/operations/environment-setup.md)
-- **Technical debt**: [technical-debt.md](../REFERENCE/technical-debt.md)
+- **Technical debt**: GitHub Issues with `technical-debt` label
 - **Troubleshooting**: [troubleshooting.md](../REFERENCE/operations/troubleshooting.md)

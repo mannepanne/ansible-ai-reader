@@ -30,4 +30,3 @@ Deployment, configuration, monitoring, and maintenance documentation.
 ## Related Documentation
 - [Architecture - Workers](../architecture/workers.md) - Understanding the 3-worker system
 - [Development](../development/CLAUDE.md) - Local development workflow
-- Technical Debt: [../../REFERENCE/technical-debt.md](../technical-debt.md) - Known issues

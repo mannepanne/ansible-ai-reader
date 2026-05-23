@@ -13,8 +13,6 @@ Common issues and solutions for development, deployment, and production.
 - [Deployment](./deployment.md) - Deployment configuration and steps
 - [Environment Setup](./environment-setup.md) - Secrets and configuration
 - [Monitoring](./monitoring.md) - Production logs and debugging
-- [Technical Debt](../technical-debt.md) - Known limitations and issues
-
 ---
 
 ## Local Development Issues
@@ -439,5 +437,4 @@ WHERE sync_interval > 0;
 - [Deployment](./deployment.md) - Deployment configuration and process
 - [Environment Setup](./environment-setup.md) - Secrets and API keys
 - [Monitoring](./monitoring.md) - Production logs and observability
-- [Technical Debt](../technical-debt.md) - Known issues and limitations
 - [Service Role Client Pattern](../patterns/service-role-client.md) - Bypassing RLS safely
