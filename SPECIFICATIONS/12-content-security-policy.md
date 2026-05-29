@@ -38,14 +38,14 @@ Next.js App Router injects inline `<script>` tags for hydration. A strict `scrip
 - **(a)** allow `'unsafe-inline'` — weakens the policy, simplest, still passes the scanner, **or**
 - **(b)** wire a per-request **nonce** through middleware and have Next stamp it on its scripts — strict, but more moving parts.
 
-Decision deferred to implementation, informed by what Report-Only reveals. Start with a nonce-ready structure; fall back to `'unsafe-inline'` for `script-src` if nonce wiring proves fragile on OpenNext.
+Decision deferred to implementation, informed by what Report-Only reveals. Note that the current `SECURITY_HEADERS` map in `src/middleware.ts` is **static** — a per-request nonce cannot live in it, so the nonce option (a) requires a separate per-request code path (generate nonce → inject into both the CSP header and Next's script tags). The `'unsafe-inline'` fallback (b) avoids that wiring but is **near-cosmetic for XSS**: it passes the scanner without meaningfully constraining inline-script injection. Go in eyes-open — `'unsafe-inline'` is a grade win, not a real XSS control.
 
 ### Known origins to allow
 Derived from the app's integrations — **verify against the codebase during implementation, don't trust this list blindly:**
 
 | Directive | Origins | Source |
 |---|---|---|
-| `connect-src` | `'self'`, Supabase project URL, Perplexity API | auth + summaries |
+| `connect-src` | `'self'`, Supabase project URL | auth. **NOT Perplexity/Readwise/Resend** — those are server-side fetches (`src/lib/perplexity-api.ts`, imported only by API routes), never browser-originated, so `connect-src` does not govern them. Listing them is a harmless over-allow; omit them. |
 | `script-src` | `'self'`, `https://challenges.cloudflare.com`, `https://static.cloudflareinsights.com` | Turnstile, CF Web Analytics |
 | `frame-src` | `'self'`, `https://challenges.cloudflare.com` | Turnstile widget iframe |
 | `style-src` | `'self'`, `'unsafe-inline'` | Tailwind / Next inline styles |

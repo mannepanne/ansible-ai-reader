@@ -31,6 +31,9 @@ export async function middleware(request: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
 
+  // Note: the early-return redirects below are intentionally NOT decorated with
+  // security headers. A 3xx carries no body to MIME-sniff or frame, and the
+  // redirect target re-enters this middleware and gets the headers when rendered.
   // Protect routes that start with /summaries or /settings
   if (
     !session &&
