@@ -17,7 +17,7 @@ Development followed 5 sequential phases (all complete). Active work is now feat
 
 ### Active Feature Specs
 
-_(none)_
+- **[12-content-security-policy.md](./12-content-security-policy.md)** - Content-Security-Policy (Report-Only first, then enforce). Follow-up to the baseline security-headers work.
 
 ### Completed Feature Specs
 
