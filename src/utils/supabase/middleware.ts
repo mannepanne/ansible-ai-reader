@@ -5,8 +5,13 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export function createClient(request: NextRequest) {
-  // Create a response that we'll modify with updated cookies
-  let response = NextResponse.next({
+  // A single, stable response object. The caller destructures this reference
+  // BEFORE supabase.auth.getSession() runs, and getSession() is what triggers the
+  // cookie set/remove callbacks (on session refresh). The callbacks must therefore
+  // mutate THIS object in place — reassigning `response` to a fresh NextResponse
+  // would orphan the caller's reference and silently drop refreshed-session cookies,
+  // leaving the browser without an updated session.
+  const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
@@ -21,16 +26,12 @@ export function createClient(request: NextRequest) {
           return request.cookies.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
-          // Set cookie on both request and response
+          // Mutate both the request (so downstream sees the cookie this request)
+          // and the stable response (so it reaches the browser as Set-Cookie).
           request.cookies.set({
             name,
             value,
             ...options,
-          });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
           });
           response.cookies.set({
             name,
@@ -39,16 +40,10 @@ export function createClient(request: NextRequest) {
           });
         },
         remove(name: string, options: CookieOptions) {
-          // Remove cookie from both request and response
           request.cookies.set({
             name,
             value: '',
             ...options,
-          });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
           });
           response.cookies.set({
             name,
