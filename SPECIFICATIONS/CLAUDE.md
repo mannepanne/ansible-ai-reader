@@ -13,11 +13,11 @@ Development followed 5 sequential phases (all complete). Active work is now feat
 - ✅ **Phase 4: Perplexity Integration** - [ARCHIVE/04-perplexity-integration.md](./ARCHIVE/04-perplexity-integration.md) (Mar 15, 2026)
 - ✅ **Phase 5: Notes & Rating** - [ARCHIVE/05-notes-rating-polish.md](./ARCHIVE/05-notes-rating-polish.md) (Apr 1, 2026)
 
-**Current application status:** Fully functional MVP — 461 tests, 95%+ coverage, live at ansible.hultberg.org
+**Current application status:** Fully functional MVP — comprehensive test suite, 95%+ coverage, live at ansible.hultberg.org
 
 ### Active Feature Specs
 
-_(none)_
+- **[12-content-security-policy.md](./12-content-security-policy.md)** - Content-Security-Policy (Report-Only first, then enforce). Follow-up to the baseline security-headers work.
 
 ### Completed Feature Specs
 

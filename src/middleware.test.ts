@@ -2,7 +2,7 @@
 // ABOUT: Validates route protection, redirects, session refresh
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { middleware } from './middleware';
+import { middleware, SECURITY_HEADERS } from './middleware';
 import { NextRequest, NextResponse } from 'next/server';
 
 // Mock middleware client
@@ -125,6 +125,38 @@ describe('middleware', () => {
       const response = await middleware(request);
 
       expect(response?.status).not.toBe(307);
+    });
+  });
+
+  describe('security headers', () => {
+    it('sets all baseline security headers on a served page', async () => {
+      mockGetSession.mockResolvedValue({ data: { session: null } });
+
+      const request = new NextRequest(new URL('http://localhost:3000/'));
+      const response = await middleware(request);
+
+      for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+        expect(response?.headers.get(name)).toBe(value);
+      }
+    });
+
+    it('sets X-Frame-Options to DENY to prevent clickjacking', async () => {
+      mockGetSession.mockResolvedValue({ data: { session: null } });
+
+      const request = new NextRequest(new URL('http://localhost:3000/'));
+      const response = await middleware(request);
+
+      expect(response?.headers.get('x-frame-options')).toBe('DENY');
+      expect(response?.headers.get('x-content-type-options')).toBe('nosniff');
+    });
+
+    it('does NOT set Strict-Transport-Security (owned by the Cloudflare edge)', async () => {
+      mockGetSession.mockResolvedValue({ data: { session: null } });
+
+      const request = new NextRequest(new URL('http://localhost:3000/'));
+      const response = await middleware(request);
+
+      expect(response?.headers.get('strict-transport-security')).toBeNull();
     });
   });
 

@@ -37,7 +37,7 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 - Perplexity API (sonar-pro model for AI summaries)
 - Supabase Auth (magic links via Resend)
 
-**Current Status:** ✅ Fully functional application with 595 tests passing (95%+ coverage)
+**Current Status:** ✅ Fully functional application with a comprehensive test suite passing (95%+ coverage)
 
 **Complete architecture:** [REFERENCE/architecture/](./REFERENCE/architecture/) - 3-worker system, database schema, auth patterns
 
@@ -121,7 +121,7 @@ npm run test:watch        # Watch mode
 npm run test:coverage     # Coverage report
 ```
 
-**Coverage target:** 95%+ lines/functions/statements, 90%+ branches. **Current status:** 595 tests passing.
+**Coverage target:** 95%+ lines/functions/statements, 90%+ branches. **Current status:** full suite passing — run `npm test` for the live count (avoid hardcoding it here, it drifts on every test-adding PR).
 
 **See:** [REFERENCE/development/testing-strategy.md](./REFERENCE/development/testing-strategy.md)
 

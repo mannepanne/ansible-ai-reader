@@ -20,12 +20,16 @@ Deployment, configuration, monitoring, and maintenance documentation.
 - **[monitoring.md](./monitoring.md)** - Observability, Cloudflare logs, debugging production issues
 - **[troubleshooting.md](./troubleshooting.md)** - Common issues and solutions (RLS errors, deployment failures, etc.)
 
+### Security
+- **[security-headers.md](./security-headers.md)** - HTTP security response headers: which header lives in the worker vs the Cloudflare edge, and why (the securityheaders.com surface)
+
 ## Common Questions
 - **"How do I deploy?"** → [deployment.md](./deployment.md)
 - **"What secrets do I need?"** → [environment-setup.md](./environment-setup.md)
 - **"Something broke, where do I look?"** → [troubleshooting.md](./troubleshooting.md)
 - **"How do I check logs?"** → [monitoring.md](./monitoring.md)
 - **"How do I deploy the cron worker?"** → [deployment.md](./deployment.md) (3-worker section)
+- **"Why does securityheaders.com flag us / where do I bump HSTS?"** → [security-headers.md](./security-headers.md)
 
 ## Related Documentation
 - [Architecture - Workers](../architecture/workers.md) - Understanding the 3-worker system
