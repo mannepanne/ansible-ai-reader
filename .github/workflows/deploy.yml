@@ -62,6 +62,16 @@ jobs:
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
 
+      - name: Deploy relay bridge worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: deploy --config wrangler-relay-bridge.toml
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          RELAY_BRIDGE_TOKEN: ${{ secrets.RELAY_BRIDGE_TOKEN }}
+
       - name: Deploy main application
         uses: cloudflare/wrangler-action@v3
         with:
