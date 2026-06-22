@@ -4,6 +4,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { runBackfill } from '../src/lib/relay/backfill';
 import type { AiBinding } from '../src/lib/relay/embed';
+import { handleMcpMessage } from '../src/lib/relay/mcp';
 
 export interface Env {
   NEXT_PUBLIC_SUPABASE_URL: string;
@@ -13,6 +14,9 @@ export interface Env {
   RELAY_BRIDGE_TOKEN: string;
   // Workers AI binding (declared as [ai] in wrangler-relay-bridge.toml).
   AI: AiBinding;
+  // The bridge's own Reader API token — lets the `fetch` MCP tool pull full article bodies.
+  // Optional: without it, `fetch` returns stored reference content rather than the full body.
+  READER_API_TOKEN?: string;
 }
 
 function isAuthorized(request: Request, env: Env): boolean {
@@ -37,6 +41,30 @@ export default {
     if (request.method === 'POST' && url.pathname === '/backfill') {
       const result = await runBackfill({ supabase: serviceRoleClient(env), ai: env.AI });
       return Response.json(result);
+    }
+
+    // The MCP surface: a single Streamable HTTP endpoint speaking JSON-RPC. The shared-secret gate
+    // above already protects it; the Managed Agent supplies that bearer via its vault credential.
+    if (request.method === 'POST' && url.pathname === '/mcp') {
+      let message: unknown;
+      try {
+        message = await request.json();
+      } catch {
+        return Response.json(
+          { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } },
+          { status: 400 },
+        );
+      }
+      const response = await handleMcpMessage(message, {
+        supabase: serviceRoleClient(env),
+        ai: env.AI,
+        readerToken: env.READER_API_TOKEN,
+      });
+      // Notifications get no body; everything else returns its JSON-RPC response.
+      if (response === null) {
+        return new Response(null, { status: 202 });
+      }
+      return Response.json(response);
     }
 
     return new Response('Not found', { status: 404 });
