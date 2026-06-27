@@ -37,9 +37,9 @@ Ansible AI Reader is an AI-powered depth-of-engagement triage system for Readwis
 - **Vitest** - Testing framework (~293 tests)
 - **GitHub Actions** - CI/CD pipeline
 
-## 3-Worker Architecture
+## Worker Architecture
 
-We deploy **three separate Cloudflare Workers**:
+We deploy **three core Cloudflare Workers** (plus a fourth for the Relay subsystem, below):
 
 ### 1. Main App Worker (`wrangler.toml`)
 - Next.js application
@@ -58,7 +58,14 @@ We deploy **three separate Cloudflare Workers**:
 - Triggers automated sync for users with sync_interval > 0
 - Separate worker because OpenNext doesn't support scheduled() function
 
-**Why 3 workers?** OpenNext (Cloudflare adapter for Next.js) only generates HTTP request handlers, not scheduled event handlers. The cron functionality must be in a separate worker.
+**Why these 3 split out?** OpenNext (Cloudflare adapter for Next.js) only generates HTTP request handlers, not scheduled event handlers. The cron functionality must be in a separate worker, and queue consumption is isolated for the same handler-shape reason.
+
+### 4. Relay Bridge Worker (`wrangler-relay-bridge.toml`)
+- The owned-memory gateway for the **Relay** subsystem (an autonomous-narrator experiment layered on Ansible)
+- The **only** thing that touches the `relay_*` tables (service-role; bypasses RLS)
+- Exposes a back-fill route and a small MCP tool surface (`recall` / `fetch` / `write_pending` / `ingest_reference`) behind a shared-secret bearer
+- Separate from the main app for a **different reason than the cron/consumer split**: it is the deliberate "swappable seam" — all of Relay's durable state lives behind it so the agent harness (Managed Agents now, Cloudflare Agents SDK later) can be swapped by rewriting only a thin adapter
+- See `SPECIFICATIONS/relay/stage-1-technical-spec.md`
 
 ## System Diagram
 
@@ -190,17 +197,18 @@ graph TB
 - Service role bypasses RLS (safe when auth verified at API level)
 - See [patterns/service-role-client.md](../patterns/service-role-client.md)
 
-### Why 3 Separate Workers?
+### Why Separate Workers?
 - OpenNext limitation: Only generates HTTP handlers
 - Cron needs scheduled() function
 - Queue consumer is long-running (30s timeout)
 - Separation of concerns: API, processing, scheduling
+- Relay bridge: a deliberate "swappable seam" owning the `relay_*` tables (architectural intent, not an OpenNext limitation)
 
 ## Deployment
 - **Domain**: ansible.hultberg.org
 - **CI/CD**: GitHub Actions auto-deploys on push to main
 - **Secrets**: Managed via `wrangler secret put`
-- **Observability**: Enabled on all 3 workers
+- **Observability**: Enabled on all 4 workers
 
 ## Related Documentation
 - [Workers](./workers.md) - Detailed worker implementation

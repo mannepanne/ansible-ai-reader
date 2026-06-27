@@ -13,7 +13,7 @@ Deployment, configuration, monitoring, and maintenance documentation.
 ## Operations Documentation
 
 ### Deployment & Configuration
-- **[deployment.md](./deployment.md)** - How to deploy all 3 workers (main app, queue consumer, cron)
+- **[deployment.md](./deployment.md)** - How to deploy all 4 workers (main app, queue consumer, cron, relay bridge)
 - **[environment-setup.md](./environment-setup.md)** - Environment variables, API keys, secrets (.dev.vars, wrangler secrets)
 
 ### Monitoring & Debugging
@@ -28,9 +28,9 @@ Deployment, configuration, monitoring, and maintenance documentation.
 - **"What secrets do I need?"** → [environment-setup.md](./environment-setup.md)
 - **"Something broke, where do I look?"** → [troubleshooting.md](./troubleshooting.md)
 - **"How do I check logs?"** → [monitoring.md](./monitoring.md)
-- **"How do I deploy the cron worker?"** → [deployment.md](./deployment.md) (3-worker section)
+- **"How do I deploy the cron worker?"** → [deployment.md](./deployment.md) (worker list section)
 - **"Why does securityheaders.com flag us / where do I bump HSTS?"** → [security-headers.md](./security-headers.md)
 
 ## Related Documentation
-- [Architecture - Workers](../architecture/workers.md) - Understanding the 3-worker system
+- [Architecture - Workers](../architecture/workers.md) - Understanding the worker architecture (3 core + relay bridge)
 - [Development](../development/CLAUDE.md) - Local development workflow

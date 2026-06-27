@@ -393,7 +393,7 @@ WHERE sync_interval > 0;
 **Fix:**
 1. Verify `wrangler.toml` files are committed
 2. Check Cloudflare API token permissions
-3. Ensure all three workers have secrets configured
+3. Ensure all four workers have secrets configured
 4. Review deployment logs in GitHub Actions
 
 ---

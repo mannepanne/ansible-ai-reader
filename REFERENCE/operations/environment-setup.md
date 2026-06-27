@@ -29,7 +29,7 @@ Supabase project URL for database and authentication.
 
 **Where to find:** Supabase Dashboard → Project Settings → API → Project URL
 
-**Required for:** All 3 workers (main app, consumer, cron)
+**Required for:** main app, consumer, and relay bridge workers (the cron worker only calls the main app via CRON_SECRET)
 
 ```bash
 npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL

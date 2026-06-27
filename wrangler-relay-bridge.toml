@@ -1,0 +1,22 @@
+# Relay bridge Worker — owned-memory gateway (MCP seam) for the Relay agent.
+# Stage 1: shared-secret-gated /backfill endpoint + MCP tool surface at POST /mcp
+# (recall/fetch/write_pending/ingest_reference; Streamable HTTP JSON-RPC).
+#
+# Required secrets (set per: wrangler secret put <NAME> --config wrangler-relay-bridge.toml):
+#   NEXT_PUBLIC_SUPABASE_URL   - Supabase project URL
+#   SUPABASE_SECRET_KEY        - Supabase service-role key (bypasses RLS; bridge-only)
+#   RELAY_BRIDGE_TOKEN         - shared secret guarding the bridge's HTTP surface
+#   READER_API_TOKEN           - Reader API token for the `fetch` tool's full-text body pulls
+#                                (optional; if unset, `fetch` silently degrades to summary-only)
+
+name = "ansible-relay-bridge"
+main = "workers/relay-bridge.ts"
+compatibility_date = "2026-03-06"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+# Workers AI binding for bge-m3 embeddings (sealed inside the bridge).
+[ai]
+binding = "AI"

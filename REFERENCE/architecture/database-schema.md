@@ -242,7 +242,7 @@ sync_log (1) ──── (many) processing_jobs
 
 ## Row-Level Security (RLS)
 
-**All tables have RLS enabled** with policies ensuring users can only access their own data.
+**All user-scoped tables have RLS enabled** with policies ensuring users can only access their own data.
 
 **Policy Pattern:**
 ```sql
@@ -251,6 +251,8 @@ CREATE POLICY "policy_name" ON table_name
 ```
 
 **Security Note:** RLS checks `auth.uid()` which reads from the JWT in the database connection. Server-side code using cookie-based auth must use service role client to bypass RLS (after verifying auth at the application level).
+
+**Exception — the `relay_*` tables** (`relay_pieces`, `relay_references`, `relay_decisions`): these belong to the Relay subsystem and are **not user-scoped** (Relay is a single-narrator namespace, not per-user data). They have **RLS enabled with ZERO policies** — so the publishable anon/authenticated key is denied *everything*, and only the service-role Relay bridge worker (which bypasses RLS) can read or write them. This deliberately keeps pending/rejected pieces and the whole namespace invisible to any browser client; *disabling* RLS would instead expose them via PostgREST. See `SPECIFICATIONS/relay/stage-1-technical-spec.md` §4.
 
 ## Migrations
 
@@ -265,6 +267,10 @@ supabase db push
 - `20260324_add_auto_sync_settings.sql` - Add sync_interval, last_auto_sync_at to users
 - `20260401_add_regenerate_batch_id.sql` - Add regenerate_batch_id to processing_jobs for tag regeneration tracking
 - `20260411_add_item_signals.sql` - Add item_signals engagement event log table
+- `20260621_add_relay_tables.sql` - Relay subsystem: pgvector + relay_pieces / relay_references / relay_decisions (RLS enabled, zero policies; service-role-only)
+- `20260622_add_relay_recall_fn.sql` - `relay_recall()` ANN function (cosine UNION over references + approved pieces; service-role EXECUTE only)
+
+> **Note:** the `relay_*` migrations are applied via the Supabase dashboard SQL editor, not `supabase db push` — the CLI migration history is out of sync (the initial schema was created directly).
 
 ## Query Patterns
 
