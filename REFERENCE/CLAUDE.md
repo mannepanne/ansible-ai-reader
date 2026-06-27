@@ -9,7 +9,7 @@ Documentation is organized by **function**, not build chronology. Navigate by **
 
 ### 📐 Understanding the System
 **[architecture/](./architecture/CLAUDE.md)** - System design, infrastructure, tech stack
-- How does it work? What's the tech stack? Why 3 workers?
+- How does it work? What's the tech stack? Why multiple workers?
 
 ### ✨ Working with Features
 **[features/](./features/CLAUDE.md)** - User-facing feature documentation

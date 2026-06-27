@@ -170,6 +170,9 @@ export async function ingestReference(
   }
 
   const embedding = await embed(deps.ai, content);
+  // NOTE: the (origin, source_ref) conflict target only dedups when source_ref is non-null —
+  // Postgres treats NULLs as distinct, so null-source research refs always insert (never conflict).
+  // Acceptable for Stage 1 (the research path isn't exercised yet); revisit when it is wired.
   const { error } = await deps.supabase.from('relay_references').upsert(
     {
       origin: RESEARCH_ORIGIN,

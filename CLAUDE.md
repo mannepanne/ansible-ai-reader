@@ -39,7 +39,7 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 
 **Current Status:** ✅ Fully functional application with a comprehensive test suite passing (95%+ coverage)
 
-**Complete architecture:** [REFERENCE/architecture/](./REFERENCE/architecture/) - 3-worker system, database schema, auth patterns
+**Complete architecture:** [REFERENCE/architecture/](./REFERENCE/architecture/) - worker system (3 core + relay bridge), database schema, auth patterns
 
 ## Finding Documentation
 
@@ -47,7 +47,7 @@ Documentation is organized by **function** (what you're trying to do), not build
 
 ### 📐 Understanding the System
 **[REFERENCE/architecture/](./REFERENCE/architecture/)** - How it works
-- System overview (3-worker architecture, tech stack)
+- System overview (worker architecture: 3 core + relay bridge, tech stack)
 - Database schema (tables, RLS policies)
 - Workers (main app, queue consumer, cron)
 - Authentication (magic links, 3 client types)
@@ -63,7 +63,7 @@ Documentation is organized by **function** (what you're trying to do), not build
 
 ### 🚀 Deploying & Operating
 **[REFERENCE/operations/](./REFERENCE/operations/)** - Production deployment
-- Deployment (3-worker setup, CI/CD, secrets)
+- Deployment (4-worker setup, CI/CD, secrets)
 - Environment setup (API keys, .dev.vars)
 - Monitoring (logs, metrics, debugging)
 - Troubleshooting (common issues, RLS errors, queue problems)

@@ -7,10 +7,10 @@ How to deploy the Ansible AI Reader application to Cloudflare Workers.
 - Deploying to production
 - Setting up CI/CD
 - Troubleshooting deployment issues
-- Understanding the 3-worker architecture
+- Understanding the worker architecture (3 core + relay bridge)
 
 ## Related Documentation
-- [Architecture - Workers](../architecture/workers.md) - 3-worker system design
+- [Architecture - Workers](../architecture/workers.md) - Worker architecture (3 core + relay bridge)
 - [Environment Setup](./environment-setup.md) - API keys and secrets configuration
 - [Troubleshooting](./troubleshooting.md) - Common deployment issues
 - [Monitoring](./monitoring.md) - Production logs and debugging
@@ -21,7 +21,7 @@ How to deploy the Ansible AI Reader application to Cloudflare Workers.
 
 Ansible AI Reader deploys to **Cloudflare Workers** (NOT Cloudflare Pages - this is a common confusion point).
 
-### Three Separate Workers
+### Four Separate Workers
 
 1. **`ansible-ai-reader`** (Main Application)
    - Next.js 15 application built with OpenNext for Cloudflare
@@ -42,6 +42,13 @@ Ansible AI Reader deploys to **Cloudflare Workers** (NOT Cloudflare Pages - this
    - Calls `/api/cron/auto-sync` endpoint with CRON_SECRET
    - Separate worker because OpenNext doesn't support scheduled() function
    - No deployment URL (cron-only, no HTTP endpoints)
+
+4. **`ansible-relay-bridge`** (Relay Bridge — owned-memory gateway)
+   - Sole writer of the `relay_*` tables for the Relay subsystem (service-role; bypasses RLS)
+   - Exposes `POST /backfill` and an MCP tool surface at `POST /mcp`, behind a shared-secret bearer
+   - Separate worker as a deliberate "swappable seam" (not an OpenNext limitation) — see `SPECIFICATIONS/relay/stage-1-technical-spec.md`
+   - Deployment URL: a non-guessable `*.workers.dev` host
+   - Config: `wrangler-relay-bridge.toml` · Deploy: `npm run deploy:relay-bridge`
 
 ### Why Workers, Not Pages?
 
@@ -105,7 +112,7 @@ After setting up secrets:
 1. Make any small change to the codebase
 2. Commit and push to `main` branch
 3. Go to Actions tab in GitHub to watch the deployment
-4. All three workers will be automatically deployed on success
+4. All four workers will be automatically deployed on success (main app last, then the relay bridge — see `.github/workflows/deploy.yml`)
 
 ---
 
@@ -413,7 +420,7 @@ After deployment:
 - [ ] Sync from Readwise succeeds
 - [ ] Summary generation works
 - [ ] Automated sync settings available in UI
-- [ ] No errors in Cloudflare Workers logs (all 3 workers)
+- [ ] No errors in Cloudflare Workers logs (all 4 workers)
 - [ ] Custom domain works (if configured)
 - [ ] Cron triggers are firing hourly
 
@@ -467,7 +474,7 @@ npx wrangler rollback [deployment-id] --config wrangler-cron.toml
 
 ## Related Documentation
 
-- [Architecture - Workers](../architecture/workers.md) - Understanding the 3-worker system
+- [Architecture - Workers](../architecture/workers.md) - Understanding the worker architecture (3 core + relay bridge)
 - [Environment Setup](./environment-setup.md) - Configuring API keys and secrets
 - [Monitoring](./monitoring.md) - Production logs and debugging
 - [Troubleshooting](./troubleshooting.md) - Common deployment issues

@@ -217,6 +217,15 @@ One-time, service-role: read `reader_items` and `ingest_reference` each as `orig
 
 > Back-fill populates the *associative recall* substrate (reference) — **not** the self-repetition brake, which stays empty until Relay publishes (A1). And the substrate is unverified Perplexity content: recall material, not gospel.
 
+**Operating the back-fill (runbook).** It runs *on the deployed bridge* via the shared-secret-gated `POST /backfill` route (service-role + AI binding live inside the worker). To trigger the one-time seed (or re-run it — it's idempotent on `source_ref`):
+
+```bash
+curl -X POST "$RELAY_BRIDGE_URL/backfill" -H "Authorization: Bearer $RELAY_BRIDGE_TOKEN"
+# → {"scanned":N,"ingested":M,"skippedEmpty":S,"failed":F}
+```
+
+where `RELAY_BRIDGE_URL` is the deployed worker origin (the non-guessable `*.workers.dev` host) and `RELAY_BRIDGE_TOKEN` is the bridge secret. Deploy the worker first with `npm run deploy:relay-bridge`.
+
 ---
 
 ## 10. Cost posture

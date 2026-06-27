@@ -1,17 +1,19 @@
 # Workers
 REFERENCE > Architecture > Workers
 
-Detailed documentation of the 3-worker Cloudflare Workers architecture.
+Detailed documentation of the Cloudflare Workers architecture: three core workers, plus a fourth for the Relay subsystem.
 
-## Why 3 Workers?
+## Why Separate Workers?
 
-We deploy **three separate Cloudflare Workers** because of OpenNext limitations:
+We deploy **three core Cloudflare Workers** because of OpenNext limitations:
 
 **OpenNext** (`@cloudflare/next-on-pages`) adapts Next.js for Cloudflare Workers but only generates **HTTP request handlers**. It doesn't support:
 - `scheduled()` function for cron triggers
 - Long-running background tasks
 
 **Solution:** Deploy specialized workers for different concerns.
+
+A **fourth worker — the Relay Bridge** (`wrangler-relay-bridge.toml`) — is split out for a *different* reason: it is the owned-memory gateway and sole writer of the `relay_*` tables for the Relay subsystem, deliberately isolated as a "swappable seam" (see the end of this doc and `SPECIFICATIONS/relay/stage-1-technical-spec.md`). It is not driven by OpenNext limitations.
 
 ## Worker 1: Main App (`wrangler.toml`)
 
@@ -196,6 +198,38 @@ Check cron execution logs:
 npx wrangler tail ansible-ai-reader-cron
 ```
 
+## Worker 4: Relay Bridge (`wrangler-relay-bridge.toml`)
+
+### Purpose
+The owned-memory gateway for the **Relay** subsystem (an autonomous-narrator experiment layered on Ansible). It is the **only** worker that touches the `relay_*` tables, and the deliberate "swappable seam": all of Relay's durable state lives behind it, so the agent harness (Anthropic Managed Agents now, Cloudflare Agents SDK later) can be swapped by rewriting only a thin adapter. Unlike the cron/consumer split, this isolation is *architectural intent*, not an OpenNext limitation.
+
+### Configuration
+```toml
+name = "ansible-relay-bridge"
+main = "workers/relay-bridge.ts"
+compatibility_date = "2026-03-06"
+compatibility_flags = ["nodejs_compat"]
+
+[ai]
+binding = "AI"   # Workers AI bge-m3 embeddings, sealed inside the bridge
+```
+
+### Responsibilities
+- **Back-fill** (`POST /backfill`): one-time seed of Ansible summaries into the reference corpus
+- **MCP tool surface** (`POST /mcp`): a hand-rolled minimal MCP server (JSON-RPC over Streamable HTTP) exposing `recall` / `fetch` / `write_pending` / `ingest_reference`
+- **Auth**: a single shared-secret bearer (`RELAY_BRIDGE_TOKEN`) gates the whole HTTP surface before any routing
+- **DB access**: service-role Supabase client (bypasses the `relay_*` zero-policy RLS)
+
+### Secrets
+`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `RELAY_BRIDGE_TOKEN`, and `READER_API_TOKEN` (optional — without it the `fetch` tool degrades to summary-only). Set via `npx wrangler secret put <NAME> --config wrangler-relay-bridge.toml`.
+
+### Deployment
+```bash
+npm run deploy:relay-bridge
+```
+
+See `SPECIFICATIONS/relay/stage-1-technical-spec.md` for the full design.
+
 ## Inter-Worker Communication
 
 ### Main → Queue Consumer
@@ -280,10 +314,11 @@ GitHub Actions auto-deploys main worker on push to `main` branch.
 
 **Manual Deployment (All Workers):**
 ```bash
-# Deploy all 3 workers
-npm run deploy                                      # Main worker
+# Deploy all 4 workers
+npm run deploy                                       # Main worker
 npx wrangler deploy --config wrangler-consumer.toml  # Consumer
 npx wrangler deploy --config wrangler-cron.toml      # Cron
+npm run deploy:relay-bridge                          # Relay bridge
 ```
 
 **Why manual for consumer & cron?**

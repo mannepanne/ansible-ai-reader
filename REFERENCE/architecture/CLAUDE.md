@@ -12,10 +12,10 @@ System design, technical architecture, and infrastructure documentation.
 ## Architecture Documentation
 
 ### System Overview
-- **[overview.md](./overview.md)** - High-level system architecture, tech stack, 3-worker design
+- **[overview.md](./overview.md)** - High-level system architecture, tech stack, worker design (3 core + relay bridge)
 
 ### Infrastructure
-- **[workers.md](./workers.md)** - Main app worker, queue consumer, cron worker (why 3 workers?)
+- **[workers.md](./workers.md)** - Main app worker, queue consumer, cron worker, relay bridge worker
 - **[database-schema.md](./database-schema.md)** - Tables, relationships, indexes, RLS policies
 
 ### Core Systems
@@ -23,7 +23,7 @@ System design, technical architecture, and infrastructure documentation.
 - **[api-design.md](./api-design.md)** - REST conventions, error handling, validation patterns
 
 ## Common Questions
-- **"Why do we have 3 workers?"** → [workers.md](./workers.md)
+- **"Why do we have multiple workers?"** → [workers.md](./workers.md)
 - **"What's the database schema?"** → [database-schema.md](./database-schema.md)
 - **"How does authentication work?"** → [authentication.md](./authentication.md)
 - **"What's the tech stack?"** → [overview.md](./overview.md)
