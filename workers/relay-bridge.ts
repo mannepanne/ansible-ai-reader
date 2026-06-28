@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { runBackfill } from '../src/lib/relay/backfill';
 import type { AiBinding } from '../src/lib/relay/embed';
 import { handleMcpMessage } from '../src/lib/relay/mcp';
+import { finalizeDecision, type FinalizeDecisionInput } from '../src/lib/relay/decisions';
 
 export interface Env {
   NEXT_PUBLIC_SUPABASE_URL: string;
@@ -65,6 +66,27 @@ export default {
         return new Response(null, { status: 202 });
       }
       return Response.json(response);
+    }
+
+    // Decision finalize: orchestrator-only, NOT part of the MCP tool surface — the agent stays blind
+    // to the gate (it has no decision tool and never learns a piece's fate). The session orchestrator
+    // calls this once a session reaches idle; the verdict is derived from DB state behind the seam.
+    if (request.method === 'POST' && url.pathname === '/decision') {
+      let input: unknown;
+      try {
+        input = await request.json();
+      } catch {
+        return Response.json({ error: 'invalid JSON body' }, { status: 400 });
+      }
+      try {
+        const result = await finalizeDecision(
+          { supabase: serviceRoleClient(env), ai: env.AI, readerToken: env.READER_API_TOKEN },
+          input as FinalizeDecisionInput,
+        );
+        return Response.json(result);
+      } catch (err) {
+        return Response.json({ error: (err as Error).message }, { status: 400 });
+      }
     }
 
     return new Response('Not found', { status: 404 });

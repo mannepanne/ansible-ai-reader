@@ -13,6 +13,11 @@ vi.mock('../src/lib/relay/mcp', () => ({
   handleMcpMessage: (...args: unknown[]) => mockHandleMcpMessage(...args),
 }));
 
+const mockFinalizeDecision = vi.fn();
+vi.mock('../src/lib/relay/decisions', () => ({
+  finalizeDecision: (...args: unknown[]) => mockFinalizeDecision(...args),
+}));
+
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => ({ __isClient: true })),
 }));
@@ -113,6 +118,57 @@ describe('relay-bridge worker', () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ error: { code: -32700 } });
     expect(mockHandleMcpMessage).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unauthorized POST /decision before touching the handler', async () => {
+    const res = await worker.fetch(req('/decision', { method: 'POST' }), makeEnv() as any);
+    expect(res.status).toBe(401);
+    expect(mockFinalizeDecision).not.toHaveBeenCalled();
+  });
+
+  it('routes an authorized POST /decision through finalizeDecision and returns its verdict', async () => {
+    mockFinalizeDecision.mockResolvedValue({ verdict: 'wrote', piece_id: 'piece-1' });
+    const res = await worker.fetch(
+      req('/decision', {
+        method: 'POST',
+        headers: { authorization: 'Bearer bridge-token', 'content-type': 'application/json' },
+        body: JSON.stringify({ stimulus_ref: ['r1'], started_at: '2026-06-28T10:00:00Z' }),
+      }),
+      makeEnv() as any,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ verdict: 'wrote', piece_id: 'piece-1' });
+    expect(mockFinalizeDecision).toHaveBeenCalledTimes(1);
+    const [deps, input] = mockFinalizeDecision.mock.calls[0];
+    expect(deps).toMatchObject({ ai: expect.anything() });
+    expect(input).toEqual({ stimulus_ref: ['r1'], started_at: '2026-06-28T10:00:00Z' });
+  });
+
+  it('returns 400 for an unparseable /decision body without calling the handler', async () => {
+    const res = await worker.fetch(
+      req('/decision', {
+        method: 'POST',
+        headers: { authorization: 'Bearer bridge-token', 'content-type': 'application/json' },
+        body: 'not json{',
+      }),
+      makeEnv() as any,
+    );
+    expect(res.status).toBe(400);
+    expect(mockFinalizeDecision).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 with the error message when finalizeDecision throws (e.g. missing started_at)', async () => {
+    mockFinalizeDecision.mockRejectedValue(new Error('finalizeDecision: started_at (the T0 window anchor) is required'));
+    const res = await worker.fetch(
+      req('/decision', {
+        method: 'POST',
+        headers: { authorization: 'Bearer bridge-token', 'content-type': 'application/json' },
+        body: JSON.stringify({ stimulus_ref: ['r1'] }),
+      }),
+      makeEnv() as any,
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: expect.stringContaining('started_at') });
   });
 
   it('returns 404 for an authorized request to an unknown route', async () => {
