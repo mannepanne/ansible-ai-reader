@@ -29,6 +29,9 @@ wrangler.toml.local
 .secrets
 *.local
 
+# Relay Managed-Agent resource IDs (environment/vault/agent) — per-clone, created by scripts/relay-session.ts
+.relay-agent-ids.json
+
 # Debug
 npm-debug.log*
 yarn-debug.log*
