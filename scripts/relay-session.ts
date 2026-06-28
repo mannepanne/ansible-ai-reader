@@ -152,6 +152,27 @@ async function fetchStimulus(readerId: string): Promise<string> {
   return parts.join('\n\n');
 }
 
+// Fail fast if the bridge's decision-finalize route is not deployed, BEFORE we spend a session we
+// could not finalize. A body missing started_at returns 400 (validation) when the route is live,
+// 404 when it is not — and finalizeDecision throws on the missing field before any DB write, so the
+// probe has no side effect.
+async function preflightBridge() {
+  const res = await fetch(`${BRIDGE_BASE}/decision`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${BRIDGE_TOKEN}`, 'content-type': 'application/json' },
+    body: '{}',
+  });
+  if (res.status === 404) {
+    throw new Error('bridge /decision route not found (404) — deploy the bridge first: npm run deploy:relay-bridge');
+  }
+  if (res.status === 401) {
+    throw new Error('bridge rejected the bearer (401) — check RELAY_BRIDGE_TOKEN');
+  }
+  if (res.status !== 400) {
+    console.warn(`  preflight: /decision returned ${res.status} (expected 400) — proceeding anyway`);
+  }
+}
+
 async function main() {
   const readerId = process.argv[2];
   if (!readerId) {
@@ -159,6 +180,7 @@ async function main() {
     process.exit(1);
   }
 
+  await preflightBridge();
   console.log('Assembling the voice + ensuring Anthropic resources...');
   const system = buildSystemPrompt();
   const ids = await ensureResources(system);
