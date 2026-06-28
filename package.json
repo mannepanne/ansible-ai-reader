@@ -19,7 +19,8 @@
     "test:apis": "tsx scripts/test-api-access.ts",
     "list:reader": "tsx scripts/list-reader-items.ts",
     "check:videos": "tsx scripts/check-video-content.ts",
-    "relay:session": "tsx scripts/relay-session.ts"
+    "relay:session": "tsx scripts/relay-session.ts",
+    "relay:pieces": "tsx scripts/relay-pieces.ts"
   },
   "dependencies": {
     "@marsidev/react-turnstile": "^1.5.0",
