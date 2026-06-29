@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AdminContent from './AdminContent';
-import type { LandingStats, DemoStats } from './types';
+import type { LandingStats, DemoStats, RelayStats } from './types';
 
 // Mock Next.js Link
 vi.mock('next/link', () => ({
@@ -68,6 +68,24 @@ const mockDemoStats: DemoStats = {
   ],
 };
 
+const mockRelayStats: RelayStats = {
+  counts: { pendingReview: 1, approved: 3, rejected: 2 },
+  pending: [
+    {
+      id: 'piece-1',
+      body: '# Seeing like a vendor\n\nThe submarine surfaces in the metadata.',
+      summary: 'On sovereignty migrating to the reading layer.',
+      concepts: ['governance capture', 'data sovereignty'],
+      recalledCount: 4,
+      createdAt: '2026-06-28T10:53:36Z',
+    },
+  ],
+  decisions: [
+    { verdict: 'wrote', pieceId: 'piece-9', reason: null, degraded: null, stimulusRef: ['r1'], createdAt: '2026-06-28T11:00:00Z' },
+    { verdict: 'declined', pieceId: null, reason: 'No power asymmetry here.', degraded: null, stimulusRef: ['r2'], createdAt: '2026-06-28T12:00:00Z' },
+  ],
+};
+
 describe('AdminContent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -79,6 +97,7 @@ describe('AdminContent', () => {
         userEmail="admin@example.com"
         landingStats={mockLandingStats}
         demoStats={mockDemoStats}
+        relayStats={mockRelayStats}
       />
     );
     expect(screen.getByTestId('header')).toBeDefined();
@@ -90,6 +109,7 @@ describe('AdminContent', () => {
         userEmail="admin@example.com"
         landingStats={mockLandingStats}
         demoStats={mockDemoStats}
+        relayStats={mockRelayStats}
       />
     );
     expect(screen.getByRole('tab', { name: /landing page/i })).toBeDefined();
@@ -102,6 +122,7 @@ describe('AdminContent', () => {
         userEmail="admin@example.com"
         landingStats={mockLandingStats}
         demoStats={mockDemoStats}
+        relayStats={mockRelayStats}
       />
     );
     expect(screen.getByText('120')).toBeDefined();  // totalVisits
@@ -115,6 +136,7 @@ describe('AdminContent', () => {
         userEmail="admin@example.com"
         landingStats={mockLandingStats}
         demoStats={mockDemoStats}
+        relayStats={mockRelayStats}
       />
     );
     // 15/120 = 12.5%
@@ -128,6 +150,7 @@ describe('AdminContent', () => {
         userEmail="admin@example.com"
         landingStats={mockLandingStats}
         demoStats={mockDemoStats}
+        relayStats={mockRelayStats}
       />
     );
 
@@ -145,6 +168,7 @@ describe('AdminContent', () => {
         userEmail="admin@example.com"
         landingStats={mockLandingStats}
         demoStats={mockDemoStats}
+        relayStats={mockRelayStats}
       />
     );
 
@@ -162,6 +186,7 @@ describe('AdminContent', () => {
         userEmail="admin@example.com"
         landingStats={mockLandingStats}
         demoStats={mockDemoStats}
+        relayStats={mockRelayStats}
       />
     );
 
@@ -172,5 +197,27 @@ describe('AdminContent', () => {
     // mockDemoStats has 1 email capture row → 1 of each
     expect(deleteButtons.length).toBe(1);
     expect(exportButtons.length).toBe(1);
+  });
+
+  it('renders the Relay Agent tab and shows pending pieces + decision log on switch', async () => {
+    const user = userEvent.setup();
+    render(
+      <AdminContent
+        userEmail="admin@example.com"
+        landingStats={mockLandingStats}
+        demoStats={mockDemoStats}
+        relayStats={mockRelayStats}
+      />
+    );
+
+    await user.click(screen.getByRole('tab', { name: /relay agent/i }));
+
+    // pending piece body + frontmatter + approve/reject controls
+    expect(screen.getByText(/Seeing like a vendor/)).toBeDefined();
+    expect(screen.getByText(/On sovereignty migrating to the reading layer/)).toBeDefined();
+    expect(screen.getByRole('button', { name: /^approve$/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^reject$/i })).toBeDefined();
+    // decision log carries the declined reason
+    expect(screen.getByText(/No power asymmetry here/)).toBeDefined();
   });
 });

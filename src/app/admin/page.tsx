@@ -4,7 +4,7 @@
 import { redirect } from 'next/navigation';
 import { createClient, createServiceRoleClient } from '@/utils/supabase/server';
 import AdminContent from '@/components/admin/AdminContent';
-import type { LandingStats, DemoStats } from '@/components/admin/types';
+import type { LandingStats, DemoStats, RelayStats } from '@/components/admin/types';
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -39,6 +39,11 @@ export default async function AdminPage() {
     interactionsResult,
     sessionsResult,
     eventTypesResult,
+    relayPendingResult,
+    relayPendingCountResult,
+    relayApprovedCountResult,
+    relayRejectedCountResult,
+    relayDecisionsResult,
   ] = await Promise.all([
     db.from('page_events').select('*', { count: 'exact', head: true }).eq('event_type', 'landing_page_view'),
     db.from('page_events').select('visitor_id').eq('event_type', 'landing_page_view'),
@@ -53,6 +58,19 @@ export default async function AdminPage() {
       .order('started_at', { ascending: false })
       .limit(200),
     db.from('demo_events').select('event_type'),
+    db
+      .from('relay_pieces')
+      .select('id, body, summary, concepts, links, created_at')
+      .order('created_at', { ascending: false })
+      .eq('state', 'pending_review'),
+    db.from('relay_pieces').select('*', { count: 'exact', head: true }).eq('state', 'pending_review'),
+    db.from('relay_pieces').select('*', { count: 'exact', head: true }).eq('state', 'approved'),
+    db.from('relay_pieces').select('*', { count: 'exact', head: true }).eq('state', 'rejected'),
+    db
+      .from('relay_decisions')
+      .select('verdict, piece_id, reason, degraded, stimulus_ref, created_at')
+      .order('created_at', { ascending: false })
+      .limit(50),
   ]);
 
   // Build landing stats
@@ -137,11 +155,51 @@ export default async function AdminPage() {
     emailCaptures,
   };
 
+  // Build relay stats — pending pieces (read-only operator view) + decision log + per-state counts.
+  const relayStats: RelayStats = {
+    counts: {
+      pendingReview: relayPendingCountResult.count ?? 0,
+      approved: relayApprovedCountResult.count ?? 0,
+      rejected: relayRejectedCountResult.count ?? 0,
+    },
+    pending: (relayPendingResult.data ?? []).map((p: {
+      id: string;
+      body: string;
+      summary: string | null;
+      concepts: string[] | null;
+      links: unknown[] | null;
+      created_at: string;
+    }) => ({
+      id: p.id,
+      body: p.body,
+      summary: p.summary,
+      concepts: p.concepts ?? [],
+      recalledCount: (p.links ?? []).length,
+      createdAt: p.created_at,
+    })),
+    decisions: (relayDecisionsResult.data ?? []).map((d: {
+      verdict: 'wrote' | 'declined';
+      piece_id: string | null;
+      reason: string | null;
+      degraded: string | null;
+      stimulus_ref: string[] | null;
+      created_at: string;
+    }) => ({
+      verdict: d.verdict,
+      pieceId: d.piece_id,
+      reason: d.reason,
+      degraded: d.degraded,
+      stimulusRef: d.stimulus_ref ?? [],
+      createdAt: d.created_at,
+    })),
+  };
+
   return (
     <AdminContent
       userEmail={session.user.email ?? ''}
       landingStats={landingStats}
       demoStats={demoStats}
+      relayStats={relayStats}
     />
   );
 }

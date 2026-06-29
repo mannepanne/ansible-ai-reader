@@ -1,7 +1,9 @@
 # Relay Operator CLIs
 REFERENCE > Features > Relay Operator CLIs
 
-The interim operator surface for the Relay agent's Stage-1 loop: run a session, read the pieces it writes into the human gate, and approve or reject them. (The admin "Relay Agent" tab will replace these as the operator UI; until then these `relay:*` scripts are how Relay is operated.)
+The operator surface for the Relay agent's Stage-1 loop: run a session, read the pieces it writes into the human gate, and approve or reject them.
+
+**Review now also has a UI:** the admin **"Relay Agent" tab** (Admin → Analytics Dashboard, behind the `is_admin` login) lists pending pieces with their bodies and lets you Approve/Reject them, and shows the decision log. Approve/Reject there proxy to the bridge via `POST /api/admin/relay/review` (admin-gated, using `RELAY_CONTROL_TOKEN`) — the same control-plane the CLIs use. **Session triggering is still CLI-only** (`relay:session`); an in-tab trigger needs an async (queue-based) runner because a session takes minutes — that's a follow-up. The CLIs below remain the way to run sessions and a scriptable alternative for review.
 
 All four are thin local CLIs run via `tsx`; they read secrets from `.dev.vars` and talk to the deployed **relay bridge** worker (see [architecture/workers.md](../architecture/workers.md) → Worker 4). They never write `relay_*` directly — every durable write goes through the bridge.
 

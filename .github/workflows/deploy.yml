@@ -74,6 +74,8 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           READER_API_TOKEN: ${{ secrets.READER_API_TOKEN }}
+          # Lets the admin "Relay Agent" tab's approve/reject route reach the bridge control plane.
+          RELAY_CONTROL_TOKEN: ${{ secrets.RELAY_CONTROL_TOKEN }}
 
       # Relay bridge deploys LAST: it's the experimental Relay subsystem worker, so a failed
       # deploy here must not gate the production app's redeploy (Actions aborts the job on first

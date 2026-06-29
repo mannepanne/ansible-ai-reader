@@ -35,3 +35,29 @@ export interface DemoStats {
   sessions: DemoSessionRow[];
   emailCaptures: EmailCaptureRow[];
 }
+
+// --- Relay agent (autonomous narrator) review surface ---
+
+export interface RelayPieceRow {
+  id: string;
+  body: string;
+  summary: string | null;
+  concepts: string[];
+  recalledCount: number; // how many memory ids the piece linked to (links.length)
+  createdAt: string;
+}
+
+export interface RelayDecisionRow {
+  verdict: 'wrote' | 'declined';
+  pieceId: string | null;
+  reason: string | null;
+  degraded: string | null;
+  stimulusRef: string[];
+  createdAt: string;
+}
+
+export interface RelayStats {
+  counts: { pendingReview: number; approved: number; rejected: number };
+  pending: RelayPieceRow[];
+  decisions: RelayDecisionRow[];
+}
