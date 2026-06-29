@@ -69,6 +69,7 @@ function buildSystemPrompt(): string {
     trunk: read(PERSONA_FILES.trunk),
     grain: read(PERSONA_FILES.grain),
     rings: read(PERSONA_FILES.rings),
+    cadence: read(PERSONA_FILES.cadence),
     coda: read(PERSONA_FILES.coda),
   });
 }

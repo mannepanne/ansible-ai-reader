@@ -5,23 +5,26 @@ export interface PersonaParts {
   trunk: string; // Commitments & Antagonisms — values, what it defends/attacks, craft laws
   grain: string; // Loves & Tells — who it is at rest, the humour, the tells
   rings: string; // Continuity & Memory — how it persists, reference vs self, restraint
+  cadence: string; // Craft & Cadence — plainness, the anti-tell list, the texture exemplar
   coda: string; // Operating Coda — where it is standing this session, input-private/output-autonomous
 }
 
-// The four relay-agent/ docs, in assembly order. The orchestrator reads these and passes their text.
+// The relay-agent/ docs, in assembly order. The orchestrator reads these and passes their text.
 export const PERSONA_FILES = {
   trunk: 'ansible-agent-commitments-and-antagonisms.md',
   grain: 'ansible-agent-loves-and-tells.md',
   rings: 'ansible-agent-continuity-and-memory.md',
+  cadence: 'ansible-agent-craft-and-cadence.md',
   coda: 'ansible-agent-operating-coda.md',
 } as const;
 
-const ORDER = ['trunk', 'grain', 'rings', 'coda'] as const;
+const ORDER = ['trunk', 'grain', 'rings', 'cadence', 'coda'] as const;
 
 /**
- * Compose the system prompt in the fixed trunk → grain → rings → coda order. The character is
- * established first; the coda — which defers to the three docs on how to write — comes last, the
- * operating instructions sitting closest to the work. Each part is the verbatim authored doc.
+ * Compose the system prompt in the fixed trunk → grain → rings → cadence → coda order. The
+ * character is established first; craft & cadence corrects the *sound* (the character docs are
+ * written dense and the model would otherwise imitate that density); the coda — the operating
+ * instructions — comes last, closest to the work. Each part is the verbatim authored doc.
  */
 export function assembleSystemPrompt(parts: PersonaParts): string {
   for (const k of ORDER) {
