@@ -13,6 +13,18 @@ vi.mock('../src/lib/relay/mcp', () => ({
   handleMcpMessage: (...args: unknown[]) => mockHandleMcpMessage(...args),
 }));
 
+const mockFinalizeDecision = vi.fn();
+vi.mock('../src/lib/relay/decisions', () => ({
+  finalizeDecision: (...args: unknown[]) => mockFinalizeDecision(...args),
+}));
+
+const mockApprovePiece = vi.fn();
+const mockRejectPiece = vi.fn();
+vi.mock('../src/lib/relay/approval', () => ({
+  approvePiece: (...args: unknown[]) => mockApprovePiece(...args),
+  rejectPiece: (...args: unknown[]) => mockRejectPiece(...args),
+}));
+
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => ({ __isClient: true })),
 }));
@@ -24,6 +36,7 @@ function makeEnv() {
     NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
     SUPABASE_SECRET_KEY: 'secret',
     RELAY_BRIDGE_TOKEN: 'bridge-token',
+    RELAY_CONTROL_TOKEN: 'control-token',
     AI: { run: vi.fn() },
   };
 }
@@ -112,6 +125,138 @@ describe('relay-bridge worker', () => {
     );
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ error: { code: -32700 } });
+    expect(mockHandleMcpMessage).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unauthorized POST /decision before touching the handler', async () => {
+    const res = await worker.fetch(req('/decision', { method: 'POST' }), makeEnv() as any);
+    expect(res.status).toBe(401);
+    expect(mockFinalizeDecision).not.toHaveBeenCalled();
+  });
+
+  it('routes an authorized POST /decision through finalizeDecision and returns its verdict', async () => {
+    mockFinalizeDecision.mockResolvedValue({ verdict: 'wrote', piece_id: 'piece-1' });
+    const res = await worker.fetch(
+      req('/decision', {
+        method: 'POST',
+        headers: { authorization: 'Bearer control-token', 'content-type': 'application/json' },
+        body: JSON.stringify({ stimulus_ref: ['r1'], started_at: '2026-06-28T10:00:00Z' }),
+      }),
+      makeEnv() as any,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ verdict: 'wrote', piece_id: 'piece-1' });
+    expect(mockFinalizeDecision).toHaveBeenCalledTimes(1);
+    const [deps, input] = mockFinalizeDecision.mock.calls[0];
+    expect(deps).toMatchObject({ ai: expect.anything() });
+    expect(input).toEqual({ stimulus_ref: ['r1'], started_at: '2026-06-28T10:00:00Z' });
+  });
+
+  it('returns 400 for an unparseable /decision body without calling the handler', async () => {
+    const res = await worker.fetch(
+      req('/decision', {
+        method: 'POST',
+        headers: { authorization: 'Bearer control-token', 'content-type': 'application/json' },
+        body: 'not json{',
+      }),
+      makeEnv() as any,
+    );
+    expect(res.status).toBe(400);
+    expect(mockFinalizeDecision).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 with the error message when finalizeDecision throws (e.g. missing started_at)', async () => {
+    mockFinalizeDecision.mockRejectedValue(new Error('finalizeDecision: started_at (the T0 window anchor) is required'));
+    const res = await worker.fetch(
+      req('/decision', {
+        method: 'POST',
+        headers: { authorization: 'Bearer control-token', 'content-type': 'application/json' },
+        body: JSON.stringify({ stimulus_ref: ['r1'] }),
+      }),
+      makeEnv() as any,
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: expect.stringContaining('started_at') });
+  });
+
+  it('rejects an unauthorized POST /approve before touching the handler', async () => {
+    const res = await worker.fetch(req('/approve', { method: 'POST' }), makeEnv() as any);
+    expect(res.status).toBe(401);
+    expect(mockApprovePiece).not.toHaveBeenCalled();
+  });
+
+  it('routes an authorized POST /approve through approvePiece and returns its result', async () => {
+    mockApprovePiece.mockResolvedValue({ ok: true, id: 'p1', slug: 'a-piece' });
+    const res = await worker.fetch(
+      req('/approve', {
+        method: 'POST',
+        headers: { authorization: 'Bearer control-token', 'content-type': 'application/json' },
+        body: JSON.stringify({ id: 'p1' }),
+      }),
+      makeEnv() as any,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, id: 'p1', slug: 'a-piece' });
+    expect(mockApprovePiece).toHaveBeenCalledTimes(1);
+    const [deps, input] = mockApprovePiece.mock.calls[0];
+    expect(deps).toMatchObject({ ai: expect.anything() });
+    expect(input).toEqual({ id: 'p1' });
+    expect(mockRejectPiece).not.toHaveBeenCalled();
+  });
+
+  it('routes an authorized POST /reject through rejectPiece', async () => {
+    mockRejectPiece.mockResolvedValue({ ok: true, id: 'p2' });
+    const res = await worker.fetch(
+      req('/reject', {
+        method: 'POST',
+        headers: { authorization: 'Bearer control-token', 'content-type': 'application/json' },
+        body: JSON.stringify({ id: 'p2' }),
+      }),
+      makeEnv() as any,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, id: 'p2' });
+    expect(mockRejectPiece).toHaveBeenCalledTimes(1);
+    expect(mockApprovePiece).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 with the message when approvePiece throws', async () => {
+    mockApprovePiece.mockRejectedValue(new Error('approve: piece p1 is approved, not pending_review'));
+    const res = await worker.fetch(
+      req('/approve', {
+        method: 'POST',
+        headers: { authorization: 'Bearer control-token', 'content-type': 'application/json' },
+        body: JSON.stringify({ id: 'p1' }),
+      }),
+      makeEnv() as any,
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: expect.stringContaining('pending_review') });
+  });
+
+  it('isolates the tokens: the bridge token cannot reach the control plane, the control token cannot reach /mcp', async () => {
+    // bridge token on a control route (/approve) → 401, handler untouched
+    const a = await worker.fetch(
+      req('/approve', {
+        method: 'POST',
+        headers: { authorization: 'Bearer bridge-token', 'content-type': 'application/json' },
+        body: JSON.stringify({ id: 'p1' }),
+      }),
+      makeEnv() as any,
+    );
+    expect(a.status).toBe(401);
+    expect(mockApprovePiece).not.toHaveBeenCalled();
+
+    // control token on the agent surface (/mcp) → 401, handler untouched
+    const m = await worker.fetch(
+      req('/mcp', {
+        method: 'POST',
+        headers: { authorization: 'Bearer control-token', 'content-type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+      }),
+      makeEnv() as any,
+    );
+    expect(m.status).toBe(401);
     expect(mockHandleMcpMessage).not.toHaveBeenCalled();
   });
 

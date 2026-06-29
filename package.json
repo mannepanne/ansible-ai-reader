@@ -18,7 +18,11 @@
     "test:coverage": "vitest --coverage",
     "test:apis": "tsx scripts/test-api-access.ts",
     "list:reader": "tsx scripts/list-reader-items.ts",
-    "check:videos": "tsx scripts/check-video-content.ts"
+    "check:videos": "tsx scripts/check-video-content.ts",
+    "relay:session": "tsx scripts/relay-session.ts",
+    "relay:pieces": "tsx scripts/relay-pieces.ts",
+    "relay:approve": "tsx scripts/relay-review.ts approve",
+    "relay:reject": "tsx scripts/relay-review.ts reject"
   },
   "dependencies": {
     "@marsidev/react-turnstile": "^1.5.0",

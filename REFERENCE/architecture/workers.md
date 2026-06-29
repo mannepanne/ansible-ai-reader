@@ -216,12 +216,14 @@ binding = "AI"   # Workers AI bge-m3 embeddings, sealed inside the bridge
 
 ### Responsibilities
 - **Back-fill** (`POST /backfill`): one-time seed of Ansible summaries into the reference corpus
-- **MCP tool surface** (`POST /mcp`): a hand-rolled minimal MCP server (JSON-RPC over Streamable HTTP) exposing `recall` / `fetch` / `write_pending` / `ingest_reference`
-- **Auth**: a single shared-secret bearer (`RELAY_BRIDGE_TOKEN`) gates the whole HTTP surface before any routing
+- **MCP tool surface** (`POST /mcp`): a hand-rolled minimal MCP server (JSON-RPC over Streamable HTTP) exposing `recall` / `fetch` / `write_pending` / `ingest_reference` — the only agent-facing route
+- **Decision capture** (`POST /decision`): operator-only; records a session's backend-observed verdict (`wrote`/`declined`) into `relay_decisions`, deriving the piece id from DB state
+- **Human gate** (`POST /approve`, `POST /reject`): operator-only; approve embeds the piece and promotes it to `state=approved` (recallable as self); reject marks it `rejected`, never embedded
+- **Auth — two tokens**: `RELAY_BRIDGE_TOKEN` gates `/mcp` (held by the agent's vault) + `/backfill`; a separate `RELAY_CONTROL_TOKEN` gates the gate-bypassing control plane (`/decision`, `/approve`, `/reject`), so a compromise of the agent token cannot self-approve pieces. The check runs before any routing
 - **DB access**: service-role Supabase client (bypasses the `relay_*` zero-policy RLS)
 
 ### Secrets
-`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `RELAY_BRIDGE_TOKEN`, and `READER_API_TOKEN` (optional — without it the `fetch` tool degrades to summary-only). Set via `npx wrangler secret put <NAME> --config wrangler-relay-bridge.toml`.
+`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `RELAY_BRIDGE_TOKEN`, `RELAY_CONTROL_TOKEN`, and `READER_API_TOKEN` (optional — without it the `fetch` tool degrades to summary-only). Set via `npx wrangler secret put <NAME> --config wrangler-relay-bridge.toml`.
 
 ### Deployment
 ```bash
