@@ -22,6 +22,9 @@ How-it-works documentation for user-facing features.
 ### Automation
 - **[automated-sync.md](./automated-sync.md)** - Scheduled syncing system (cron worker, intervals, user settings)
 
+### Relay (autonomous narrator)
+- **[relay-operator-cli.md](./relay-operator-cli.md)** - The `relay:*` operator CLIs (run a session, read pending pieces, approve/reject) — interim Stage-1 operator surface until the admin "Relay Agent" tab lands
+
 ### Public Site & Growth
 - **[landing-page-and-demo.md](./landing-page-and-demo.md)** - Landing page, interactive demo, privacy page, and the cookie-free localStorage tracking system
 - **[admin-analytics.md](./admin-analytics.md)** - Admin dashboard: landing funnel metrics, demo engagement, GDPR export/delete tools
