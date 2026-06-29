@@ -6,6 +6,7 @@ import { runBackfill } from '../src/lib/relay/backfill';
 import type { AiBinding } from '../src/lib/relay/embed';
 import { handleMcpMessage } from '../src/lib/relay/mcp';
 import { finalizeDecision, type FinalizeDecisionInput } from '../src/lib/relay/decisions';
+import { approvePiece, rejectPiece } from '../src/lib/relay/approval';
 
 export interface Env {
   NEXT_PUBLIC_SUPABASE_URL: string;
@@ -83,6 +84,28 @@ export default {
           { supabase: serviceRoleClient(env), ai: env.AI, readerToken: env.READER_API_TOKEN },
           input as FinalizeDecisionInput,
         );
+        return Response.json(result);
+      } catch (err) {
+        return Response.json({ error: (err as Error).message }, { status: 400 });
+      }
+    }
+
+    // Approve / reject: operator-only (NOT the agent — promotion to recallable happens backend-side
+    // on approval; the agent stays blind). Approve embeds the body with the sealed fn (AI binding lives
+    // here) then flips the piece to approved; reject marks it rejected, never embedded.
+    if (request.method === 'POST' && (url.pathname === '/approve' || url.pathname === '/reject')) {
+      let input: { id?: string };
+      try {
+        input = (await request.json()) as { id?: string };
+      } catch {
+        return Response.json({ error: 'invalid JSON body' }, { status: 400 });
+      }
+      const deps = { supabase: serviceRoleClient(env), ai: env.AI, readerToken: env.READER_API_TOKEN };
+      try {
+        const result =
+          url.pathname === '/approve'
+            ? await approvePiece(deps, { id: input.id as string })
+            : await rejectPiece(deps, { id: input.id as string });
         return Response.json(result);
       } catch (err) {
         return Response.json({ error: (err as Error).message }, { status: 400 });

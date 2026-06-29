@@ -18,6 +18,13 @@ vi.mock('../src/lib/relay/decisions', () => ({
   finalizeDecision: (...args: unknown[]) => mockFinalizeDecision(...args),
 }));
 
+const mockApprovePiece = vi.fn();
+const mockRejectPiece = vi.fn();
+vi.mock('../src/lib/relay/approval', () => ({
+  approvePiece: (...args: unknown[]) => mockApprovePiece(...args),
+  rejectPiece: (...args: unknown[]) => mockRejectPiece(...args),
+}));
+
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => ({ __isClient: true })),
 }));
@@ -169,6 +176,61 @@ describe('relay-bridge worker', () => {
     );
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ error: expect.stringContaining('started_at') });
+  });
+
+  it('rejects an unauthorized POST /approve before touching the handler', async () => {
+    const res = await worker.fetch(req('/approve', { method: 'POST' }), makeEnv() as any);
+    expect(res.status).toBe(401);
+    expect(mockApprovePiece).not.toHaveBeenCalled();
+  });
+
+  it('routes an authorized POST /approve through approvePiece and returns its result', async () => {
+    mockApprovePiece.mockResolvedValue({ ok: true, id: 'p1', slug: 'a-piece' });
+    const res = await worker.fetch(
+      req('/approve', {
+        method: 'POST',
+        headers: { authorization: 'Bearer bridge-token', 'content-type': 'application/json' },
+        body: JSON.stringify({ id: 'p1' }),
+      }),
+      makeEnv() as any,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, id: 'p1', slug: 'a-piece' });
+    expect(mockApprovePiece).toHaveBeenCalledTimes(1);
+    const [deps, input] = mockApprovePiece.mock.calls[0];
+    expect(deps).toMatchObject({ ai: expect.anything() });
+    expect(input).toEqual({ id: 'p1' });
+    expect(mockRejectPiece).not.toHaveBeenCalled();
+  });
+
+  it('routes an authorized POST /reject through rejectPiece', async () => {
+    mockRejectPiece.mockResolvedValue({ ok: true, id: 'p2' });
+    const res = await worker.fetch(
+      req('/reject', {
+        method: 'POST',
+        headers: { authorization: 'Bearer bridge-token', 'content-type': 'application/json' },
+        body: JSON.stringify({ id: 'p2' }),
+      }),
+      makeEnv() as any,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, id: 'p2' });
+    expect(mockRejectPiece).toHaveBeenCalledTimes(1);
+    expect(mockApprovePiece).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 with the message when approvePiece throws', async () => {
+    mockApprovePiece.mockRejectedValue(new Error('approve: piece p1 is approved, not pending_review'));
+    const res = await worker.fetch(
+      req('/approve', {
+        method: 'POST',
+        headers: { authorization: 'Bearer bridge-token', 'content-type': 'application/json' },
+        body: JSON.stringify({ id: 'p1' }),
+      }),
+      makeEnv() as any,
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: expect.stringContaining('pending_review') });
   });
 
   it('returns 404 for an authorized request to an unknown route', async () => {
