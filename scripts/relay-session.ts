@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import { assembleSystemPrompt, PERSONA_FILES } from '../src/lib/relay/persona';
-import { readSession, type MaEvent } from '../src/lib/relay/session-readout';
+import { readSession, renderTrace, type MaEvent } from '../src/lib/relay/session-readout';
 
 function loadDevVars(): Record<string, string> {
   const p = path.join(process.cwd(), '.dev.vars');
@@ -223,6 +223,17 @@ async function main() {
   }
 
   const events = ((await ma('GET', `/sessions/${sid}/events?beta=true`)).data ?? []) as MaEvent[];
+
+  // Persist the raw transcript and show the reasoning trace — the recall queries it composed, the
+  // neighbours it got back, and its narration are the window into how it decided to write or stay silent.
+  const dir = path.join(process.cwd(), 'relay-sessions');
+  fs.mkdirSync(dir, { recursive: true });
+  const transcriptPath = path.join(dir, `${sid}.json`);
+  fs.writeFileSync(transcriptPath, JSON.stringify(events, null, 2));
+  console.log('\n──────── reasoning ────────');
+  console.log(renderTrace(events));
+  console.log(`\n(full transcript saved: ${path.relative(process.cwd(), transcriptPath)})`);
+
   const readout = readSession(events);
 
   console.log('\nFinalizing decision (backend-observed, via the bridge)...');

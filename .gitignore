@@ -31,6 +31,8 @@ wrangler.toml.local
 
 # Relay Managed-Agent resource IDs (environment/vault/agent) — per-clone, created by scripts/relay-session.ts
 .relay-agent-ids.json
+# Relay session transcripts (raw MA event dumps) — local record, not source
+relay-sessions/
 
 # Debug
 npm-debug.log*
