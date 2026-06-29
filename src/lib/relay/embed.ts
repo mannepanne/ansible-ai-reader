@@ -19,8 +19,7 @@ export interface AiBinding {
  * `truncate_inputs: true` lets the model truncate rather than error when input exceeds the
  * 60k-token context window (relevant for long piece bodies; reference summaries are well under).
  *
- * NOTE (first-real-run smoke test): the `{ data: number[][] }` response shape is the established
- * Workers AI embedding output but is not pinned in the bge-m3 docs — confirm against a live call.
+ * bge-m3 returns `{ data: [vector] }`; the length check below fails loud if that ever changes.
  */
 export async function embed(ai: AiBinding, text: string): Promise<number[]> {
   const trimmed = text?.trim();

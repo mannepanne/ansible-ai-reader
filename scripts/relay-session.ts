@@ -12,28 +12,15 @@ import * as path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import { assembleSystemPrompt, PERSONA_FILES } from '../src/lib/relay/persona';
 import { readSession, renderTrace, type MaEvent } from '../src/lib/relay/session-readout';
-
-function loadDevVars(): Record<string, string> {
-  const p = path.join(process.cwd(), '.dev.vars');
-  if (!fs.existsSync(p)) {
-    console.error('❌ .dev.vars not found');
-    process.exit(1);
-  }
-  const vars: Record<string, string> = {};
-  for (const line of fs.readFileSync(p, 'utf-8').split('\n')) {
-    const t = line.trim();
-    if (t && !t.startsWith('#')) {
-      const [k, ...v] = t.split('=');
-      if (k && v.length) vars[k.trim()] = v.join('=').trim();
-    }
-  }
-  return vars;
-}
+import { loadDevVars, bridgeBase } from './relay-env';
 
 const env = loadDevVars();
 const API_KEY = env.ANTHROPIC_API_KEY;
+// The agent's /mcp token (stored in the vault for the Managed Agent to use) — distinct from the
+// control token below, which gates the gate-bypassing /decision route this orchestrator calls.
 const BRIDGE_TOKEN = env.RELAY_BRIDGE_TOKEN;
-const BRIDGE_BASE = env.RELAY_BRIDGE_URL || 'https://ansible-relay-bridge.herrings.workers.dev';
+const CONTROL_TOKEN = env.RELAY_CONTROL_TOKEN;
+const BRIDGE_BASE = bridgeBase(env);
 const BRIDGE_MCP_URL = `${BRIDGE_BASE}/mcp`;
 const MA = 'https://api.anthropic.com/v1';
 const MODEL = 'claude-opus-4-8';
@@ -88,8 +75,10 @@ const TOOLSET = {
   ],
 };
 
-// Create the three reusable resources once; keep the agent's voice current on every run (a no-op
-// when the prompt/tools are unchanged — the API returns the same version).
+// Create the three reusable resources once; keep the agent's voice current on every run. NOTE: the
+// update currently bumps the agent version each run even when the prompt is unchanged, because the
+// tools array round-trips non-identically (the API echoes normalized permission_policy/configs that
+// differ from what we send). Cosmetic — the running config is correct; only the version number drifts.
 async function ensureResources(system: string): Promise<Ids> {
   const ids = loadIds();
   if (!ids.environment_id) {
@@ -160,14 +149,14 @@ async function fetchStimulus(readerId: string): Promise<string> {
 async function preflightBridge() {
   const res = await fetch(`${BRIDGE_BASE}/decision`, {
     method: 'POST',
-    headers: { authorization: `Bearer ${BRIDGE_TOKEN}`, 'content-type': 'application/json' },
+    headers: { authorization: `Bearer ${CONTROL_TOKEN}`, 'content-type': 'application/json' },
     body: '{}',
   });
   if (res.status === 404) {
     throw new Error('bridge /decision route not found (404) — deploy the bridge first: npm run deploy:relay-bridge');
   }
   if (res.status === 401) {
-    throw new Error('bridge rejected the bearer (401) — check RELAY_BRIDGE_TOKEN');
+    throw new Error('bridge rejected the control bearer (401) — check RELAY_CONTROL_TOKEN');
   }
   if (res.status !== 400) {
     console.warn(`  preflight: /decision returned ${res.status} (expected 400) — proceeding anyway`);
@@ -240,7 +229,7 @@ async function main() {
   console.log('\nFinalizing decision (backend-observed, via the bridge)...');
   const res = await fetch(`${BRIDGE_BASE}/decision`, {
     method: 'POST',
-    headers: { authorization: `Bearer ${BRIDGE_TOKEN}`, 'content-type': 'application/json' },
+    headers: { authorization: `Bearer ${CONTROL_TOKEN}`, 'content-type': 'application/json' },
     body: JSON.stringify({
       stimulus_ref: [readerId],
       started_at: startedAt,

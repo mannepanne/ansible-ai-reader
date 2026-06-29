@@ -3,22 +3,8 @@
 // Run with: npx tsx scripts/relay-pieces.ts          (pending pieces + recent decisions)
 //           npx tsx scripts/relay-pieces.ts --all     (every piece, bodies included)
 
-import * as fs from 'fs';
-import * as path from 'path';
 import { createClient } from '@supabase/supabase-js';
-
-function loadDevVars(): Record<string, string> {
-  const p = path.join(process.cwd(), '.dev.vars');
-  const vars: Record<string, string> = {};
-  for (const line of fs.readFileSync(p, 'utf-8').split('\n')) {
-    const t = line.trim();
-    if (t && !t.startsWith('#')) {
-      const [k, ...v] = t.split('=');
-      if (k && v.length) vars[k.trim()] = v.join('=').trim();
-    }
-  }
-  return vars;
-}
+import { loadDevVars } from './relay-env';
 
 const env = loadDevVars();
 const showAll = process.argv.includes('--all');

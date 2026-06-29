@@ -1,11 +1,13 @@
 # Relay bridge Worker — owned-memory gateway (MCP seam) for the Relay agent.
-# Stage 1: shared-secret-gated /backfill endpoint + MCP tool surface at POST /mcp
-# (recall/fetch/write_pending/ingest_reference; Streamable HTTP JSON-RPC).
+# Stage 1 routes (all shared-secret-gated): /backfill + /mcp (recall/fetch/write_pending/
+# ingest_reference; Streamable HTTP JSON-RPC) on the bridge token; /decision, /approve, /reject
+# (the human-gate control plane) on a separate control token the agent never holds.
 #
 # Required secrets (set per: wrangler secret put <NAME> --config wrangler-relay-bridge.toml):
 #   NEXT_PUBLIC_SUPABASE_URL   - Supabase project URL
 #   SUPABASE_SECRET_KEY        - Supabase service-role key (bypasses RLS; bridge-only)
-#   RELAY_BRIDGE_TOKEN         - shared secret guarding the bridge's HTTP surface
+#   RELAY_BRIDGE_TOKEN         - gates /mcp (in the agent's vault) + /backfill
+#   RELAY_CONTROL_TOKEN        - gates /decision, /approve, /reject (operator-only; never given to the agent)
 #   READER_API_TOKEN           - Reader API token for the `fetch` tool's full-text body pulls
 #                                (optional; if unset, `fetch` silently degrades to summary-only)
 

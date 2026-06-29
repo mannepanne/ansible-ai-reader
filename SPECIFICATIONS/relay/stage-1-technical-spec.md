@@ -7,8 +7,20 @@ This is the engineer's technical spec for **Stage 1** of Relay, the autonomous n
 **Read alongside:**
 - Conceptual spec: [`../ORIGINAL_IDEA/ansible-relay-agent-memory-system-spec.md`](../ORIGINAL_IDEA/ansible-relay-agent-memory-system-spec.md)
 - Naming: [`../ORIGINAL_IDEA/ansible-relay-agent-the-name.md`](../ORIGINAL_IDEA/ansible-relay-agent-the-name.md)
-- Persona (the system prompt): [`../../relay-agent/`](../../relay-agent/) — trunk / grain / rings
+- Persona (the system prompt): [`../../relay-agent/`](../../relay-agent/) — trunk / grain / rings / **craft & cadence** / operating coda
 - Spike findings, guardrails, editorial design: project memory `relay-agent-*` notes.
+
+---
+
+## Implementation reconciliation (slice 3, 2026-06-29)
+
+The body below is the original spec; these points record where the shipped Stage-1 implementation (PR #117) deliberately diverged. Read them as authoritative where they conflict with the prose:
+
+- **The system prompt is a 5-doc assembly, not 3+coda.** A fourth voice doc — **craft & cadence** (`relay-agent/ansible-agent-craft-and-cadence.md`) — sits between the rings and the coda (`trunk → grain → rings → cadence → coda`). It corrects the model imitating the persona docs' high aphoristic density. (Affects §3, §6, and the diagram.)
+- **The trigger stimulus is the item's summary + commentariat, not the full article body.** Ansible stores no article body, so `fetchStimulus` builds the trigger from `short_summary` + `commentariat_summary` (what the voice spike passed on). `fetchArticleContent` remains, but only serves the `fetch` *tool* for recalled references. Consequently §6's trigger-side Reader-failure alarm (422/401) has no trigger-path home. (Affects §1, §6.)
+- **Stage-1 operation is via `relay:*` CLIs; the admin "Relay Agent" tab is still required but not yet built.** The interim operator surface is four scripts — `relay:session <reader_id>`, `relay:pieces`, `relay:approve <id>`, `relay:reject <id>` (the loop is fully operable through them). The tab (§1/§6/§7) remains in-scope for Stage-1 completion — it is **not** deferred to the blog phase — and is the next build. The one affordance the CLIs lack is the §6 token-health-alarm surface (acceptable only while sessions are run by hand). See `relay:*` runbook: [`../../REFERENCE/features/relay-operator-cli.md`](../../REFERENCE/features/relay-operator-cli.md).
+- **Decision/approval auth is split across two tokens.** `/mcp` (+ `/backfill`) use `RELAY_BRIDGE_TOKEN`; the gate-bypassing control plane (`/decision`, `/approve`, `/reject`) uses a separate `RELAY_CONTROL_TOKEN`, so the agent's token cannot self-approve a piece.
+- **Decision attribution (T0 window) assumes serial, manual sessions.** `finalizeDecision` links a `pending_review` piece created at/after a `started_at` stamp; with a backward skew margin this is exact only when sessions run one at a time. Concurrent/automated sessions (Stage 2) need a session-scoped marker.
 
 ---
 

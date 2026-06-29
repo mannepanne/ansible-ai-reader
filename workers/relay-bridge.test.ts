@@ -36,6 +36,7 @@ function makeEnv() {
     NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
     SUPABASE_SECRET_KEY: 'secret',
     RELAY_BRIDGE_TOKEN: 'bridge-token',
+    RELAY_CONTROL_TOKEN: 'control-token',
     AI: { run: vi.fn() },
   };
 }
@@ -138,7 +139,7 @@ describe('relay-bridge worker', () => {
     const res = await worker.fetch(
       req('/decision', {
         method: 'POST',
-        headers: { authorization: 'Bearer bridge-token', 'content-type': 'application/json' },
+        headers: { authorization: 'Bearer control-token', 'content-type': 'application/json' },
         body: JSON.stringify({ stimulus_ref: ['r1'], started_at: '2026-06-28T10:00:00Z' }),
       }),
       makeEnv() as any,
@@ -155,7 +156,7 @@ describe('relay-bridge worker', () => {
     const res = await worker.fetch(
       req('/decision', {
         method: 'POST',
-        headers: { authorization: 'Bearer bridge-token', 'content-type': 'application/json' },
+        headers: { authorization: 'Bearer control-token', 'content-type': 'application/json' },
         body: 'not json{',
       }),
       makeEnv() as any,
@@ -169,7 +170,7 @@ describe('relay-bridge worker', () => {
     const res = await worker.fetch(
       req('/decision', {
         method: 'POST',
-        headers: { authorization: 'Bearer bridge-token', 'content-type': 'application/json' },
+        headers: { authorization: 'Bearer control-token', 'content-type': 'application/json' },
         body: JSON.stringify({ stimulus_ref: ['r1'] }),
       }),
       makeEnv() as any,
@@ -189,7 +190,7 @@ describe('relay-bridge worker', () => {
     const res = await worker.fetch(
       req('/approve', {
         method: 'POST',
-        headers: { authorization: 'Bearer bridge-token', 'content-type': 'application/json' },
+        headers: { authorization: 'Bearer control-token', 'content-type': 'application/json' },
         body: JSON.stringify({ id: 'p1' }),
       }),
       makeEnv() as any,
@@ -208,7 +209,7 @@ describe('relay-bridge worker', () => {
     const res = await worker.fetch(
       req('/reject', {
         method: 'POST',
-        headers: { authorization: 'Bearer bridge-token', 'content-type': 'application/json' },
+        headers: { authorization: 'Bearer control-token', 'content-type': 'application/json' },
         body: JSON.stringify({ id: 'p2' }),
       }),
       makeEnv() as any,
@@ -224,13 +225,39 @@ describe('relay-bridge worker', () => {
     const res = await worker.fetch(
       req('/approve', {
         method: 'POST',
-        headers: { authorization: 'Bearer bridge-token', 'content-type': 'application/json' },
+        headers: { authorization: 'Bearer control-token', 'content-type': 'application/json' },
         body: JSON.stringify({ id: 'p1' }),
       }),
       makeEnv() as any,
     );
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ error: expect.stringContaining('pending_review') });
+  });
+
+  it('isolates the tokens: the bridge token cannot reach the control plane, the control token cannot reach /mcp', async () => {
+    // bridge token on a control route (/approve) → 401, handler untouched
+    const a = await worker.fetch(
+      req('/approve', {
+        method: 'POST',
+        headers: { authorization: 'Bearer bridge-token', 'content-type': 'application/json' },
+        body: JSON.stringify({ id: 'p1' }),
+      }),
+      makeEnv() as any,
+    );
+    expect(a.status).toBe(401);
+    expect(mockApprovePiece).not.toHaveBeenCalled();
+
+    // control token on the agent surface (/mcp) → 401, handler untouched
+    const m = await worker.fetch(
+      req('/mcp', {
+        method: 'POST',
+        headers: { authorization: 'Bearer control-token', 'content-type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+      }),
+      makeEnv() as any,
+    );
+    expect(m.status).toBe(401);
+    expect(mockHandleMcpMessage).not.toHaveBeenCalled();
   });
 
   it('returns 404 for an authorized request to an unknown route', async () => {

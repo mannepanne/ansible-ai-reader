@@ -1,5 +1,5 @@
 // ABOUT: Relay persona assembly — composes the agent's system prompt from the authored voice docs
-// ABOUT: trunk + grain + rings + operating coda, in that fixed order (the persona owns 'how to write')
+// ABOUT: trunk + grain + rings + craft-and-cadence + operating coda, in that fixed order
 
 export interface PersonaParts {
   trunk: string; // Commitments & Antagonisms — values, what it defends/attacks, craft laws

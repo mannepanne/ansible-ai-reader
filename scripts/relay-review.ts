@@ -2,21 +2,7 @@
 // ABOUT: approve embeds it and makes it recallable-as-self; reject marks it, never embedded
 // Run with: npm run relay:approve <piece_id>   |   npm run relay:reject <piece_id>
 
-import * as fs from 'fs';
-import * as path from 'path';
-
-function loadDevVars(): Record<string, string> {
-  const p = path.join(process.cwd(), '.dev.vars');
-  const vars: Record<string, string> = {};
-  for (const line of fs.readFileSync(p, 'utf-8').split('\n')) {
-    const t = line.trim();
-    if (t && !t.startsWith('#')) {
-      const [k, ...v] = t.split('=');
-      if (k && v.length) vars[k.trim()] = v.join('=').trim();
-    }
-  }
-  return vars;
-}
+import { loadDevVars, bridgeBase } from './relay-env';
 
 async function main() {
   const action = process.argv[2];
@@ -27,11 +13,12 @@ async function main() {
   }
 
   const env = loadDevVars();
-  const base = env.RELAY_BRIDGE_URL || 'https://ansible-relay-bridge.herrings.workers.dev';
+  const base = bridgeBase(env);
 
+  // The control plane (/approve, /reject) uses the operator token, NOT the agent's bridge token.
   const res = await fetch(`${base}/${action}`, {
     method: 'POST',
-    headers: { authorization: `Bearer ${env.RELAY_BRIDGE_TOKEN}`, 'content-type': 'application/json' },
+    headers: { authorization: `Bearer ${env.RELAY_CONTROL_TOKEN}`, 'content-type': 'application/json' },
     body: JSON.stringify({ id }),
   });
   const bodyText = await res.text();

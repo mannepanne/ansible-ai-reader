@@ -93,6 +93,10 @@ describe('finalizeDecision', () => {
     await expect(finalizeDecision(deps(makeSupabase()), { stimulus_ref: [] } as never)).rejects.toThrow(/started_at/);
   });
 
+  it('rejects a non-ISO started_at', async () => {
+    await expect(finalizeDecision(deps(makeSupabase()), { started_at: 'not-a-date' } as never)).rejects.toThrow(/ISO/);
+  });
+
   it('throws when the pending-piece query errors', async () => {
     const supabase = makeSupabase({ piecesError: { message: 'boom' } });
     await expect(finalizeDecision(deps(supabase), { started_at: T0 } as never)).rejects.toThrow(/boom/);

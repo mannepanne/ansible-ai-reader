@@ -38,6 +38,9 @@ export async function finalizeDecision(
   if (!startedAt) {
     throw new Error('finalizeDecision: started_at (the T0 window anchor) is required');
   }
+  if (Number.isNaN(Date.parse(startedAt))) {
+    throw new Error('finalizeDecision: started_at must be an ISO timestamp');
+  }
 
   const { data, error } = await deps.supabase
     .from('relay_pieces')
@@ -55,7 +58,7 @@ export async function finalizeDecision(
   const pieceId = piece ? piece.id : null;
 
   const { error: insertError } = await deps.supabase.from('relay_decisions').insert({
-    stimulus_ref: input.stimulus_ref ?? [],
+    stimulus_ref: Array.isArray(input.stimulus_ref) ? input.stimulus_ref : [],
     verdict,
     reason: input.reason ?? null,
     piece_id: pieceId,
