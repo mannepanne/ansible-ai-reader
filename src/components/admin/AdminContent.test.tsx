@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AdminContent from './AdminContent';
-import type { LandingStats, DemoStats } from './types';
+import type { LandingStats, DemoStats, RelayStats } from './types';
 
 // Mock Next.js Link
 vi.mock('next/link', () => ({
@@ -13,6 +13,9 @@ vi.mock('next/link', () => ({
     <a href={href} {...props}>{children}</a>
   ),
 }));
+
+// Mock Next.js router (RelayAgent calls useRouter().refresh() after approve/reject)
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 // Mock Header
 vi.mock('@/components/Header', () => ({
@@ -68,6 +71,44 @@ const mockDemoStats: DemoStats = {
   ],
 };
 
+const mockRelayStats: RelayStats = {
+  counts: { pendingReview: 1, approved: 3, rejected: 2, wrote: 5, declined: 4 },
+  pending: [
+    {
+      id: 'piece-1',
+      body: '# Seeing like a vendor\n\nThe submarine surfaces in the metadata.',
+      summary: 'On sovereignty migrating to the reading layer.',
+      concepts: ['governance capture', 'data sovereignty'],
+      recalledCount: 4,
+      createdAt: '2026-06-28T10:53:36Z',
+    },
+  ],
+  approved: [],
+  rejected: [],
+  decisions: [
+    {
+      verdict: 'wrote',
+      pieceId: 'piece-9',
+      reason: 'This earns a piece.',
+      degraded: null,
+      stimulusRef: ['r1'],
+      stimulusTitles: ['ClickUp Just Fired 22% of Its Staff'],
+      pieceSummary: 'On the sideways fight.',
+      createdAt: '2026-06-28T11:00:00Z',
+    },
+    {
+      verdict: 'declined',
+      pieceId: null,
+      reason: 'No power asymmetry here.',
+      degraded: null,
+      stimulusRef: ['r2'],
+      stimulusTitles: ['Fine-Grained Tool Streaming'],
+      pieceSummary: null,
+      createdAt: '2026-06-28T12:00:00Z',
+    },
+  ],
+};
+
 describe('AdminContent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -79,6 +120,7 @@ describe('AdminContent', () => {
         userEmail="admin@example.com"
         landingStats={mockLandingStats}
         demoStats={mockDemoStats}
+        relayStats={mockRelayStats}
       />
     );
     expect(screen.getByTestId('header')).toBeDefined();
@@ -90,6 +132,7 @@ describe('AdminContent', () => {
         userEmail="admin@example.com"
         landingStats={mockLandingStats}
         demoStats={mockDemoStats}
+        relayStats={mockRelayStats}
       />
     );
     expect(screen.getByRole('tab', { name: /landing page/i })).toBeDefined();
@@ -102,6 +145,7 @@ describe('AdminContent', () => {
         userEmail="admin@example.com"
         landingStats={mockLandingStats}
         demoStats={mockDemoStats}
+        relayStats={mockRelayStats}
       />
     );
     expect(screen.getByText('120')).toBeDefined();  // totalVisits
@@ -115,6 +159,7 @@ describe('AdminContent', () => {
         userEmail="admin@example.com"
         landingStats={mockLandingStats}
         demoStats={mockDemoStats}
+        relayStats={mockRelayStats}
       />
     );
     // 15/120 = 12.5%
@@ -128,6 +173,7 @@ describe('AdminContent', () => {
         userEmail="admin@example.com"
         landingStats={mockLandingStats}
         demoStats={mockDemoStats}
+        relayStats={mockRelayStats}
       />
     );
 
@@ -145,6 +191,7 @@ describe('AdminContent', () => {
         userEmail="admin@example.com"
         landingStats={mockLandingStats}
         demoStats={mockDemoStats}
+        relayStats={mockRelayStats}
       />
     );
 
@@ -162,6 +209,7 @@ describe('AdminContent', () => {
         userEmail="admin@example.com"
         landingStats={mockLandingStats}
         demoStats={mockDemoStats}
+        relayStats={mockRelayStats}
       />
     );
 
@@ -172,5 +220,34 @@ describe('AdminContent', () => {
     // mockDemoStats has 1 email capture row → 1 of each
     expect(deleteButtons.length).toBe(1);
     expect(exportButtons.length).toBe(1);
+  });
+
+  it('renders the Relay Agent tab and shows pending pieces + decision log on switch', async () => {
+    const user = userEvent.setup();
+    render(
+      <AdminContent
+        userEmail="admin@example.com"
+        landingStats={mockLandingStats}
+        demoStats={mockDemoStats}
+        relayStats={mockRelayStats}
+      />
+    );
+
+    await user.click(screen.getByRole('tab', { name: /relay agent/i }));
+
+    // widgets present (declined + wrote verdict counts alongside the gate states)
+    expect(screen.getByText('Declined')).toBeDefined();
+    expect(screen.getByText('Wrote')).toBeDefined();
+
+    // default sub-view is "Awaiting review": pending piece body + frontmatter + controls
+    expect(screen.getByText(/Seeing like a vendor/)).toBeDefined();
+    expect(screen.getByText(/On sovereignty migrating to the reading layer/)).toBeDefined();
+    expect(screen.getByRole('button', { name: /^approve$/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^reject$/i })).toBeDefined();
+
+    // the decision log lives behind its own sub-tab and carries the material + reasoning
+    await user.click(screen.getByRole('tab', { name: /decision log/i }));
+    expect(screen.getByText(/No power asymmetry here/)).toBeDefined();
+    expect(screen.getByText(/Fine-Grained Tool Streaming/)).toBeDefined();
   });
 });

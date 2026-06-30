@@ -1,0 +1,147 @@
+// ABOUT: Tests for the RelayAgent admin tab — sub-tabs, expand/collapse, and approve/reject re-decisions
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import RelayAgent from './RelayAgent';
+import type { RelayStats } from './types';
+
+const mockRefresh = vi.fn();
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: mockRefresh }) }));
+
+const piece = (id: string, title: string, summary: string) => ({
+  id,
+  body: `# ${title}\n\n${summary} body text here.`,
+  summary,
+  concepts: ['x'],
+  recalledCount: 2,
+  createdAt: '2026-06-28T10:00:00Z',
+});
+
+const stats: RelayStats = {
+  counts: { pendingReview: 1, approved: 1, rejected: 1, wrote: 2, declined: 1 },
+  pending: [piece('p-pending', 'Pending Piece', 'pending summary')],
+  approved: [piece('p-approved', 'Approved Piece', 'approved summary')],
+  rejected: [piece('p-rejected', 'Rejected Piece', 'rejected summary')],
+  decisions: [
+    {
+      verdict: 'declined',
+      pieceId: null,
+      reason: 'No power asymmetry here.',
+      degraded: null,
+      stimulusRef: ['r2'],
+      stimulusTitles: ['A neutral changelog'],
+      pieceSummary: null,
+      createdAt: '2026-06-28T12:00:00Z',
+    },
+  ],
+};
+
+describe('RelayAgent', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  it('approves a pending piece: posts to the review route and refreshes server state', async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, id: 'p-pending', slug: 's' }), { status: 200 }),
+    );
+    const user = userEvent.setup();
+    render(<RelayAgent stats={stats} />);
+
+    expect(screen.getByText('Pending Piece')).toBeDefined(); // title shown even when collapsed
+    await user.click(screen.getByRole('button', { name: /^approve$/i }));
+
+    await waitFor(() => expect(mockRefresh).toHaveBeenCalled());
+    const [url, opts] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe('/api/admin/relay/review');
+    expect(JSON.parse(opts.body as string)).toEqual({ id: 'p-pending', action: 'approve' });
+  });
+
+  it('surfaces a bridge error and does not refresh', async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(JSON.stringify({ error: 'x', detail: 'piece is not pending_review' }), { status: 502 }),
+    );
+    const user = userEvent.setup();
+    render(<RelayAgent stats={stats} />);
+
+    await user.click(screen.getByRole('button', { name: /^approve$/i }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeDefined());
+    expect(screen.getByText(/not pending_review/)).toBeDefined();
+    expect(mockRefresh).not.toHaveBeenCalled();
+  });
+
+  it('expands a collapsed piece to reveal its body', async () => {
+    const user = userEvent.setup();
+    render(<RelayAgent stats={stats} />);
+
+    expect(screen.queryByText(/pending summary body text here/)).toBeNull(); // collapsed by default
+    await user.click(screen.getByRole('button', { name: /expand/i }));
+    expect(screen.getByText(/pending summary body text here/)).toBeDefined();
+  });
+
+  it('offers contextual re-decision buttons: Approved → Reject, Rejected → Approve', async () => {
+    const user = userEvent.setup();
+    render(<RelayAgent stats={stats} />);
+
+    await user.click(screen.getByRole('tab', { name: /^approved$/i }));
+    expect(screen.getByText('Approved Piece')).toBeDefined();
+    expect(screen.getByRole('button', { name: /^reject$/i })).toBeDefined();
+    expect(screen.queryByRole('button', { name: /^approve$/i })).toBeNull();
+
+    await user.click(screen.getByRole('tab', { name: /^rejected$/i }));
+    expect(screen.getByText('Rejected Piece')).toBeDefined();
+    expect(screen.getByRole('button', { name: /^approve$/i })).toBeDefined();
+    expect(screen.queryByRole('button', { name: /^reject$/i })).toBeNull();
+  });
+
+  it('renders the five widgets and the decision log on its sub-tab', async () => {
+    const user = userEvent.setup();
+    render(<RelayAgent stats={stats} />);
+
+    expect(screen.getByText('Declined')).toBeDefined();
+    expect(screen.getByText('Wrote')).toBeDefined();
+
+    expect(screen.queryByText(/No power asymmetry here/)).toBeNull();
+    await user.click(screen.getByRole('tab', { name: /decision log/i }));
+    expect(screen.getByText(/No power asymmetry here/)).toBeDefined(); // reasoning
+    expect(screen.getByText(/A neutral changelog/)).toBeDefined(); // the material decided on
+  });
+
+  it('paginates the decision log at ten per page', async () => {
+    const many: RelayStats = {
+      ...stats,
+      decisions: Array.from({ length: 12 }, (_, i) => ({
+        verdict: 'declined' as const,
+        pieceId: null,
+        reason: `reason ${i}`,
+        degraded: null,
+        stimulusRef: [`r${i}`],
+        stimulusTitles: [`Material ${i}`],
+        pieceSummary: null,
+        createdAt: `2026-06-28T12:${String(i).padStart(2, '0')}:00Z`,
+      })),
+    };
+    const user = userEvent.setup();
+    render(<RelayAgent stats={many} />);
+    await user.click(screen.getByRole('tab', { name: /decision log/i }));
+
+    expect(screen.getByText(/Material 0/)).toBeDefined();
+    expect(screen.getByText(/Page 1 of 2/)).toBeDefined();
+    expect(screen.queryByText(/Material 10/)).toBeNull(); // second page not shown yet
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+    expect(screen.getByText(/Page 2 of 2/)).toBeDefined();
+    expect(screen.getByText(/Material 10/)).toBeDefined();
+    expect(screen.queryByText(/Material 0/)).toBeNull(); // first-page item gone
+  });
+
+  it('shows an empty state for a list with no pieces', async () => {
+    const user = userEvent.setup();
+    render(<RelayAgent stats={{ ...stats, approved: [] }} />);
+    await user.click(screen.getByRole('tab', { name: /^approved$/i }));
+    expect(screen.getByText(/No approved pieces/i)).toBeDefined();
+  });
+});

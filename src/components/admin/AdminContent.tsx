@@ -7,17 +7,19 @@ import { useState } from 'react';
 import Header from '@/components/Header';
 import LandingAnalytics from './LandingAnalytics';
 import DemoAnalytics from './DemoAnalytics';
-import type { LandingStats, DemoStats } from './types';
+import RelayAgent from './RelayAgent';
+import type { LandingStats, DemoStats, RelayStats } from './types';
 
 interface AdminContentProps {
   userEmail: string;
   landingStats: LandingStats;
   demoStats: DemoStats;
+  relayStats: RelayStats;
 }
 
-type Tab = 'landing' | 'demo';
+type Tab = 'landing' | 'demo' | 'relay';
 
-export default function AdminContent({ userEmail, landingStats, demoStats }: AdminContentProps) {
+export default function AdminContent({ userEmail, landingStats, demoStats, relayStats }: AdminContentProps) {
   const [activeTab, setActiveTab] = useState<Tab>('landing');
 
   const tabStyle = (tab: Tab) => ({
@@ -59,11 +61,20 @@ export default function AdminContent({ userEmail, landingStats, demoStats }: Adm
           >
             Demo
           </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'relay'}
+            onClick={() => setActiveTab('relay')}
+            style={tabStyle('relay')}
+          >
+            Relay Agent
+          </button>
         </div>
 
         {/* Tab content */}
         {activeTab === 'landing' && <LandingAnalytics stats={landingStats} />}
         {activeTab === 'demo' && <DemoAnalytics stats={demoStats} />}
+        {activeTab === 'relay' && <RelayAgent stats={relayStats} />}
       </div>
     </div>
   );
