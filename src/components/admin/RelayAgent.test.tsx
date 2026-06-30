@@ -110,6 +110,34 @@ describe('RelayAgent', () => {
     expect(screen.getByText(/A neutral changelog/)).toBeDefined(); // the material decided on
   });
 
+  it('paginates the decision log at ten per page', async () => {
+    const many: RelayStats = {
+      ...stats,
+      decisions: Array.from({ length: 12 }, (_, i) => ({
+        verdict: 'declined' as const,
+        pieceId: null,
+        reason: `reason ${i}`,
+        degraded: null,
+        stimulusRef: [`r${i}`],
+        stimulusTitles: [`Material ${i}`],
+        pieceSummary: null,
+        createdAt: `2026-06-28T12:${String(i).padStart(2, '0')}:00Z`,
+      })),
+    };
+    const user = userEvent.setup();
+    render(<RelayAgent stats={many} />);
+    await user.click(screen.getByRole('tab', { name: /decision log/i }));
+
+    expect(screen.getByText(/Material 0/)).toBeDefined();
+    expect(screen.getByText(/Page 1 of 2/)).toBeDefined();
+    expect(screen.queryByText(/Material 10/)).toBeNull(); // second page not shown yet
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+    expect(screen.getByText(/Page 2 of 2/)).toBeDefined();
+    expect(screen.getByText(/Material 10/)).toBeDefined();
+    expect(screen.queryByText(/Material 0/)).toBeNull(); // first-page item gone
+  });
+
   it('shows an empty state for a list with no pieces', async () => {
     const user = userEvent.setup();
     render(<RelayAgent stats={{ ...stats, approved: [] }} />);

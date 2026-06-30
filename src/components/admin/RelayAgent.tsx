@@ -11,6 +11,7 @@ import type { RelayStats, RelayPieceRow, RelayDecisionRow } from './types';
 
 const fmt = (iso: string) => new Date(iso).toISOString().slice(0, 16).replace('T', ' ');
 const excerpt = (s: string, n = 280) => (s.length > n ? `${s.slice(0, n)}…` : s);
+const LOG_PAGE_SIZE = 10;
 
 function titleOf(body: string): string {
   for (const line of body.split('\n')) {
@@ -213,16 +214,30 @@ function PieceCard({
 }
 
 function LogPanel({ decisions }: { decisions: RelayDecisionRow[] }) {
+  const [page, setPage] = useState(0);
   if (decisions.length === 0) {
     return <p style={{ color: '#6c757d', fontSize: '0.9em' }}>No decisions yet.</p>;
   }
+  const pageCount = Math.ceil(decisions.length / LOG_PAGE_SIZE);
+  const current = Math.min(page, pageCount - 1);
+  const slice = decisions.slice(current * LOG_PAGE_SIZE, current * LOG_PAGE_SIZE + LOG_PAGE_SIZE);
+  const btn = (disabled: boolean) => ({
+    padding: '6px 14px',
+    border: '1px solid #ced4da',
+    borderRadius: '6px',
+    background: '#fff',
+    color: disabled ? '#adb5bd' : '#495057',
+    fontSize: '0.82em',
+    cursor: disabled ? 'default' : 'pointer',
+  });
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-      {decisions.map((d, i) => {
+    <div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        {slice.map((d, i) => {
         const wrote = d.verdict === 'wrote';
         const material = d.stimulusTitles.length > 0 ? d.stimulusTitles.join('; ') : d.stimulusRef.join(', ') || '(unknown stimulus)';
         return (
-          <article key={i} style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '8px', padding: '14px 18px' }}>
+          <article key={current * LOG_PAGE_SIZE + i} style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '8px', padding: '14px 18px' }}>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'baseline', marginBottom: '6px' }}>
               <span style={{ fontSize: '0.72em', color: '#6c757d', whiteSpace: 'nowrap' }}>{fmt(d.createdAt)}</span>
               <span style={{ fontWeight: 700, fontSize: '0.72em', color: wrote ? '#198754' : '#6c757d', textTransform: 'uppercase' }}>
@@ -250,6 +265,20 @@ function LogPanel({ decisions }: { decisions: RelayDecisionRow[] }) {
           </article>
         );
       })}
+      </div>
+      {pageCount > 1 && (
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '18px' }}>
+          <button disabled={current === 0} onClick={() => setPage(current - 1)} style={btn(current === 0)}>
+            ← Prev
+          </button>
+          <span style={{ fontSize: '0.8em', color: '#6c757d' }}>
+            Page {current + 1} of {pageCount} · {decisions.length} decisions
+          </span>
+          <button disabled={current >= pageCount - 1} onClick={() => setPage(current + 1)} style={btn(current >= pageCount - 1)}>
+            Next →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

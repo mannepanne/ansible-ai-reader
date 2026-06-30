@@ -86,7 +86,7 @@ export default async function AdminPage() {
       .from('relay_decisions')
       .select('verdict, piece_id, reason, degraded, stimulus_ref, created_at')
       .order('created_at', { ascending: false })
-      .limit(50),
+      .limit(200),
   ]);
 
   // Build landing stats
