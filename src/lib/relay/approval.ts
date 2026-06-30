@@ -25,11 +25,12 @@ function titleFromBody(body: string): string {
 }
 
 /**
- * Approve a pending piece: embed its body with the ONE sealed embed fn (so self-vectors match the
- * recall path), then a single guarded update sets state=approved + slug + embedding + decided_at
- * together. The `.eq('state','pending_review')` guard means there is never an approved-but-unembedded
- * window and the operation is re-drivable — a second approve of an already-approved piece flips
- * nothing and errors cleanly rather than double-publishing. `approved` = embedded + recallable-as-self.
+ * Approve a piece (from pending_review OR rejected — the operator may re-decide): embed its body with
+ * the ONE sealed embed fn (so self-vectors match the recall path), then a single guarded update sets
+ * state=approved + slug + embedding + decided_at together. The `.in('state', [...])` guard keeps the
+ * operation re-drivable — there is never an approved-but-unembedded window, and a racing change errors
+ * cleanly rather than double-publishing. An already-approved piece is an idempotent no-op (no re-embed).
+ * `approved` = embedded + recallable-as-self.
  */
 export async function approvePiece(
   deps: ToolDeps,
@@ -42,7 +43,7 @@ export async function approvePiece(
 
   const { data: piece, error: fetchError } = await deps.supabase
     .from('relay_pieces')
-    .select('id, body, state')
+    .select('id, body, state, slug')
     .eq('id', id)
     .maybeSingle();
   if (fetchError) {
@@ -51,8 +52,8 @@ export async function approvePiece(
   if (!piece) {
     throw new Error(`approve: no piece found for id ${id}`);
   }
-  if (piece.state !== 'pending_review') {
-    throw new Error(`approve: piece ${id} is ${piece.state}, not pending_review`);
+  if (piece.state === 'approved') {
+    return { ok: true, id, slug: (piece.slug as string) ?? '' };
   }
 
   const embedding = await embed(deps.ai, piece.body as string);
@@ -62,22 +63,23 @@ export async function approvePiece(
     .from('relay_pieces')
     .update({ state: 'approved', slug, embedding, decided_at: new Date().toISOString() })
     .eq('id', id)
-    .eq('state', 'pending_review')
+    .in('state', ['pending_review', 'rejected'])
     .select('id')
     .maybeSingle();
   if (updateError) {
     throw new Error(`approve: ${updateError.message}`);
   }
   if (!updated) {
-    throw new Error(`approve: piece ${id} was not pending_review at write time (already decided?)`);
+    throw new Error(`approve: piece ${id} could not be approved (state changed under us?)`);
   }
 
   return { ok: true, id, slug };
 }
 
 /**
- * Reject a pending piece: state=rejected + decided_at, never embedded, never recallable. Guarded on
- * pending_review like approve. (A private calibration note is a later addition — needs a new column.)
+ * Reject a piece (from pending_review OR approved — the operator may un-approve). Clearing embedding +
+ * slug makes a previously-approved piece stop being recallable and preserves the "rejected = never
+ * embedded" invariant. Guarded with `.in('state', [...])` for the same re-drivability as approve.
  */
 export async function rejectPiece(deps: ToolDeps, args: { id: string }): Promise<{ ok: true; id: string }> {
   const id = args?.id?.trim();
@@ -87,16 +89,16 @@ export async function rejectPiece(deps: ToolDeps, args: { id: string }): Promise
 
   const { data: updated, error } = await deps.supabase
     .from('relay_pieces')
-    .update({ state: 'rejected', decided_at: new Date().toISOString() })
+    .update({ state: 'rejected', embedding: null, slug: null, decided_at: new Date().toISOString() })
     .eq('id', id)
-    .eq('state', 'pending_review')
+    .in('state', ['pending_review', 'approved'])
     .select('id')
     .maybeSingle();
   if (error) {
     throw new Error(`reject: ${error.message}`);
   }
   if (!updated) {
-    throw new Error(`reject: piece ${id} not found or not pending_review`);
+    throw new Error(`reject: piece ${id} not found or already rejected`);
   }
 
   return { ok: true, id };

@@ -20,9 +20,10 @@ function makeSupabase({
   updateResult = { id: 'p1' } as Record<string, unknown> | null,
   updateError = null as { message: string } | null,
 } = {}) {
-  const recorded: { update?: Record<string, unknown>; eqs: unknown[][] } = { eqs: [] };
+  const recorded: { update?: Record<string, unknown>; eqs: unknown[][]; ins: unknown[][] } = { eqs: [], ins: [] };
   const updateChain: Record<string, ReturnType<typeof vi.fn>> = {};
   updateChain.eq = vi.fn((...a: unknown[]) => (recorded.eqs.push(a), updateChain));
+  updateChain.in = vi.fn((...a: unknown[]) => (recorded.ins.push(a), updateChain));
   updateChain.select = vi.fn(() => updateChain);
   updateChain.maybeSingle = vi.fn(() => Promise.resolve({ data: updateResult, error: updateError }));
   const selectChain: Record<string, ReturnType<typeof vi.fn>> = {};
@@ -59,19 +60,34 @@ describe('slugify', () => {
 });
 
 describe('approvePiece', () => {
-  it('embeds the body then atomically sets approved + slug + embedding, guarded on pending_review', async () => {
+  it('embeds the body then atomically sets approved + slug + embedding, guarded on pending|rejected', async () => {
     const supabase = makeSupabase({ piece: { id: 'p1', body: '# Seeing like a vendor\n\nThe submarine...', state: 'pending_review' } });
     const out = await approvePiece(deps(supabase), { id: 'p1' });
 
     expect(mockEmbed).toHaveBeenCalledWith(expect.anything(), '# Seeing like a vendor\n\nThe submarine...');
-    const rec = (supabase as never as { __recorded: { update: Record<string, unknown>; eqs: unknown[][] } }).__recorded;
+    const rec = (supabase as never as { __recorded: { update: Record<string, unknown>; eqs: unknown[][]; ins: unknown[][] } }).__recorded;
     expect(rec.update).toMatchObject({ state: 'approved', slug: 'seeing-like-a-vendor' });
     expect((rec.update.embedding as number[]).length).toBe(1024);
     expect(rec.update.decided_at).toEqual(expect.any(String));
-    // guarded: only flips a row that is still pending_review
+    // guarded: only flips a row still in pending_review or rejected
     expect(rec.eqs).toContainEqual(['id', 'p1']);
-    expect(rec.eqs).toContainEqual(['state', 'pending_review']);
+    expect(rec.ins).toContainEqual(['state', ['pending_review', 'rejected']]);
     expect(out).toEqual({ ok: true, id: 'p1', slug: 'seeing-like-a-vendor' });
+  });
+
+  it('approves a REJECTED piece (operator re-decision), embedding it', async () => {
+    const supabase = makeSupabase({ piece: { id: 'p1', body: '# T\n\nx', state: 'rejected' }, updateResult: { id: 'p1' } });
+    const out = await approvePiece(deps(supabase), { id: 'p1' });
+    expect(mockEmbed).toHaveBeenCalled();
+    expect(out).toEqual({ ok: true, id: 'p1', slug: 't' });
+  });
+
+  it('is an idempotent no-op for an already-approved piece (no re-embed, no update)', async () => {
+    const supabase = makeSupabase({ piece: { id: 'p1', body: 'x', state: 'approved', slug: 'existing' } });
+    const out = await approvePiece(deps(supabase), { id: 'p1' });
+    expect(out).toEqual({ ok: true, id: 'p1', slug: 'existing' });
+    expect(mockEmbed).not.toHaveBeenCalled();
+    expect((supabase as never as { __table: { update: ReturnType<typeof vi.fn> } }).__table.update).not.toHaveBeenCalled();
   });
 
   it('throws when the piece does not exist', async () => {
@@ -79,14 +95,7 @@ describe('approvePiece', () => {
     expect(mockEmbed).not.toHaveBeenCalled();
   });
 
-  it('refuses to approve a piece that is not pending_review (no embed, no update)', async () => {
-    const supabase = makeSupabase({ piece: { id: 'p1', body: 'x', state: 'approved' } });
-    await expect(approvePiece(deps(supabase), { id: 'p1' })).rejects.toThrow(/approved/);
-    expect(mockEmbed).not.toHaveBeenCalled();
-    expect((supabase as never as { __table: { update: ReturnType<typeof vi.fn> } }).__table.update).not.toHaveBeenCalled();
-  });
-
-  it('throws when the guarded update flips nothing (lost the race / already decided)', async () => {
+  it('throws when the guarded update flips nothing (lost the race)', async () => {
     const supabase = makeSupabase({ piece: { id: 'p1', body: '# T\n\nx', state: 'pending_review' }, updateResult: null });
     await expect(approvePiece(deps(supabase), { id: 'p1' })).rejects.toThrow(/p1/);
   });
@@ -97,19 +106,19 @@ describe('approvePiece', () => {
 });
 
 describe('rejectPiece', () => {
-  it('sets state=rejected + decided_at, guarded on pending_review, without embedding', async () => {
+  it('sets state=rejected + decided_at and CLEARS embedding+slug, guarded on pending|approved', async () => {
     const supabase = makeSupabase({ updateResult: { id: 'p1' } });
     const out = await rejectPiece(deps(supabase), { id: 'p1' });
 
     expect(mockEmbed).not.toHaveBeenCalled();
-    const rec = (supabase as never as { __recorded: { update: Record<string, unknown>; eqs: unknown[][] } }).__recorded;
-    expect(rec.update).toMatchObject({ state: 'rejected' });
-    expect(rec.update).not.toHaveProperty('embedding');
-    expect(rec.eqs).toContainEqual(['state', 'pending_review']);
+    const rec = (supabase as never as { __recorded: { update: Record<string, unknown>; eqs: unknown[][]; ins: unknown[][] } }).__recorded;
+    expect(rec.update).toMatchObject({ state: 'rejected', embedding: null, slug: null });
+    expect(rec.update.decided_at).toEqual(expect.any(String));
+    expect(rec.ins).toContainEqual(['state', ['pending_review', 'approved']]);
     expect(out).toEqual({ ok: true, id: 'p1' });
   });
 
-  it('throws when the piece is missing or not pending_review', async () => {
+  it('throws when the piece is missing or already rejected', async () => {
     await expect(rejectPiece(deps(makeSupabase({ updateResult: null })), { id: 'p1' })).rejects.toThrow(/p1/);
   });
 

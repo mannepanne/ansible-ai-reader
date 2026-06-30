@@ -14,6 +14,9 @@ vi.mock('next/link', () => ({
   ),
 }));
 
+// Mock Next.js router (RelayAgent calls useRouter().refresh() after approve/reject)
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+
 // Mock Header
 vi.mock('@/components/Header', () => ({
   default: ({ userEmail }: { userEmail: string }) => (
@@ -80,6 +83,8 @@ const mockRelayStats: RelayStats = {
       createdAt: '2026-06-28T10:53:36Z',
     },
   ],
+  approved: [],
+  rejected: [],
   decisions: [
     {
       verdict: 'wrote',

@@ -62,5 +62,7 @@ export interface RelayStats {
   // pendingReview/approved/rejected are piece-gate states; wrote/declined are decision verdicts.
   counts: { pendingReview: number; approved: number; rejected: number; wrote: number; declined: number };
   pending: RelayPieceRow[];
+  approved: RelayPieceRow[];
+  rejected: RelayPieceRow[];
   decisions: RelayDecisionRow[];
 }

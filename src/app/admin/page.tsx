@@ -40,6 +40,8 @@ export default async function AdminPage() {
     sessionsResult,
     eventTypesResult,
     relayPendingResult,
+    relayApprovedPiecesResult,
+    relayRejectedPiecesResult,
     relayPendingCountResult,
     relayApprovedCountResult,
     relayRejectedCountResult,
@@ -65,6 +67,16 @@ export default async function AdminPage() {
       .select('id, body, summary, concepts, links, created_at')
       .order('created_at', { ascending: false })
       .eq('state', 'pending_review'),
+    db
+      .from('relay_pieces')
+      .select('id, body, summary, concepts, links, created_at')
+      .order('created_at', { ascending: false })
+      .eq('state', 'approved'),
+    db
+      .from('relay_pieces')
+      .select('id, body, summary, concepts, links, created_at')
+      .order('created_at', { ascending: false })
+      .eq('state', 'rejected'),
     db.from('relay_pieces').select('*', { count: 'exact', head: true }).eq('state', 'pending_review'),
     db.from('relay_pieces').select('*', { count: 'exact', head: true }).eq('state', 'approved'),
     db.from('relay_pieces').select('*', { count: 'exact', head: true }).eq('state', 'rejected'),
@@ -187,7 +199,23 @@ export default async function AdminPage() {
     ((pieceSummaryResult.data ?? []) as { id: string; summary: string | null }[]).map((p) => [p.id, p.summary]),
   );
 
-  // Build relay stats — pending pieces (read-only operator view) + decision log + per-state counts.
+  const mapPiece = (p: {
+    id: string;
+    body: string;
+    summary: string | null;
+    concepts: string[] | null;
+    links: unknown[] | null;
+    created_at: string;
+  }) => ({
+    id: p.id,
+    body: p.body,
+    summary: p.summary,
+    concepts: p.concepts ?? [],
+    recalledCount: (p.links ?? []).length,
+    createdAt: p.created_at,
+  });
+
+  // Build relay stats — pieces by gate state (read-only operator view) + decision log + counts.
   const relayStats: RelayStats = {
     counts: {
       pendingReview: relayPendingCountResult.count ?? 0,
@@ -196,21 +224,9 @@ export default async function AdminPage() {
       wrote: relayWroteCountResult.count ?? 0,
       declined: relayDeclinedCountResult.count ?? 0,
     },
-    pending: (relayPendingResult.data ?? []).map((p: {
-      id: string;
-      body: string;
-      summary: string | null;
-      concepts: string[] | null;
-      links: unknown[] | null;
-      created_at: string;
-    }) => ({
-      id: p.id,
-      body: p.body,
-      summary: p.summary,
-      concepts: p.concepts ?? [],
-      recalledCount: (p.links ?? []).length,
-      createdAt: p.created_at,
-    })),
+    pending: (relayPendingResult.data ?? []).map(mapPiece),
+    approved: (relayApprovedPiecesResult.data ?? []).map(mapPiece),
+    rejected: (relayRejectedPiecesResult.data ?? []).map(mapPiece),
     decisions: decisionRows.map((d) => ({
       verdict: d.verdict,
       pieceId: d.piece_id,

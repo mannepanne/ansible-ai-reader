@@ -1,9 +1,10 @@
-// ABOUT: Admin "Relay Agent" tab — the human gate: read pending pieces and approve/reject them
+// ABOUT: Admin "Relay Agent" tab — the human gate: read pieces by state and approve/reject them
 // ABOUT: Reads are server-fetched (props); writes proxy to the bridge via /api/admin/relay/review
 
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import { StatCard } from './ui';
 import type { RelayStats, RelayPieceRow, RelayDecisionRow } from './types';
@@ -11,16 +12,33 @@ import type { RelayStats, RelayPieceRow, RelayDecisionRow } from './types';
 const fmt = (iso: string) => new Date(iso).toISOString().slice(0, 16).replace('T', ' ');
 const excerpt = (s: string, n = 280) => (s.length > n ? `${s.slice(0, n)}…` : s);
 
-type View = 'review' | 'log';
+function titleOf(body: string): string {
+  for (const line of body.split('\n')) {
+    const m = line.match(/^#+\s+(.*\S)\s*$/);
+    if (m) return m[1].trim();
+  }
+  return body.split('\n').map((l) => l.trim()).find(Boolean) ?? '(untitled)';
+}
+
+function bodyWithoutTitle(body: string): string {
+  const lines = body.split('\n');
+  const idx = lines.findIndex((l) => /^#+\s+\S/.test(l));
+  if (idx === -1) return body;
+  const rest = lines.slice(idx + 1);
+  while (rest.length && rest[0].trim() === '') rest.shift();
+  return rest.join('\n');
+}
+
+type View = 'log' | 'pending' | 'rejected' | 'approved';
+type Action = 'approve' | 'reject';
 
 export default function RelayAgent({ stats }: { stats: RelayStats }) {
-  const [view, setView] = useState<View>('review');
-  const [pending, setPending] = useState<RelayPieceRow[]>(stats.pending);
-  const [counts, setCounts] = useState(stats.counts);
+  const router = useRouter();
+  const [view, setView] = useState<View>('pending');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function review(id: string, action: 'approve' | 'reject') {
+  async function review(id: string, action: Action) {
     setBusyId(id);
     setError(null);
     try {
@@ -33,14 +51,8 @@ export default function RelayAgent({ stats }: { stats: RelayStats }) {
         const data = (await res.json().catch(() => ({}))) as { error?: string; detail?: string };
         throw new Error(data.detail || data.error || `${action} failed (${res.status})`);
       }
-      // Drop the decided piece and adjust gate-state counts (verdict counts are immutable history).
-      setPending((prev) => prev.filter((p) => p.id !== id));
-      setCounts((c) => ({
-        ...c,
-        pendingReview: Math.max(0, c.pendingReview - 1),
-        approved: action === 'approve' ? c.approved + 1 : c.approved,
-        rejected: action === 'reject' ? c.rejected + 1 : c.rejected,
-      }));
+      // Re-fetch authoritative server state so the piece moves to the right list and counts update.
+      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -49,7 +61,7 @@ export default function RelayAgent({ stats }: { stats: RelayStats }) {
   }
 
   const subTabStyle = (v: View) => ({
-    padding: '8px 20px',
+    padding: '8px 18px',
     border: 'none',
     borderBottom: view === v ? '2px solid #007bff' : '2px solid transparent',
     background: 'transparent',
@@ -63,11 +75,11 @@ export default function RelayAgent({ stats }: { stats: RelayStats }) {
     <div>
       {/* Widgets: decision verdicts (declined/wrote) then gate states (pending/rejected/approved) */}
       <div style={{ display: 'flex', gap: '16px', marginBottom: '28px', flexWrap: 'wrap' }}>
-        <StatCard icon="🔇" label="Declined" value={counts.declined} />
-        <StatCard icon="✍️" label="Wrote" value={counts.wrote} />
-        <StatCard icon="📥" label="Pending" value={counts.pendingReview} />
-        <StatCard icon="🗑️" label="Rejected" value={counts.rejected} />
-        <StatCard icon="✅" label="Approved" value={counts.approved} />
+        <StatCard icon="🔇" label="Declined" value={stats.counts.declined} />
+        <StatCard icon="✍️" label="Wrote" value={stats.counts.wrote} />
+        <StatCard icon="📥" label="Pending" value={stats.counts.pendingReview} />
+        <StatCard icon="🗑️" label="Rejected" value={stats.counts.rejected} />
+        <StatCard icon="✅" label="Approved" value={stats.counts.approved} />
       </div>
 
       {error && (
@@ -87,82 +99,116 @@ export default function RelayAgent({ stats }: { stats: RelayStats }) {
         </div>
       )}
 
-      {/* Sub-tabs */}
-      <div style={{ borderBottom: '1px solid #dee2e6', marginBottom: '24px', display: 'flex', gap: '4px' }}>
-        <button role="tab" aria-selected={view === 'review'} onClick={() => setView('review')} style={subTabStyle('review')}>
-          Awaiting review{pending.length > 0 ? ` (${pending.length})` : ''}
-        </button>
+      <div style={{ borderBottom: '1px solid #dee2e6', marginBottom: '24px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
         <button role="tab" aria-selected={view === 'log'} onClick={() => setView('log')} style={subTabStyle('log')}>
           Decision log
         </button>
+        <button role="tab" aria-selected={view === 'pending'} onClick={() => setView('pending')} style={subTabStyle('pending')}>
+          Awaiting review{stats.pending.length > 0 ? ` (${stats.pending.length})` : ''}
+        </button>
+        <button role="tab" aria-selected={view === 'rejected'} onClick={() => setView('rejected')} style={subTabStyle('rejected')}>
+          Rejected
+        </button>
+        <button role="tab" aria-selected={view === 'approved'} onClick={() => setView('approved')} style={subTabStyle('approved')}>
+          Approved
+        </button>
       </div>
 
-      {view === 'review' ? <ReviewPanel pending={pending} busyId={busyId} onReview={review} /> : <LogPanel decisions={stats.decisions} />}
+      {view === 'log' && <LogPanel decisions={stats.decisions} />}
+      {view === 'pending' && <PieceList pieces={stats.pending} actions={['approve', 'reject']} busyId={busyId} onReview={review} empty="No pieces awaiting review." />}
+      {view === 'rejected' && <PieceList pieces={stats.rejected} actions={['approve']} busyId={busyId} onReview={review} empty="No rejected pieces." />}
+      {view === 'approved' && <PieceList pieces={stats.approved} actions={['reject']} busyId={busyId} onReview={review} empty="No approved pieces." />}
     </div>
   );
 }
 
-function ReviewPanel({
-  pending,
+function PieceList({
+  pieces,
+  actions,
+  busyId,
+  onReview,
+  empty,
+}: {
+  pieces: RelayPieceRow[];
+  actions: Action[];
+  busyId: string | null;
+  onReview: (id: string, action: Action) => void;
+  empty: string;
+}) {
+  if (pieces.length === 0) {
+    return <p style={{ color: '#6c757d', fontSize: '0.9em' }}>{empty}</p>;
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {pieces.map((p) => (
+        <PieceCard key={p.id} piece={p} actions={actions} busyId={busyId} onReview={onReview} />
+      ))}
+    </div>
+  );
+}
+
+function PieceCard({
+  piece,
+  actions,
   busyId,
   onReview,
 }: {
-  pending: RelayPieceRow[];
+  piece: RelayPieceRow;
+  actions: Action[];
   busyId: string | null;
-  onReview: (id: string, action: 'approve' | 'reject') => void;
+  onReview: (id: string, action: Action) => void;
 }) {
-  if (pending.length === 0) {
-    return <p style={{ color: '#6c757d', fontSize: '0.9em' }}>No pieces awaiting review.</p>;
-  }
+  const [open, setOpen] = useState(false);
+  const busy = busyId === piece.id;
+  const indent = { marginLeft: '26px' };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {pending.map((p) => (
-        <article key={p.id} style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '8px', padding: '20px 24px' }}>
-          {p.summary && <p style={{ fontStyle: 'italic', color: '#495057', marginTop: 0, marginBottom: '12px' }}>{p.summary}</p>}
-          <div style={{ fontSize: '0.72em', color: '#6c757d', marginBottom: '14px' }}>
-            {fmt(p.createdAt)} UTC · recalled {p.recalledCount}
-            {p.concepts.length > 0 ? ` · ${p.concepts.join(' · ')}` : ''}
-          </div>
-          <div style={{ fontSize: '0.92em', lineHeight: 1.6, color: '#212529' }}>
-            <ReactMarkdown>{p.body}</ReactMarkdown>
-          </div>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '18px' }}>
-            <button
-              onClick={() => onReview(p.id, 'approve')}
-              disabled={busyId === p.id}
-              style={{
-                padding: '8px 18px',
-                border: 'none',
-                borderRadius: '6px',
-                background: '#198754',
-                color: '#fff',
-                fontWeight: 600,
-                cursor: busyId === p.id ? 'wait' : 'pointer',
-                opacity: busyId === p.id ? 0.6 : 1,
-              }}
-            >
-              {busyId === p.id ? '…' : 'Approve'}
-            </button>
-            <button
-              onClick={() => onReview(p.id, 'reject')}
-              disabled={busyId === p.id}
-              style={{
-                padding: '8px 18px',
-                border: '1px solid #dc3545',
-                borderRadius: '6px',
-                background: '#fff',
-                color: '#dc3545',
-                fontWeight: 600,
-                cursor: busyId === p.id ? 'wait' : 'pointer',
-                opacity: busyId === p.id ? 0.6 : 1,
-              }}
-            >
-              Reject
-            </button>
-          </div>
-        </article>
-      ))}
-    </div>
+    <article style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '8px', padding: '16px 20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-label={open ? 'Collapse' : 'Expand'}
+          style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.85em', color: '#6c757d', padding: 0, width: '18px' }}
+        >
+          {open ? '▾' : '▸'}
+        </button>
+        <h3 style={{ margin: 0, fontSize: '1.02em', fontWeight: 700, color: '#212529' }}>{titleOf(piece.body)}</h3>
+      </div>
+
+      {piece.summary && <p style={{ fontStyle: 'italic', color: '#495057', margin: '8px 0 8px 0', ...indent }}>{piece.summary}</p>}
+      <div style={{ fontSize: '0.72em', color: '#6c757d', margin: '0 0 0 0', ...indent }}>
+        {fmt(piece.createdAt)} UTC · recalled {piece.recalledCount}
+        {piece.concepts.length > 0 ? ` · ${piece.concepts.join(' · ')}` : ''}
+      </div>
+
+      {open && (
+        <div style={{ fontSize: '0.92em', lineHeight: 1.6, color: '#212529', marginTop: '12px', ...indent }}>
+          <ReactMarkdown>{bodyWithoutTitle(piece.body)}</ReactMarkdown>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: '10px', marginTop: '14px', ...indent }}>
+        {actions.includes('approve') && (
+          <button
+            onClick={() => onReview(piece.id, 'approve')}
+            disabled={busy}
+            style={{ padding: '7px 16px', border: 'none', borderRadius: '6px', background: '#198754', color: '#fff', fontWeight: 600, cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}
+          >
+            {busy ? '…' : 'Approve'}
+          </button>
+        )}
+        {actions.includes('reject') && (
+          <button
+            onClick={() => onReview(piece.id, 'reject')}
+            disabled={busy}
+            style={{ padding: '7px 16px', border: '1px solid #dc3545', borderRadius: '6px', background: '#fff', color: '#dc3545', fontWeight: 600, cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}
+          >
+            {busy ? '…' : 'Reject'}
+          </button>
+        )}
+      </div>
+    </article>
   );
 }
 

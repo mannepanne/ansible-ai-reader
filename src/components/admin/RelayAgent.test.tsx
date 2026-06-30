@@ -1,4 +1,4 @@
-// ABOUT: Tests for the RelayAgent admin tab — approve/reject proxy calls and optimistic list update
+// ABOUT: Tests for the RelayAgent admin tab — sub-tabs, expand/collapse, and approve/reject re-decisions
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -6,18 +6,23 @@ import userEvent from '@testing-library/user-event';
 import RelayAgent from './RelayAgent';
 import type { RelayStats } from './types';
 
+const mockRefresh = vi.fn();
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: mockRefresh }) }));
+
+const piece = (id: string, title: string, summary: string) => ({
+  id,
+  body: `# ${title}\n\n${summary} body text here.`,
+  summary,
+  concepts: ['x'],
+  recalledCount: 2,
+  createdAt: '2026-06-28T10:00:00Z',
+});
+
 const stats: RelayStats = {
-  counts: { pendingReview: 1, approved: 0, rejected: 0, wrote: 2, declined: 1 },
-  pending: [
-    {
-      id: 'piece-1',
-      body: '# Title\n\nbody text',
-      summary: 'a summary',
-      concepts: ['x'],
-      recalledCount: 2,
-      createdAt: '2026-06-28T10:00:00Z',
-    },
-  ],
+  counts: { pendingReview: 1, approved: 1, rejected: 1, wrote: 2, declined: 1 },
+  pending: [piece('p-pending', 'Pending Piece', 'pending summary')],
+  approved: [piece('p-approved', 'Approved Piece', 'approved summary')],
+  rejected: [piece('p-rejected', 'Rejected Piece', 'rejected summary')],
   decisions: [
     {
       verdict: 'declined',
@@ -38,25 +43,25 @@ describe('RelayAgent', () => {
     vi.stubGlobal('fetch', vi.fn());
   });
 
-  it('approves a piece: posts to the review route and removes it from the list', async () => {
+  it('approves a pending piece: posts to the review route and refreshes server state', async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
-      new Response(JSON.stringify({ ok: true, id: 'piece-1', slug: 'title' }), { status: 200 }),
+      new Response(JSON.stringify({ ok: true, id: 'p-pending', slug: 's' }), { status: 200 }),
     );
     const user = userEvent.setup();
     render(<RelayAgent stats={stats} />);
 
-    expect(screen.getByText('a summary')).toBeDefined();
+    expect(screen.getByText('Pending Piece')).toBeDefined(); // title shown even when collapsed
     await user.click(screen.getByRole('button', { name: /^approve$/i }));
 
-    await waitFor(() => expect(screen.queryByText('a summary')).toBeNull());
+    await waitFor(() => expect(mockRefresh).toHaveBeenCalled());
     const [url, opts] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(url).toBe('/api/admin/relay/review');
-    expect(JSON.parse(opts.body as string)).toEqual({ id: 'piece-1', action: 'approve' });
+    expect(JSON.parse(opts.body as string)).toEqual({ id: 'p-pending', action: 'approve' });
   });
 
-  it('surfaces a bridge error and keeps the piece in the list', async () => {
+  it('surfaces a bridge error and does not refresh', async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
-      new Response(JSON.stringify({ error: 'bridge approve failed', detail: 'piece is not pending_review' }), { status: 502 }),
+      new Response(JSON.stringify({ error: 'x', detail: 'piece is not pending_review' }), { status: 502 }),
     );
     const user = userEvent.setup();
     render(<RelayAgent stats={stats} />);
@@ -65,30 +70,50 @@ describe('RelayAgent', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeDefined());
     expect(screen.getByText(/not pending_review/)).toBeDefined();
-    expect(screen.getByText('a summary')).toBeDefined(); // still present
+    expect(mockRefresh).not.toHaveBeenCalled();
   });
 
-  it('shows an empty state when there are no pending pieces', () => {
-    render(
-      <RelayAgent
-        stats={{ ...stats, pending: [], counts: { pendingReview: 0, approved: 1, rejected: 0, wrote: 2, declined: 1 } }}
-      />,
-    );
-    expect(screen.getByText(/No pieces awaiting review/i)).toBeDefined();
-  });
-
-  it('renders the five widgets and toggles to the decision log sub-tab', async () => {
+  it('expands a collapsed piece to reveal its body', async () => {
     const user = userEvent.setup();
     render(<RelayAgent stats={stats} />);
 
-    // widgets (declined + wrote verdict counts present)
+    expect(screen.queryByText(/pending summary body text here/)).toBeNull(); // collapsed by default
+    await user.click(screen.getByRole('button', { name: /expand/i }));
+    expect(screen.getByText(/pending summary body text here/)).toBeDefined();
+  });
+
+  it('offers contextual re-decision buttons: Approved → Reject, Rejected → Approve', async () => {
+    const user = userEvent.setup();
+    render(<RelayAgent stats={stats} />);
+
+    await user.click(screen.getByRole('tab', { name: /^approved$/i }));
+    expect(screen.getByText('Approved Piece')).toBeDefined();
+    expect(screen.getByRole('button', { name: /^reject$/i })).toBeDefined();
+    expect(screen.queryByRole('button', { name: /^approve$/i })).toBeNull();
+
+    await user.click(screen.getByRole('tab', { name: /^rejected$/i }));
+    expect(screen.getByText('Rejected Piece')).toBeDefined();
+    expect(screen.getByRole('button', { name: /^approve$/i })).toBeDefined();
+    expect(screen.queryByRole('button', { name: /^reject$/i })).toBeNull();
+  });
+
+  it('renders the five widgets and the decision log on its sub-tab', async () => {
+    const user = userEvent.setup();
+    render(<RelayAgent stats={stats} />);
+
     expect(screen.getByText('Declined')).toBeDefined();
     expect(screen.getByText('Wrote')).toBeDefined();
 
-    // decision log is hidden until its sub-tab is selected
     expect(screen.queryByText(/No power asymmetry here/)).toBeNull();
     await user.click(screen.getByRole('tab', { name: /decision log/i }));
     expect(screen.getByText(/No power asymmetry here/)).toBeDefined(); // reasoning
     expect(screen.getByText(/A neutral changelog/)).toBeDefined(); // the material decided on
+  });
+
+  it('shows an empty state for a list with no pieces', async () => {
+    const user = userEvent.setup();
+    render(<RelayAgent stats={{ ...stats, approved: [] }} />);
+    await user.click(screen.getByRole('tab', { name: /^approved$/i }));
+    expect(screen.getByText(/No approved pieces/i)).toBeDefined();
   });
 });
