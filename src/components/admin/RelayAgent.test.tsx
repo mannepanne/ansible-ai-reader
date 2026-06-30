@@ -7,7 +7,7 @@ import RelayAgent from './RelayAgent';
 import type { RelayStats } from './types';
 
 const stats: RelayStats = {
-  counts: { pendingReview: 1, approved: 0, rejected: 0 },
+  counts: { pendingReview: 1, approved: 0, rejected: 0, wrote: 2, declined: 1 },
   pending: [
     {
       id: 'piece-1',
@@ -18,7 +18,18 @@ const stats: RelayStats = {
       createdAt: '2026-06-28T10:00:00Z',
     },
   ],
-  decisions: [],
+  decisions: [
+    {
+      verdict: 'declined',
+      pieceId: null,
+      reason: 'No power asymmetry here.',
+      degraded: null,
+      stimulusRef: ['r2'],
+      stimulusTitles: ['A neutral changelog'],
+      pieceSummary: null,
+      createdAt: '2026-06-28T12:00:00Z',
+    },
+  ],
 };
 
 describe('RelayAgent', () => {
@@ -58,7 +69,26 @@ describe('RelayAgent', () => {
   });
 
   it('shows an empty state when there are no pending pieces', () => {
-    render(<RelayAgent stats={{ ...stats, pending: [], counts: { pendingReview: 0, approved: 1, rejected: 0 } }} />);
+    render(
+      <RelayAgent
+        stats={{ ...stats, pending: [], counts: { pendingReview: 0, approved: 1, rejected: 0, wrote: 2, declined: 1 } }}
+      />,
+    );
     expect(screen.getByText(/No pieces awaiting review/i)).toBeDefined();
+  });
+
+  it('renders the five widgets and toggles to the decision log sub-tab', async () => {
+    const user = userEvent.setup();
+    render(<RelayAgent stats={stats} />);
+
+    // widgets (declined + wrote verdict counts present)
+    expect(screen.getByText('Declined')).toBeDefined();
+    expect(screen.getByText('Wrote')).toBeDefined();
+
+    // decision log is hidden until its sub-tab is selected
+    expect(screen.queryByText(/No power asymmetry here/)).toBeNull();
+    await user.click(screen.getByRole('tab', { name: /decision log/i }));
+    expect(screen.getByText(/No power asymmetry here/)).toBeDefined(); // reasoning
+    expect(screen.getByText(/A neutral changelog/)).toBeDefined(); // the material decided on
   });
 });

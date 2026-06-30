@@ -53,11 +53,14 @@ export interface RelayDecisionRow {
   reason: string | null;
   degraded: string | null;
   stimulusRef: string[];
+  stimulusTitles: string[]; // titles of the reader_items behind stimulusRef (the material decided on)
+  pieceSummary: string | null; // for 'wrote': a summary of the piece that resulted
   createdAt: string;
 }
 
 export interface RelayStats {
-  counts: { pendingReview: number; approved: number; rejected: number };
+  // pendingReview/approved/rejected are piece-gate states; wrote/declined are decision verdicts.
+  counts: { pendingReview: number; approved: number; rejected: number; wrote: number; declined: number };
   pending: RelayPieceRow[];
   decisions: RelayDecisionRow[];
 }
