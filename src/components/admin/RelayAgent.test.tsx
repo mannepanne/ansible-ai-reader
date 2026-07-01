@@ -138,6 +138,23 @@ describe('RelayAgent', () => {
     expect(screen.queryByText(/Material 0/)).toBeNull(); // first-page item gone
   });
 
+  it('triggers a session: posts the reader_id to the run route and shows a queued message', async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(JSON.stringify({ queued: true, readerId: 'abc123', title: 'Seeing like a vendor' }), { status: 202 }),
+    );
+    const user = userEvent.setup();
+    render(<RelayAgent stats={stats} />);
+
+    await user.type(screen.getByPlaceholderText('reader_id'), 'abc123');
+    await user.click(screen.getByRole('button', { name: /^run$/i }));
+
+    await waitFor(() => expect(screen.getByRole('status')).toBeDefined());
+    expect(screen.getByText(/Session queued/)).toBeDefined();
+    const [url, opts] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe('/api/admin/relay/run');
+    expect(JSON.parse(opts.body as string)).toEqual({ readerId: 'abc123' });
+  });
+
   it('shows an empty state for a list with no pieces', async () => {
     const user = userEvent.setup();
     render(<RelayAgent stats={{ ...stats, approved: [] }} />);

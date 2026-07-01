@@ -1,0 +1,36 @@
+# Cloudflare Queue Consumer — Relay session runner
+# Runs ONE Managed-Agent session per queued stimulus, then finalizes the verdict via the bridge.
+# SETUP: create the queue + DLQ first:
+#   npx wrangler queues create ansible-relay-queue
+#   npx wrangler queues create ansible-relay-dlq
+name = "ansible-relay-session-consumer"
+main = "workers/relay-session-consumer.ts"
+compatibility_date = "2026-03-06"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[[queues.consumers]]
+queue = "ansible-relay-queue"
+max_batch_size = 1        # one stimulus per invocation
+max_batch_timeout = 5
+max_concurrency = 1       # SERIAL — the T0 verdict-attribution window depends on no overlap (see ADR)
+max_retries = 0           # never re-run create-session — a retry would spawn a duplicate agent session
+dead_letter_queue = "ansible-relay-dlq"
+
+# Non-secret config: the create-once Managed-Agent resource IDs (from .relay-agent-ids.json) + the
+# bridge origin. The consumer never creates resources — it runs a session against these existing ones.
+[vars]
+RELAY_AGENT_ID = "agent_018jSXwuTvozdYw42bknqR35"
+RELAY_ENV_ID = "env_01Pshzu2oPxSwQbW8XMFqy7s"
+RELAY_VAULT_ID = "vlt_011CcVXfhTTEZUx6cX5r2w3b"
+RELAY_BRIDGE_URL = "https://ansible-relay-bridge.herrings.workers.dev"
+
+# Secrets (set via CI env, or: wrangler secret put <KEY> --config wrangler-relay-session.toml):
+#   - ANTHROPIC_API_KEY               Managed Agents API
+#   - RELAY_CONTROL_TOKEN             bridge /decision control-plane
+#   - NEXT_PUBLIC_SUPABASE_URL        read reader_items
+#   - SUPABASE_SECRET_KEY             read reader_items + write sync_log failure breadcrumbs
+# Optional:
+#   - RELAY_POLL_INTERVAL_MS          override the 3s poll cadence (ops tuning)

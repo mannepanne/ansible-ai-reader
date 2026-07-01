@@ -92,3 +92,17 @@ jobs:
           RELAY_BRIDGE_TOKEN: ${{ secrets.RELAY_BRIDGE_TOKEN }}
           RELAY_CONTROL_TOKEN: ${{ secrets.RELAY_CONTROL_TOKEN }}
           READER_API_TOKEN: ${{ secrets.READER_API_TOKEN }}
+
+      # Relay session consumer — also experimental Relay subsystem, deploys after the bridge and must
+      # not gate the app. Runs one Managed-Agent session per queued stimulus (needs ANTHROPIC_API_KEY)
+      # and finalizes via the bridge (RELAY_CONTROL_TOKEN). Resource IDs are [vars] in the toml.
+      - name: Deploy relay session consumer worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: deploy --config wrangler-relay-session.toml
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RELAY_CONTROL_TOKEN: ${{ secrets.RELAY_CONTROL_TOKEN }}

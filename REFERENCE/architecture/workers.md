@@ -232,6 +232,47 @@ npm run deploy:relay-bridge
 
 See `SPECIFICATIONS/relay/stage-1-technical-spec.md` for the full design.
 
+## Worker 5: Relay Session Consumer (`wrangler-relay-session.toml`)
+
+### Purpose
+Runs Relay sessions triggered from the admin tab. The **"Run a session"** control enqueues a
+`reader_id` on `ansible-relay-queue` (the main app is a pure producer via the `RELAY_QUEUE` binding);
+this consumer runs one Managed-Agent session per message — create session → send stimulus → poll to
+`idle` → finalize the verdict through the **bridge** `/decision`. It holds the "mind" (Anthropic MA
+API) so the user-facing app never does. Resource creation is not done here; it uses the existing
+environment/vault/agent IDs (`[vars]`).
+
+### Configuration
+```
+name = "ansible-relay-session-consumer"
+main = "workers/relay-session-consumer.ts"
+
+[[queues.consumers]]
+queue = "ansible-relay-queue"
+max_batch_size = 1
+max_concurrency = 1     # SERIAL — required for correct T0 verdict attribution (see ADR)
+max_retries = 0         # no retry — would spawn a duplicate agent session
+dead_letter_queue = "ansible-relay-dlq"
+```
+
+### Responsibilities
+- Fetch the stimulus (`reader_items`), run the session, poll to completion.
+- On `idle`: finalize the verdict via the bridge (`stimulus_ref`, `started_at` stamped **in the
+  consumer** right before create-session, `reason`, `degraded`).
+- On non-completion/failure: a `sync_log` breadcrumb (`relay_session_failed`), no verdict, ack (no retry).
+
+### Secrets & config
+Secrets: `ANTHROPIC_API_KEY`, `RELAY_CONTROL_TOKEN`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SECRET_KEY`.
+Vars (in the toml): `RELAY_AGENT_ID`, `RELAY_ENV_ID`, `RELAY_VAULT_ID`, `RELAY_BRIDGE_URL`. Optional:
+`RELAY_POLL_INTERVAL_MS`. **Prod-only:** the `RELAY_QUEUE` binding is absent under local `next dev`.
+
+### Deployment
+```bash
+npm run deploy:relay-session   # requires: npx wrangler queues create ansible-relay-queue (+ ansible-relay-dlq)
+```
+
+See ADR `REFERENCE/decisions/2026-07-01-relay-session-trigger.md` for why serial + no-retry are correctness settings.
+
 ## Inter-Worker Communication
 
 ### Main → Queue Consumer

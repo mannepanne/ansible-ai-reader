@@ -3,7 +3,9 @@ REFERENCE > Features > Relay Operator CLIs
 
 The operator surface for the Relay agent's Stage-1 loop: run a session, read the pieces it writes into the human gate, and approve or reject them.
 
-**Review now also has a UI:** the admin **"Relay Agent" tab** (Admin → Analytics Dashboard, behind the `is_admin` login) lists pending pieces with their bodies and lets you Approve/Reject them, and shows the decision log. Approve/Reject there proxy to the bridge via `POST /api/admin/relay/review` (admin-gated, using `RELAY_CONTROL_TOKEN`) — the same control-plane the CLIs use. **Session triggering is still CLI-only** (`relay:session`); an in-tab trigger needs an async (queue-based) runner because a session takes minutes — that's a follow-up. The CLIs below remain the way to run sessions and a scriptable alternative for review.
+**The admin "Relay Agent" tab is now the primary surface** (Admin → Analytics Dashboard, behind the `is_admin` login): a **"Run a session"** control triggers a run, and pending/approved/rejected pieces can be reviewed and approved/rejected (incl. re-decisions) with a paginated decision log. Approve/Reject/Run proxy to the backend via admin-gated routes (`/api/admin/relay/review`, `/api/admin/relay/run`) using `RELAY_CONTROL_TOKEN` / the `RELAY_QUEUE` binding.
+
+**How the tab trigger runs a session (vs. the CLI):** the tab enqueues a `reader_id` on `ansible-relay-queue`; the `ansible-relay-session-consumer` worker runs the session (serial — `max_concurrency=1`, `max_retries=0`) and finalizes via the bridge. See [ADR 2026-07-01](../decisions/2026-07-01-relay-session-trigger.md). The trigger works **in production only** (the queue binding isn't available under local `next dev`). The `relay:session` CLI below remains the way to run sessions locally, to update the agent's voice, and as a scriptable alternative.
 
 All four are thin local CLIs run via `tsx`; they read secrets from `.dev.vars` and talk to the deployed **relay bridge** worker (see [architecture/workers.md](../architecture/workers.md) → Worker 4). They never write `relay_*` directly — every durable write goes through the bridge.
 
