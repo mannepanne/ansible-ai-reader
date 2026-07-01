@@ -9,6 +9,7 @@
     "deploy": "wrangler deploy",
     "deploy:consumer": "wrangler deploy --config wrangler-consumer.toml",
     "deploy:relay-bridge": "wrangler deploy --config wrangler-relay-bridge.toml",
+    "deploy:relay-session": "wrangler deploy --config wrangler-relay-session.toml",
     "dev:consumer": "tsx scripts/dev-consumer.ts",
     "dev:consumer:wrangler": "wrangler dev --config wrangler-consumer.toml",
     "start": "next start",

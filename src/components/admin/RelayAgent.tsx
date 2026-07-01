@@ -74,6 +74,8 @@ export default function RelayAgent({ stats }: { stats: RelayStats }) {
 
   return (
     <div>
+      <RunControl />
+
       {/* Widgets: decision verdicts (declined/wrote) then gate states (pending/rejected/approved) */}
       <div style={{ display: 'flex', gap: '16px', marginBottom: '28px', flexWrap: 'wrap' }}>
         <StatCard icon="🔇" label="Declined" value={stats.counts.declined} />
@@ -119,6 +121,78 @@ export default function RelayAgent({ stats }: { stats: RelayStats }) {
       {view === 'pending' && <PieceList pieces={stats.pending} actions={['approve', 'reject']} busyId={busyId} onReview={review} empty="No pieces awaiting review." />}
       {view === 'rejected' && <PieceList pieces={stats.rejected} actions={['approve']} busyId={busyId} onReview={review} empty="No rejected pieces." />}
       {view === 'approved' && <PieceList pieces={stats.approved} actions={['reject']} busyId={busyId} onReview={review} empty="No approved pieces." />}
+    </div>
+  );
+}
+
+function RunControl() {
+  const [readerId, setReaderId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function run() {
+    const id = readerId.trim();
+    if (!id) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch('/api/admin/relay/run', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ readerId: id }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; title?: string };
+      if (!res.ok) throw new Error(data.error || `run failed (${res.status})`);
+      setMsg({
+        ok: true,
+        text: `Session queued${data.title ? ` for “${data.title}”` : ''} — the verdict will appear in the Decision log in a few minutes.`,
+      });
+      setReaderId('');
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '8px', padding: '16px 20px', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <label htmlFor="relay-reader-id" style={{ fontSize: '0.8em', fontWeight: 600, color: '#495057' }}>
+          Run a session
+        </label>
+        <input
+          id="relay-reader-id"
+          value={readerId}
+          onChange={(e) => setReaderId(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') run();
+          }}
+          placeholder="reader_id"
+          style={{ padding: '7px 10px', border: '1px solid #ced4da', borderRadius: '6px', fontSize: '0.85em', minWidth: '280px' }}
+        />
+        <button
+          onClick={run}
+          disabled={busy || !readerId.trim()}
+          style={{
+            padding: '7px 16px',
+            border: 'none',
+            borderRadius: '6px',
+            background: '#0d6efd',
+            color: '#fff',
+            fontWeight: 600,
+            cursor: busy ? 'wait' : 'pointer',
+            opacity: busy || !readerId.trim() ? 0.6 : 1,
+          }}
+        >
+          {busy ? '…' : 'Run'}
+        </button>
+      </div>
+      {msg && (
+        <div role="status" style={{ marginTop: '10px', fontSize: '0.82em', color: msg.ok ? '#0f5132' : '#842029' }}>
+          {msg.text}
+        </div>
+      )}
     </div>
   );
 }

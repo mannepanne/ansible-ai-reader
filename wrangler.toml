@@ -19,6 +19,12 @@ binding = "ASSETS"
 queue = "ansible-processing-queue"
 binding = "PROCESSING_QUEUE"
 
+# Relay session trigger: the admin "Run a session" control enqueues here; the relay-session
+# consumer worker (wrangler-relay-session.toml) runs the session and finalizes via the bridge.
+[[queues.producers]]
+queue = "ansible-relay-queue"
+binding = "RELAY_QUEUE"
+
 # Consumer configuration in separate worker (wrangler-consumer.toml)
 # This keeps the Next.js worker and queue consumer independent
 
