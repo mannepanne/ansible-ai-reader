@@ -27,6 +27,27 @@ belongs to. So the agent-written piece **cannot be stamped** with `reader_id`/`s
 a time). The fix keeps sessions serial but polls each across **many short invocations**, and holds the
 `reader_id ↔ session_id ↔ T0` link in a **run ledger on the trusted consumer side** (not on the piece).
 
+## Correctness fix (load-bearing, independent of the polling mechanism)
+
+The lock serialises *sessions* but **not the T0 window's reach into the prior run's tail**. `T0_{N+1} =
+create − 30s` reaches ~30s *before* run N finalized; run N's piece is written at `idle − δ` (δ = seconds
+between `write_pending` and idle). Whenever **δ ≤ 30s AND run N+1 declines AND run N's piece is still
+`pending_review`** (Magnus reviews asynchronously, so it usually is), run N+1's "newest pending piece ≥ T0"
+picks up **run N's piece** → a *decline* is recorded as `wrote` with the wrong `piece_id`. Not exotic: pieces
+are often written in the final seconds before idle, and declines-after-writes are exactly what a mature
+restraint system produces.
+
+**Fix:** `finalizeDecision` excludes pieces already claimed by a prior decision:
+
+```sql
+... AND id NOT IN (SELECT piece_id FROM relay_decisions WHERE piece_id IS NOT NULL)
+```
+
+The lock guarantees run N is finalized (its piece claimed) before N+1 starts, so N+1 can never take it —
+robust regardless of margin or clock skew. This also makes `finalizeDecision` **idempotent** (a re-run can't
+re-claim an already-claimed piece), which the recovery path below relies on. This guard is independent of
+whichever polling mechanism we pick, and should land even if the rest is staged.
+
 ## Design
 
 ### 1. `relay_runs` — the run ledger + serialization lock
@@ -65,27 +86,62 @@ phases:
 
 Because only one run is ever `polling`, `T0` windows never overlap and attribution stays exact.
 
-### 3. Liveness / recovery
+### 3. Liveness / recovery (first-class, not a footnote)
 
+The lock's liveness rests on the `poll` message always getting processed. This intersects with `max_retries`:
+
+- **The `max_retries=0` rationale does NOT apply to the poll phase.** It was chosen to prevent duplicate
+  session *creation* — but `poll` creates nothing; it's a status check + (idempotent) finalize. A blanket
+  no-retry makes a single lost/killed poll wedge the run in `polling` → the lock stalls *every* queued run
+  until the stale-lock timeout. Since the queue can't set retries per-phase, **handle it in code**: the poll
+  handler catches its own errors and **always re-enqueues-or-acks**, never dies.
+- **Finalize idempotency is required** once poll can re-run: a poll that finalizes then dies before ack must
+  not double-write the decision on retry. Two guards: (a) the *exclude-claimed-pieces* change above, and (b)
+  the poll checks run `state` (skip if already finalized). Both explicit.
 - **Stale-lock timeout:** a `polling` run whose `started_at` is older than ~15 min is treated as dead — the
-  next `start` force-fails it and releases the lock (prevents a lost poll message wedging the queue).
+  next `start` force-fails it and releases the lock.
 - **Reconciliation:** because the ledger holds `session_id` + `started_at`, a stuck/orphaned run is
   re-finalizable later (a manual `relay:reconcile` command or a sweep) — the ledger, not the piece, is the link.
 
-### Alternative considered: cron-sweep
-Consumer `start` (with the lock) creates the session + records the run + acks (trivial); a fast cron polls the
-single `polling` run each tick and finalizes. Simpler consumer, reuses cron, no self-producer binding — but
-finalize latency = cron interval, and it spreads relay logic into the cron/app worker (mind leaks out of the
-dedicated consumer). **Recommend re-enqueue** to keep the mind in one worker and near-real-time; cron-sweep is
-the fallback if the self-producer binding proves awkward.
+### Polling mechanism — an open decision (nothing here needs sub-cron latency)
+
+Three viable shapes for "poll across short invocations":
+
+- **Re-enqueue poll** (specced above): consumer self-produces poll messages. Near-real-time, keeps the mind in
+  one worker — but that's aesthetic, and it costs a self-producer binding + **re-enqueue churn** (a batch of 8
+  `start` messages busy-bouncing every ~20s for the whole ~5 min of run 1).
+- **Cron-sweep** (likely simplest): the trigger just inserts a `queued` `relay_runs` row; a cron does serial
+  start-and-poll — **one sweep at a time IS the lock, for free** (no self-producer binding, no re-enqueue
+  churn). Cost: finalize latency = cron interval (fine for manual/low-volume), and relay logic lives in a
+  cron path. Guard against overlapping sweeps.
+- **Durable Object + alarms** (textbook fit): a DO is single-threaded (serialization for free — no lock table)
+  and alarm-driven (no invocation held open, no re-enqueue churn). It's the Cloudflare-native primitive for
+  exactly this. Cost: **new infra** to introduce for the first time.
+
+**Leaning cron-sweep** for a manual, low-volume Stage 1 (simplest, natural serialization). Re-enqueue is
+defensible; the DO is the "right" primitive but new infra — rejected for Stage 1 on that ground, revisit if
+Relay's orchestration grows. **Decision needed before build.**
+
+## Scope staging (two separable mechanisms)
+
+- **Polling rework — UNAVOIDABLE.** Even a *single* 5-min session cannot finalize in one invocation, so this
+  is not gold-plating; it's the core fix, needed regardless of batching.
+- **Lock / serialization — only for the concurrent-trigger (batch) case.** After the acceptance run, Stage-1
+  triggering is manual/one-at-a-time. So the lock could be deferred and concurrency gated more cheaply at the
+  **trigger route** ("refuse to start if a run is in flight") — shipping the poll rework first. Keep the two
+  separable so we can stage if the lock proves fiddly.
 
 ## Seam consideration (needs a ruling)
 
-`relay_runs` is **orchestration state**, not the agent's owned memory (pieces/references/decisions). The
-consumer writes it directly via service-role, like `processing_jobs` / `sync_log` — the bridge stays the sole
-writer of *owned memory*. This is a defensible reading of the "mind rented, memory owned" seam (the ledger is
-operator bookkeeping), but it does put a `relay_*` table outside the bridge. **Open question for review:** is
-that acceptable, or should run-ledger writes go through new bridge routes for strictness?
+The run ledger is **mind-specific orchestration** (session_id, polling state), not the agent's owned memory
+(pieces/references/decisions). When the mind is swapped in Stage 2 (Cloudflare Agents SDK), the ledger's shape
+changes *with it* — so it belongs with the orchestrator, not behind the memory seam. The consumer writes it
+directly via service-role, like `processing_jobs` / `sync_log`; the bridge stays the sole writer of *owned
+memory*. **Affirmed** — but two riders because this deviates from the previously-reviewed "bridge = sole
+`relay_*` writer" decision and we cannot re-run team review:
+- **Document it loudly in an ADR** (not just here) so the deviation is a recorded decision, not a silent drift.
+- **Name it out of the owned-memory bucket** — e.g. `agent_session_runs` (or similar) rather than `relay_runs`,
+  so it doesn't read as a fourth owned-memory `relay_*` table.
 
 ## Scope
 
