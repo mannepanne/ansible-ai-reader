@@ -50,86 +50,49 @@ whichever polling mechanism we pick, and should land even if the rest is staged.
 
 ## Design
 
-### 1. `relay_runs` — the run ledger + serialization lock
+**DECIDED (2026-07-07): a Durable Object** (`RelayOrchestrator`). Chosen over re-enqueue-poll (reuses more
+queue plumbing but hand-rolls the lock + recovery — the bug surface) and cron-sweep (simplest logic but a new
+cron path + latency). A DO makes the correctness-critical requirement — *exactly one session in flight +
+reliable polling* — **structural** (single-threaded + durable alarms) rather than hand-rolled, and Magnus has
+DO experience so the only real downside (new infra) is neutralised. The queue/consumer (#119/#120) is
+superseded **as the polling engine**; its testable core (`runSession`/`readSession`/`finalizeDecision`),
+trigger UI, and diagnostics carry over.
 
-New table (written by the **consumer**, service-role; **not** owned-memory, so not behind the bridge — see
-"Seam" below):
+### 1. `RelayOrchestrator` — the Durable Object (serialization + polling engine)
 
-| column | notes |
-|---|---|
-| `id` uuid pk | run id (the queue message payload) |
-| `reader_id` text | the stimulus |
-| `session_id` text null | the MA session (null until created) |
-| `started_at` timestamptz null | **T0**, stamped at session-create (the window anchor) |
-| `state` text | `queued` → `polling` → (`wrote` \| `declined` \| `failed`) |
-| `piece_id` uuid null | set on finalize (traceability) |
-| `attempt` int default 0 | poll attempt count |
-| `degraded` text null, `error` text null | diagnostics |
-| `created_at`, `updated_at` timestamptz | |
+- A **singleton** DO (`idFromName('relay')`) → single-threaded ⇒ **exactly one run in flight, structurally**
+  (no lock table, no check-then-insert race, no `max_concurrency` reliance).
+- The **trigger route** calls it via a DO binding (`RELAY_ORCHESTRATOR`, cross-worker via `script_name`):
+  `stub.fetch(POST /enqueue {readerId})`. The DO appends to a pending-run queue in **DO storage**; if idle it
+  begins the next run.
+- **Begin a run:** create the MA session (reuse the create/send calls), write an `agent_session_runs` row
+  (`state='running'`, `session_id`, `started_at = now − 30 s` = T0), set an **alarm** ~15 s out.
+- **`alarm()`** — check the current run's session status:
+  - `idle` → finalize via bridge `/decision` (`T0` + *exclude-claimed-pieces*), update the ledger row
+    (`verdict`, `piece_id`) → dequeue and begin the next run (or go idle).
+  - `running` → `attempt++`; under the cap → set the next alarm; over → mark `failed` + breadcrumb → next.
+  - `terminated` → mark `failed` + breadcrumb → next.
+- Reuses `formatStimulus`, the MA client, `readSession`, `finalizeDecision`. Alarm-driven polling replaces the
+  6-min loop: each alarm does one short status check, so no invocation is ever held toward the cancel wall.
 
-**The lock:** at most one row in `state='polling'`. `max_concurrency=1` already serialises *message*
-processing, which makes the "is a run polling?" check-then-insert atomic — so the lock holds.
+### 2. `agent_session_runs` — the run ledger (visibility + reconciliation, not a lock)
 
-### 2. Re-enqueue poll (primary design)
+Written by the DO (service-role). **Not** a lock (the DO's single-threadedness is the serialization) and
+**not** owned memory — it's mind-specific orchestration (session_id/polling), named out of the `relay_*`
+bucket deliberately (see "Seam"). Columns: `id` uuid pk, `reader_id`, `session_id`, `started_at` (T0),
+`state` (`running` → `wrote`|`declined`|`failed`), `piece_id`, `attempt`, `degraded`, `error`, timestamps.
+Purpose: the tab's run-status view + reconciliation of a stuck/orphaned run (the ledger, not the piece, is the
+`reader_id ↔ session_id ↔ T0` link).
 
-The consumer becomes a **producer to its own queue** (self re-enqueue; add a producer binding). Two message
-phases:
+### 3. Liveness / recovery (mostly free with the DO)
 
-- **`{phase:'start', readerId}`** — if a run is already `polling`, **re-enqueue this start** with
-  `delaySeconds` (wait for the lock). Else: create the MA session, insert a `relay_runs` row
-  (`state='polling'`, `session_id`, `started_at = now − 30 s`), enqueue `{phase:'poll', runId}` with a short
-  delay, ack. *(Short invocation — no long poll.)*
-- **`{phase:'poll', runId}`** — load the run; GET session status:
-  - `idle` → finalize via bridge `/decision` (unchanged `T0` logic), set run `state=verdict, piece_id`, ack. **Lock released.**
-  - `running` → `attempt++`; if under the cap, re-enqueue `{phase:'poll', runId}` with delay; else mark `failed` + breadcrumb; ack.
-  - `terminated` → mark `failed` + breadcrumb; ack.
-
-Because only one run is ever `polling`, `T0` windows never overlap and attribution stays exact.
-
-### 3. Liveness / recovery (first-class, not a footnote)
-
-The lock's liveness rests on the `poll` message always getting processed. This intersects with `max_retries`:
-
-- **The `max_retries=0` rationale does NOT apply to the poll phase.** It was chosen to prevent duplicate
-  session *creation* — but `poll` creates nothing; it's a status check + (idempotent) finalize. A blanket
-  no-retry makes a single lost/killed poll wedge the run in `polling` → the lock stalls *every* queued run
-  until the stale-lock timeout. Since the queue can't set retries per-phase, **handle it in code**: the poll
-  handler catches its own errors and **always re-enqueues-or-acks**, never dies.
-- **Finalize idempotency is required** once poll can re-run: a poll that finalizes then dies before ack must
-  not double-write the decision on retry. Two guards: (a) the *exclude-claimed-pieces* change above, and (b)
-  the poll checks run `state` (skip if already finalized). Both explicit.
-- **Stale-lock timeout:** a `polling` run whose `started_at` is older than ~15 min is treated as dead — the
-  next `start` force-fails it and releases the lock.
-- **Reconciliation:** because the ledger holds `session_id` + `started_at`, a stuck/orphaned run is
-  re-finalizable later (a manual `relay:reconcile` command or a sweep) — the ledger, not the piece, is the link.
-
-### Polling mechanism — an open decision (nothing here needs sub-cron latency)
-
-Three viable shapes for "poll across short invocations":
-
-- **Re-enqueue poll** (specced above): consumer self-produces poll messages. Near-real-time, keeps the mind in
-  one worker — but that's aesthetic, and it costs a self-producer binding + **re-enqueue churn** (a batch of 8
-  `start` messages busy-bouncing every ~20s for the whole ~5 min of run 1).
-- **Cron-sweep** (likely simplest): the trigger just inserts a `queued` `relay_runs` row; a cron does serial
-  start-and-poll — **one sweep at a time IS the lock, for free** (no self-producer binding, no re-enqueue
-  churn). Cost: finalize latency = cron interval (fine for manual/low-volume), and relay logic lives in a
-  cron path. Guard against overlapping sweeps.
-- **Durable Object + alarms** (textbook fit): a DO is single-threaded (serialization for free — no lock table)
-  and alarm-driven (no invocation held open, no re-enqueue churn). It's the Cloudflare-native primitive for
-  exactly this. Cost: **new infra** to introduce for the first time.
-
-**Leaning cron-sweep** for a manual, low-volume Stage 1 (simplest, natural serialization). Re-enqueue is
-defensible; the DO is the "right" primitive but new infra — rejected for Stage 1 on that ground, revisit if
-Relay's orchestration grows. **Decision needed before build.**
-
-## Scope staging (two separable mechanisms)
-
-- **Polling rework — UNAVOIDABLE.** Even a *single* 5-min session cannot finalize in one invocation, so this
-  is not gold-plating; it's the core fix, needed regardless of batching.
-- **Lock / serialization — only for the concurrent-trigger (batch) case.** After the acceptance run, Stage-1
-  triggering is manual/one-at-a-time. So the lock could be deferred and concurrency gated more cheaply at the
-  **trigger route** ("refuse to start if a run is in flight") — shipping the poll rework first. Keep the two
-  separable so we can stage if the lock proves fiddly.
+- **No wedge risk:** the DO alarm is durable — if the DO evicts or crashes mid-run, the alarm re-fires on next
+  access and resumes. The lost-poll-wedges-the-lock failure mode of the queue design does not exist here.
+- **Finalize idempotency still required:** an alarm that finalizes then evicts before persisting the dequeue
+  could re-finalize. Guards: (a) *exclude-claimed-pieces* (above) and (b) the ledger `state` check (skip if
+  already finalized). Both explicit.
+- **Stale run:** a `running` row older than ~15 min → mark `failed` and move on (belt-and-braces).
+- **Reconciliation:** `relay:reconcile` (manual) re-finalizes from the ledger's `session_id` + `started_at`.
 
 ## Seam consideration (needs a ruling)
 
