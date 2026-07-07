@@ -23,7 +23,10 @@
     "relay:session": "tsx scripts/relay-session.ts",
     "relay:pieces": "tsx scripts/relay-pieces.ts",
     "relay:approve": "tsx scripts/relay-review.ts approve",
-    "relay:reject": "tsx scripts/relay-review.ts reject"
+    "relay:reject": "tsx scripts/relay-review.ts reject",
+    "relay:acceptance-check": "tsx scripts/relay-acceptance-check.ts",
+    "relay:run-status": "tsx scripts/relay-run-status.ts",
+    "relay:pending": "tsx scripts/relay-pending-check.ts"
   },
   "dependencies": {
     "@marsidev/react-turnstile": "^1.5.0",
