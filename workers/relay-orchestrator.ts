@@ -93,14 +93,22 @@ export class RelayOrchestrator {
     if (request.method === 'POST' && url.pathname === '/enqueue') {
       const { readerId } = (await request.json()) as { readerId?: string };
       if (!readerId) return new Response(JSON.stringify({ error: 'readerId required' }), { status: 400 });
-      await enqueue(this.deps(), readerId);
+      // blockConcurrencyWhile makes the check-then-claim in enqueue/startNext atomic. DOs do NOT
+      // serialise a handler across its awaits by default (a fetch() await is not storage-gated), so
+      // without this two enqueues could both see "no run in flight" and start two sessions → overlapping
+      // T0 windows. The critical section is only seconds (session start); the 5-min poll lives in alarm().
+      await this.state.blockConcurrencyWhile(async () => {
+        await enqueue(this.deps(), readerId);
+      });
       return new Response(JSON.stringify({ queued: true, readerId }), { status: 202 });
     }
     return new Response('not found', { status: 404 });
   }
 
   async alarm(): Promise<void> {
-    await onAlarm(this.deps());
+    await this.state.blockConcurrencyWhile(async () => {
+      await onAlarm(this.deps());
+    });
   }
 }
 

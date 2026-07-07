@@ -53,6 +53,7 @@ export interface OrchestratorDeps {
 
 const POLL_MS = 15_000;
 const MAX_ATTEMPTS = 60;
+const STALE_MS = 15 * 60_000; // an in-flight run older than this is treated as dead (lost alarm) and released
 
 async function insertRun(deps: OrchestratorDeps, readerId: string, sessionId: string, startedAt: string): Promise<string> {
   const { data } = await deps.supabase
@@ -76,6 +77,16 @@ export async function enqueue(deps: OrchestratorDeps, readerId: string): Promise
   q.push(readerId);
   await deps.store.setQueue(q);
   deps.log(`enqueued ${readerId} (queue=${q.length})`);
+
+  // Stale-run recovery: an in-flight run with no advancing alarm (a lost alarm) would wedge the queue.
+  // A trigger self-heals it — release a run older than STALE_MS so the machine can move on.
+  const cur = await deps.store.getCurrent();
+  if (cur && deps.now() - Date.parse(cur.startedAt) > STALE_MS) {
+    deps.log(`releasing stale run ${cur.readerId} (age ${deps.now() - Date.parse(cur.startedAt)}ms)`);
+    await updateRun(deps, cur.runId, { state: 'failed', error: 'stale — released' });
+    await deps.store.setCurrent(null);
+  }
+
   if (!(await deps.store.getCurrent())) {
     await startNext(deps);
   }

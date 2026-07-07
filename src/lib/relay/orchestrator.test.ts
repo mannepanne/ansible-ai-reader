@@ -52,7 +52,7 @@ function makeMa({ status = 'idle', closing = 'done' } = {}) {
   });
 }
 
-function mkDeps(over: { item?: unknown; ma?: any; finalize?: any; maxAttempts?: number } = {}) {
+function mkDeps(over: { item?: unknown; ma?: any; finalize?: any; maxAttempts?: number; now?: () => number } = {}) {
   const { store, s } = makeStore();
   const supabase = makeSupabase('item' in over ? over.item : undefined);
   const ma = over.ma ?? makeMa();
@@ -63,7 +63,7 @@ function mkDeps(over: { item?: unknown; ma?: any; finalize?: any; maxAttempts?: 
     supabase,
     finalize,
     ids: { agentId: 'a', environmentId: 'e', vaultId: 'v' },
-    now: () => 1_000_000,
+    now: over.now ?? (() => 1_000_000),
     log: () => {},
     pollIntervalMs: 1000,
     maxAttempts: over.maxAttempts ?? 3,
@@ -137,6 +137,17 @@ describe('orchestrator', () => {
     await onAlarm(deps);
     expect(finalize).not.toHaveBeenCalled();
     expect(s._cur).toBeNull();
+  });
+
+  it('releases a stale in-flight run on a later enqueue (lost-alarm recovery)', async () => {
+    let t = 1_000_000;
+    const { deps, s, supabase } = mkDeps({ now: () => t });
+    await enqueue(deps, 'r1');
+    expect(s._cur?.readerId).toBe('r1');
+    t += 16 * 60_000; // > STALE_MS (15 min)
+    await enqueue(deps, 'r2');
+    expect(supabase.__runs.find((r: any) => r.reader_id === 'r1').state).toBe('failed');
+    expect(s._cur?.readerId).toBe('r2'); // machine moved on
   });
 
   it('records a failed run and skips ahead when the stimulus item is missing', async () => {
