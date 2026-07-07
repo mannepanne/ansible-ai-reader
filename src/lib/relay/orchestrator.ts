@@ -41,7 +41,7 @@ export type FinalizeFn = (args: {
 export interface OrchestratorDeps {
   store: RunStore;
   ma: MaClient;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped service-role client (matches consumer.ts)
+  // untyped service-role client (matches consumer.ts / the app's service-role usage)
   supabase: any;
   finalize: FinalizeFn;
   ids: RunResourceIds;
