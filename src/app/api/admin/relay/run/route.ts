@@ -5,8 +5,9 @@ import { NextResponse } from 'next/server';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { createClient, createServiceRoleClient } from '@/utils/supabase/server';
 
-interface RelayQueue {
-  send: (message: unknown) => Promise<void>;
+interface DurableObjectNamespaceLike {
+  idFromName: (name: string) => unknown;
+  get: (id: unknown) => { fetch: (input: string, init?: RequestInit) => Promise<Response> };
 }
 
 export async function POST(request: Request) {
@@ -49,20 +50,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'That item has no summary yet — nothing for Relay to react to' }, { status: 400 });
   }
 
-  // The queue binding only exists in the Workers runtime — local `next dev` can't enqueue.
-  let queue: RelayQueue | undefined;
+  // The DO binding only exists in the Workers runtime — local `next dev` can't reach it.
+  let orchestrator: DurableObjectNamespaceLike | undefined;
   try {
-    queue = (getCloudflareContext().env as { RELAY_QUEUE?: RelayQueue }).RELAY_QUEUE;
+    orchestrator = (getCloudflareContext().env as { RELAY_ORCHESTRATOR?: DurableObjectNamespaceLike }).RELAY_ORCHESTRATOR;
   } catch {
     /* local dev: bindings not available */
   }
-  if (!queue) {
+  if (!orchestrator) {
     return NextResponse.json(
-      { error: 'Relay queue is not available in this environment — trigger sessions in production' },
+      { error: 'Relay orchestrator is not available in this environment — trigger sessions in production' },
       { status: 503 },
     );
   }
 
-  await queue.send({ readerId });
+  // Singleton DO ('relay') — single-threaded, so runs serialise structurally.
+  const stub = orchestrator.get(orchestrator.idFromName('relay'));
+  const doRes = await stub.fetch('https://relay-orchestrator/enqueue', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ readerId }),
+  });
+  if (!doRes.ok) {
+    return NextResponse.json({ error: 'orchestrator enqueue failed', detail: await doRes.text() }, { status: 502 });
+  }
   return NextResponse.json({ queued: true, readerId, title: item.title }, { status: 202 });
 }

@@ -11,14 +11,20 @@ function makeSupabase({
   pieces = [] as Array<{ id: string; created_at: string }>,
   piecesError = null as { message: string } | null,
   insertError = null as { message: string } | null,
+  claimed = [] as string[],
 } = {}) {
   const inserted: Record<string, unknown>[] = [];
   const piecesQuery: Record<string, ReturnType<typeof vi.fn>> = {};
-  for (const m of ['select', 'eq', 'gte', 'order']) {
+  for (const m of ['select', 'eq', 'gte', 'order', 'not']) {
     piecesQuery[m] = vi.fn(() => piecesQuery);
   }
   piecesQuery.limit = vi.fn(() => Promise.resolve({ data: pieces, error: piecesError }));
+  // relay_decisions serves two calls: select('piece_id').not(...) → claimed ids, and insert(row).
+  const claimedQuery = {
+    not: vi.fn(() => Promise.resolve({ data: claimed.map((id) => ({ piece_id: id })), error: null })),
+  };
   const decisionsTable = {
+    select: vi.fn(() => claimedQuery),
     insert: vi.fn((row: Record<string, unknown>) => {
       inserted.push(row);
       return Promise.resolve({ error: insertError });
@@ -53,6 +59,20 @@ describe('finalizeDecision', () => {
     expect(q.limit).toHaveBeenCalledWith(1);
     const row = (supabase as never as { __inserted: Record<string, unknown>[] }).__inserted[0];
     expect(row).toMatchObject({ stimulus_ref: ['r1'], verdict: 'wrote', piece_id: 'piece-new', reason: 'closing text' });
+  });
+
+  it('excludes pieces already claimed by a prior decision (T0-tail cross-attribution guard)', async () => {
+    const supabase = makeSupabase({ pieces: [{ id: 'piece-new', created_at: 'x' }], claimed: ['piece-old'] });
+    await finalizeDecision(deps(supabase), { stimulus_ref: ['r2'], started_at: T0 });
+    const q = (supabase as never as { __piecesQuery: Record<string, ReturnType<typeof vi.fn>> }).__piecesQuery;
+    expect(q.not).toHaveBeenCalledWith('id', 'in', '(piece-old)');
+  });
+
+  it('does not add the exclusion filter when no pieces are claimed yet', async () => {
+    const supabase = makeSupabase({ pieces: [], claimed: [] });
+    await finalizeDecision(deps(supabase), { stimulus_ref: [], started_at: T0 });
+    const q = (supabase as never as { __piecesQuery: Record<string, ReturnType<typeof vi.fn>> }).__piecesQuery;
+    expect(q.not).not.toHaveBeenCalled();
   });
 
   it('records verdict=declined with null piece_id and the closing reason when nothing was written in the window', async () => {
