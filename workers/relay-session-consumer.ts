@@ -17,6 +17,7 @@ interface Env {
   RELAY_VAULT_ID: string;
   RELAY_BRIDGE_URL?: string;
   RELAY_POLL_INTERVAL_MS?: string; // optional override of the 3s poll cadence (ops tuning / tests)
+  RELAY_POLL_BUDGET_MS?: string; // optional override of the wall-clock poll deadline (default 210s)
 }
 
 interface RelayRunMessage {
@@ -61,6 +62,12 @@ async function breadcrumb(supabase: any, readerId: string, note: string): Promis
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped service-role client (matches consumer.ts)
 async function runOne(readerId: string, env: Env, supabase: any): Promise<void> {
+  // Phase logging with elapsed ms since run start — so a platform "Canceled" shows exactly which
+  // phase it landed on (poll vs finalize vs ack) and at what wall-clock, in the tail.
+  const t0 = Date.now();
+  const log = (m: string) => console.log(`[relay reader=${readerId} +${Date.now() - t0}ms] ${m}`);
+  log('run start');
+
   const { data: row, error } = await supabase
     .from('reader_items')
     .select('title, short_summary, commentariat_summary')
@@ -79,12 +86,15 @@ async function runOne(readerId: string, env: Env, supabase: any): Promise<void> 
   const startedAt = new Date(Date.now() - 30_000).toISOString();
 
   const pollIntervalMs = env.RELAY_POLL_INTERVAL_MS ? Number(env.RELAY_POLL_INTERVAL_MS) : undefined;
-  const { status, events } = await runSession(ma, ids, stimulus, { readerId, pollIntervalMs });
+  const budgetMs = env.RELAY_POLL_BUDGET_MS ? Number(env.RELAY_POLL_BUDGET_MS) : undefined;
+  const { status, events } = await runSession(ma, ids, stimulus, { readerId, pollIntervalMs, budgetMs, log });
   if (status !== 'idle') {
+    log(`breadcrumb: did not complete (status ${status})`);
     await breadcrumb(supabase, readerId, `session did not complete (status: ${status ?? 'timeout'}) — no verdict recorded`);
     return;
   }
 
+  log('finalizing');
   const readout = readSession(events);
   const base = env.RELAY_BRIDGE_URL || DEFAULT_BRIDGE_URL;
   const res = await fetch(`${base}/decision`, {
@@ -98,6 +108,7 @@ async function runOne(readerId: string, env: Env, supabase: any): Promise<void> 
     }),
   });
   if (!res.ok) throw new Error(`decision finalize → ${res.status}: ${await res.text()}`);
+  log('finalized');
 }
 
 export default {
@@ -118,6 +129,7 @@ export default {
         await breadcrumb(supabase, readerId ?? '(unknown)', e instanceof Error ? e.message : String(e));
       } finally {
         message.ack();
+        console.log(`[relay reader=${readerId ?? '(unknown)'}] acked`);
       }
     }
   },

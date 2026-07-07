@@ -76,4 +76,27 @@ describe('runSession', () => {
     const statusPolls = calls.filter((c) => c.method === 'GET' && c.path === '/sessions/sess-1');
     expect(statusPolls).toHaveLength(4);
   });
+
+  it('exits on the wall-clock budget before maxPolls, and logs the phases', async () => {
+    const { ma, calls } = makeMa(['running']); // never reaches idle
+    let t = 0;
+    const now = () => (t += 1000); // each call advances 1s
+    const logs: string[] = [];
+    const result = await runSession(ma, ids, 'x', {
+      readerId: 'r1',
+      sleep: noSleep,
+      now,
+      budgetMs: 500, // budget trips on the first post-start now() check
+      maxPolls: 100,
+      log: (m) => logs.push(m),
+    });
+
+    expect(result.status).toBe('running');
+    // stopped on the budget, not by exhausting the 100-poll cap
+    const statusPolls = calls.filter((c) => c.method === 'GET' && c.path === '/sessions/sess-1');
+    expect(statusPolls.length).toBeLessThan(100);
+    expect(logs.some((l) => /created/.test(l))).toBe(true);
+    expect(logs.some((l) => /budget/.test(l))).toBe(true);
+    expect(logs.some((l) => /poll exit/.test(l))).toBe(true);
+  });
 });

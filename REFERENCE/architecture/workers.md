@@ -261,6 +261,18 @@ dead_letter_queue = "ansible-relay-dlq"
   consumer** right before create-session, `reason`, `degraded`).
 - On non-completion/failure: a `sync_log` breadcrumb (`relay_session_failed`), no verdict, ack (no retry).
 
+### Robustness — the "Canceled" invocation
+Some long invocations get hard-**Canceled** by the platform at their *end* (an invocation-duration /
+isolate-lifecycle limit, not CPU — it lands right after a successful finalize). The **piece is never
+lost** (the agent writes it mid-session via `write_pending`); only the decision row can be. Mitigations:
+- **Phase logging** with elapsed ms (`[relay reader=… +Nms] run start / session created / poll exit /
+  finalizing / finalized / acked`) so `wrangler tail` shows exactly where a cancel lands.
+- **Wall-clock poll deadline** (`RELAY_POLL_BUDGET_MS`, default 210 s) — the poll loop exits *under* the
+  cancel point, turning a silent kill into a diagnosable breadcrumb + clean ack.
+- `[limits] cpu_ms = 300000` — a hedge only (cause is not CPU).
+- **Likely real fix (not yet built):** short invocations via a re-enqueue poll; **make cancels harmless**
+  by stamping `stimulus_ref` onto the piece so orphaned pieces are reconcilable. Pending log confirmation.
+
 ### Secrets & config
 Secrets: `ANTHROPIC_API_KEY`, `RELAY_CONTROL_TOKEN`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SECRET_KEY`.
 Vars (in the toml): `RELAY_AGENT_ID`, `RELAY_ENV_ID`, `RELAY_VAULT_ID`, `RELAY_BRIDGE_URL`. Optional:

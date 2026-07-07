@@ -47,6 +47,20 @@ The two tokens are deliberately separate: the agent only ever holds `RELAY_BRIDG
 - **Reasoning history** is in the per-session transcript (`relay-sessions/`) and printed live; `relay:pieces` shows the decision log but truncates the stored reason.
 - **The bridge must be deployed** (`npm run deploy:relay-bridge`) with the routes and `RELAY_CONTROL_TOKEN` set before these work; `relay:session` pre-flights and tells you if not.
 
+## Diagnostics (acceptance runs / debugging)
+
+Read-only helpers (query `reader_items` / `relay_*` directly via the service role; never write):
+
+```bash
+npm run relay:acceptance-check <reader_id...>   # validate stimuli exist + have summary/commentariat
+npm run relay:run-status <reader_id...>         # per-run outcome: verdict / failure breadcrumb / pending
+npm run relay:pending                           # newest relay_pieces (state, recall count, title) — spot orphans
+```
+
+`relay:run-status` reads both `relay_decisions` (the verdict) and `sync_log` `relay_session_failed`
+breadcrumbs, so it distinguishes "still running" from "failed". `relay:pending` surfaces a piece written
+without a decision row (the "Canceled"-invocation failure mode — see [workers.md](../architecture/workers.md) Worker 5).
+
 ## Related
 
 - [architecture/workers.md](../architecture/workers.md) — the relay bridge worker and its routes
