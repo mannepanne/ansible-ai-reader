@@ -42,13 +42,30 @@ export async function finalizeDecision(
     throw new Error('finalizeDecision: started_at must be an ISO timestamp');
   }
 
-  const { data, error } = await deps.supabase
+  // Pieces already claimed by a prior decision — a piece belongs to exactly ONE session. The serial
+  // orchestrator finalizes run N (claiming its piece) before run N+1 starts, but the T0 window reaches
+  // ~30s back into run N's tail; a *declining* N+1 could otherwise scoop run N's still-pending piece and
+  // mis-record 'wrote'. Excluding claimed pieces closes that, and makes finalize idempotent on re-run.
+  const { data: claimedRows, error: claimedError } = await deps.supabase
+    .from('relay_decisions')
+    .select('piece_id')
+    .not('piece_id', 'is', null);
+  if (claimedError) {
+    throw new Error(`finalizeDecision: ${claimedError.message}`);
+  }
+  const claimed = ((claimedRows ?? []) as Array<{ piece_id: string | null }>)
+    .map((r) => r.piece_id)
+    .filter((x): x is string => !!x);
+
+  let query = deps.supabase
     .from('relay_pieces')
     .select('id, created_at')
     .eq('state', 'pending_review')
-    .gte('created_at', startedAt)
-    .order('created_at', { ascending: false })
-    .limit(1);
+    .gte('created_at', startedAt);
+  if (claimed.length) {
+    query = query.not('id', 'in', `(${claimed.join(',')})`);
+  }
+  const { data, error } = await query.order('created_at', { ascending: false }).limit(1);
   if (error) {
     throw new Error(`finalizeDecision: ${error.message}`);
   }
