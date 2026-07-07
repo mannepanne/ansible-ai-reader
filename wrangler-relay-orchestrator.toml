@@ -1,0 +1,31 @@
+# Cloudflare Durable Object host — the Relay session orchestrator (RelayOrchestrator).
+# Single-threaded serial runner: one Managed-Agent session in flight, alarm-driven polling, finalize via
+# the bridge. Supersedes the queue consumer (wrangler-relay-session.toml) as the polling engine.
+name = "ansible-relay-orchestrator"
+main = "workers/relay-orchestrator.ts"
+compatibility_date = "2026-03-06"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+# The DO class, bound to its own host worker.
+[[durable_objects.bindings]]
+name = "RELAY_ORCHESTRATOR"
+class_name = "RelayOrchestrator"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RelayOrchestrator"]
+
+# Non-secret config: the create-once Managed-Agent resource IDs + the bridge origin.
+[vars]
+RELAY_AGENT_ID = "agent_018jSXwuTvozdYw42bknqR35"
+RELAY_ENV_ID = "env_01Pshzu2oPxSwQbW8XMFqy7s"
+RELAY_VAULT_ID = "vlt_011CcVXfhTTEZUx6cX5r2w3b"
+RELAY_BRIDGE_URL = "https://ansible-relay-bridge.herrings.workers.dev"
+
+# Secrets — set MANUALLY once (deploy.yml env: does NOT upload secrets). Set each with:
+#   wrangler secret put <KEY> --config wrangler-relay-orchestrator.toml
+#   - ANTHROPIC_API_KEY, RELAY_CONTROL_TOKEN, NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SECRET_KEY
+# Optional: RELAY_POLL_INTERVAL_MS (default 15s)

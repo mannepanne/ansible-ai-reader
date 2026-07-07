@@ -19,11 +19,13 @@ binding = "ASSETS"
 queue = "ansible-processing-queue"
 binding = "PROCESSING_QUEUE"
 
-# Relay session trigger: the admin "Run a session" control enqueues here; the relay-session
-# consumer worker (wrangler-relay-session.toml) runs the session and finalizes via the bridge.
-[[queues.producers]]
-queue = "ansible-relay-queue"
-binding = "RELAY_QUEUE"
+# Relay session trigger: the admin "Run a session" control calls the RelayOrchestrator Durable Object
+# (hosted in ansible-relay-orchestrator), which runs sessions serially and finalizes via the bridge.
+# Cross-worker binding — the orchestrator worker must be deployed before this app.
+[[durable_objects.bindings]]
+name = "RELAY_ORCHESTRATOR"
+class_name = "RelayOrchestrator"
+script_name = "ansible-relay-orchestrator"
 
 # Consumer configuration in separate worker (wrangler-consumer.toml)
 # This keeps the Next.js worker and queue consumer independent

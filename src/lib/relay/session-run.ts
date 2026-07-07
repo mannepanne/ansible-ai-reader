@@ -37,6 +37,34 @@ export function formatStimulus(row: StimulusRow): string {
   return parts.join('\n\n');
 }
 
+// Granular Managed-Agent steps for alarm-driven polling (the orchestrator DO polls across alarms, not
+// in a loop). `runSession` below composes the same steps for the single-invocation (CLI) path.
+
+/** Create a session against the existing resources and send the stimulus. Returns the session id. */
+export async function createSession(ma: MaClient, ids: RunResourceIds, stimulus: string, readerId: string): Promise<string> {
+  const session = await ma('POST', '/sessions', {
+    agent: ids.agentId,
+    environment_id: ids.environmentId,
+    vault_ids: [ids.vaultId],
+    title: `Relay — ${readerId}`,
+  });
+  const sid = session.id as string;
+  await ma('POST', `/sessions/${sid}/events?beta=true`, {
+    events: [{ type: 'user.message', content: [{ type: 'text', text: `Today's desk:\n\n${stimulus}` }] }],
+  });
+  return sid;
+}
+
+/** One status poll. */
+export async function getSessionStatus(ma: MaClient, sessionId: string): Promise<string | null> {
+  return ((await ma('GET', `/sessions/${sessionId}`)).status ?? null) as string | null;
+}
+
+/** Read the transcript. */
+export async function getSessionEvents(ma: MaClient, sessionId: string): Promise<MaEvent[]> {
+  return ((await ma('GET', `/sessions/${sessionId}/events?beta=true`)).data ?? []) as MaEvent[];
+}
+
 /**
  * Create one session against the already-created resources, send the stimulus, and poll until the
  * session is idle or terminated. Resource creation is NOT done here — the environment/vault/agent
