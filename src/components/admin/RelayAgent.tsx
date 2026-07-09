@@ -13,6 +13,29 @@ const fmt = (iso: string) => new Date(iso).toISOString().slice(0, 16).replace('T
 const excerpt = (s: string, n = 280) => (s.length > n ? `${s.slice(0, n)}…` : s);
 const LOG_PAGE_SIZE = 10;
 
+// Grounding at a glance: 'sourced' = the piece cites a checkable research URL; 'unverified' = it does
+// not (NOT a claim of falsehood). Honest labels — 'verified' is the deferred re-verification pass.
+function VerificationBadge({ status }: { status: string }) {
+  const sourced = status === 'sourced';
+  return (
+    <span
+      title={sourced ? 'Cites at least one research source' : 'No research source cited'}
+      style={{
+        fontSize: '0.62em',
+        fontWeight: 700,
+        textTransform: 'uppercase',
+        letterSpacing: '0.03em',
+        color: sourced ? '#0f5132' : '#6c757d',
+        background: sourced ? '#d1e7dd' : '#e9ecef',
+        borderRadius: '4px',
+        padding: '2px 7px',
+      }}
+    >
+      {sourced ? '● sourced' : '○ unverified'}
+    </span>
+  );
+}
+
 function titleOf(body: string): string {
   for (const line of body.split('\n')) {
     const m = line.match(/^#+\s+(.*\S)\s*$/);
@@ -249,6 +272,7 @@ function PieceCard({
           {open ? '▾' : '▸'}
         </button>
         <h3 style={{ margin: 0, fontSize: '1.02em', fontWeight: 700, color: '#212529' }}>{titleOf(piece.body)}</h3>
+        <VerificationBadge status={piece.verificationStatus} />
       </div>
 
       {piece.summary && <p style={{ fontStyle: 'italic', color: '#495057', margin: '8px 0 8px 0', ...indent }}>{piece.summary}</p>}
@@ -256,6 +280,20 @@ function PieceCard({
         {fmt(piece.createdAt)} UTC · recalled {piece.recalledCount}
         {piece.concepts.length > 0 ? ` · ${piece.concepts.join(' · ')}` : ''}
       </div>
+
+      {piece.sourceLinks.length > 0 && (
+        <div style={{ fontSize: '0.75em', color: '#495057', marginTop: '8px', ...indent }}>
+          <span style={{ color: '#6c757d' }}>sources:</span>{' '}
+          {piece.sourceLinks.map((l, i) => (
+            <span key={`${l.ref}-${i}`}>
+              {i > 0 ? ' · ' : ''}
+              <a href={l.ref} target="_blank" rel="noreferrer noopener" style={{ color: '#0d6efd' }}>
+                {l.title || l.ref}
+              </a>
+            </span>
+          ))}
+        </div>
+      )}
 
       {open && (
         <div style={{ fontSize: '0.92em', lineHeight: 1.6, color: '#212529', marginTop: '12px', ...indent }}>
@@ -334,6 +372,19 @@ function LogPanel({ decisions }: { decisions: RelayDecisionRow[] }) {
             {d.reason && (
               <div style={{ fontSize: '0.82em', color: '#495057', fontStyle: 'italic', lineHeight: 1.5 }}>
                 <span style={{ color: '#6c757d', fontStyle: 'normal' }}>reasoning:</span> {excerpt(d.reason)}
+              </div>
+            )}
+            {d.sources.length > 0 && (
+              <div style={{ fontSize: '0.75em', color: '#495057', marginTop: '6px' }}>
+                <span style={{ color: '#6c757d' }}>researched:</span>{' '}
+                {d.sources.map((s, si) => (
+                  <span key={`${s.source_url}-${si}`}>
+                    {si > 0 ? ' · ' : ''}
+                    <a href={s.source_url} target="_blank" rel="noreferrer noopener" style={{ color: '#0d6efd' }}>
+                      {s.source_title || s.source_url}
+                    </a>
+                  </span>
+                ))}
               </div>
             )}
           </article>

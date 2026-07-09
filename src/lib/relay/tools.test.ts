@@ -14,7 +14,14 @@ vi.mock('../reader-api', () => ({
   fetchArticleContent: (...args: unknown[]) => mockFetchArticleContent(...args),
 }));
 
-import { recall, fetchById, writePending, ingestReference, RESEARCH_ORIGIN } from './tools';
+const mockGroundedSearch = vi.fn();
+vi.mock('./grounded-search', async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return { ...actual, groundedSearch: (...args: unknown[]) => mockGroundedSearch(...args) };
+});
+
+import { recall, fetchById, writePending, ingestReference, research, normalizeSourceUrl, RESEARCH_ORIGIN } from './tools';
+import { RESEARCH_UNAVAILABLE } from './grounded-search';
 
 // A tiny chainable Supabase stub. Each method records its args and returns `this` until a
 // terminal (maybeSingle/single/upsert/rpc) resolves the configured result.
@@ -151,6 +158,17 @@ describe('fetchById', () => {
     expect(out).toEqual({ id: 'r2', kind: 'reference', title: 'Res', text: 'research text' });
   });
 
+  it('returns stored content for a research ref even when source_ref is a URL (never round-trips Reader)', async () => {
+    const supabase = makeSupabase();
+    (supabase as never as { __builder: { maybeSingle: ReturnType<typeof vi.fn> } }).__builder.maybeSingle.mockResolvedValueOnce(
+      { data: { id: 'r3', title: 'Res', content: 'the snippet', source_ref: 'https://a.example/x', origin: 'research' }, error: null },
+    );
+
+    const out = await fetchById(deps(supabase), { id: 'r3' });
+    expect(mockFetchArticleContent).not.toHaveBeenCalled(); // origin==='research' short-circuits the Reader path
+    expect(out).toEqual({ id: 'r3', kind: 'reference', title: 'Res', text: 'the snippet' });
+  });
+
   it('falls through to a piece body when the id is not a reference', async () => {
     const supabase = makeSupabase();
     const maybeSingle = (supabase as never as { __builder: { maybeSingle: ReturnType<typeof vi.fn> } }).__builder.maybeSingle;
@@ -198,6 +216,34 @@ describe('writePending', () => {
     expect(out).toEqual({ ok: true });
   });
 
+  it("derives verification_status='sourced' when the piece carries a type:'source' link", async () => {
+    const supabase = makeSupabase();
+    (supabase as never as { __builder: { single: ReturnType<typeof vi.fn> } }).__builder.single.mockResolvedValue({ data: { id: 'p' }, error: null });
+
+    await writePending(deps(supabase), {
+      body: 'grounded piece',
+      links: [
+        { type: 'recall', ref: 'uuid-1' },
+        { type: 'source', ref: 'https://a.example', title: 'A' },
+      ],
+    });
+
+    const insert = (supabase as never as { __builder: { insert: ReturnType<typeof vi.fn> } }).__builder.insert;
+    const row = insert.mock.calls[0][0] as Record<string, unknown>;
+    expect(row.verification_status).toBe('sourced');
+  });
+
+  it("leaves verification_status='unverified' when there is no source link", async () => {
+    const supabase = makeSupabase();
+    (supabase as never as { __builder: { single: ReturnType<typeof vi.fn> } }).__builder.single.mockResolvedValue({ data: { id: 'p' }, error: null });
+
+    await writePending(deps(supabase), { body: 'ungrounded', links: [{ type: 'recall', ref: 'uuid-1' }] });
+
+    const insert = (supabase as never as { __builder: { insert: ReturnType<typeof vi.fn> } }).__builder.insert;
+    const row = insert.mock.calls[0][0] as Record<string, unknown>;
+    expect(row.verification_status).toBe('unverified');
+  });
+
   it('rejects an empty body', async () => {
     await expect(writePending(deps(makeSupabase()), { body: '   ' } as never)).rejects.toThrow(/body/);
   });
@@ -228,8 +274,24 @@ describe('ingestReference', () => {
     expect(out).toEqual({ ok: true });
   });
 
+  it('normalises source_ref so tracking params + trailing slash dedup to one key', async () => {
+    const supabase = makeSupabase();
+    (supabase as never as { __builder: { upsert: ReturnType<typeof vi.fn> } }).__builder.upsert.mockResolvedValue({ error: null });
+
+    await ingestReference(deps(supabase), { source_ref: 'https://Example.com/x/?utm_source=z', text: 'body' });
+
+    const upsert = (supabase as never as { __builder: { upsert: ReturnType<typeof vi.fn> } }).__builder.upsert;
+    const row = upsert.mock.calls[0][0] as { source_ref: string };
+    expect(row.source_ref).toBe('https://example.com/x');
+  });
+
   it('rejects empty text', async () => {
-    await expect(ingestReference(deps(makeSupabase()), { text: ' ' } as never)).rejects.toThrow(/text/);
+    await expect(ingestReference(deps(makeSupabase()), { source_ref: 'https://x', text: ' ' } as never)).rejects.toThrow(/text/);
+    expect(mockEmbed).not.toHaveBeenCalled();
+  });
+
+  it('rejects a missing source_ref (never inserts a null-source dupe)', async () => {
+    await expect(ingestReference(deps(makeSupabase()), { text: 'x' } as never)).rejects.toThrow(/source_ref/);
     expect(mockEmbed).not.toHaveBeenCalled();
   });
 
@@ -238,6 +300,42 @@ describe('ingestReference', () => {
     (supabase as never as { __builder: { upsert: ReturnType<typeof vi.fn> } }).__builder.upsert.mockResolvedValue({
       error: { message: 'dup' },
     });
-    await expect(ingestReference(deps(supabase), { text: 'x' } as never)).rejects.toThrow(/dup/);
+    await expect(ingestReference(deps(supabase), { source_ref: 'https://x', text: 'x' } as never)).rejects.toThrow(/dup/);
+  });
+});
+
+describe('normalizeSourceUrl', () => {
+  it('forces https, lowercases host, strips tracking params + trailing slash', () => {
+    expect(normalizeSourceUrl('http://Example.COM/a/?utm_source=x&keep=1')).toBe('https://example.com/a?keep=1');
+    expect(normalizeSourceUrl('https://example.com/a/')).toBe('https://example.com/a');
+    expect(normalizeSourceUrl('example.com/a')).toBe('https://example.com/a');
+  });
+
+  it('falls back to the trimmed original when unparseable', () => {
+    expect(normalizeSourceUrl('  not a url with spaces  ')).toBe('not a url with spaces');
+  });
+});
+
+describe('research', () => {
+  it('delegates to grounded-search with the perplexity key and trusted sources', async () => {
+    mockGroundedSearch.mockResolvedValue({ findings: [{ quote: 'q', source_url: 'https://a', source_title: 't' }] });
+
+    const out = await research(deps(makeSupabase(), { perplexityKey: 'pk' }), { query: 'a fact', k: 3 });
+
+    expect(mockGroundedSearch).toHaveBeenCalledWith(
+      expect.objectContaining({ apiKey: 'pk', trustedSources: expect.any(Array) }),
+      { query: 'a fact', k: 3 },
+    );
+    expect(out.findings).toHaveLength(1);
+  });
+
+  it('fails CLOSED (degraded, no call) when no perplexity key is configured', async () => {
+    const out = await research(deps(makeSupabase()), { query: 'a fact' });
+    expect(mockGroundedSearch).not.toHaveBeenCalled();
+    expect(out).toEqual({ findings: [], degraded: RESEARCH_UNAVAILABLE });
+  });
+
+  it('rejects an empty query', async () => {
+    await expect(research(deps(makeSupabase(), { perplexityKey: 'pk' }), { query: '  ' })).rejects.toThrow(/query/);
   });
 });

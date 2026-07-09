@@ -4,7 +4,7 @@
 import { redirect } from 'next/navigation';
 import { createClient, createServiceRoleClient } from '@/utils/supabase/server';
 import AdminContent from '@/components/admin/AdminContent';
-import type { LandingStats, DemoStats, RelayStats } from '@/components/admin/types';
+import type { LandingStats, DemoStats, RelayStats, RelayPieceRow, PieceLink, DecisionSource } from '@/components/admin/types';
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -64,17 +64,17 @@ export default async function AdminPage() {
     db.from('demo_events').select('event_type'),
     db
       .from('relay_pieces')
-      .select('id, body, summary, concepts, links, created_at')
+      .select('id, body, summary, concepts, links, verification_status, created_at')
       .order('created_at', { ascending: false })
       .eq('state', 'pending_review'),
     db
       .from('relay_pieces')
-      .select('id, body, summary, concepts, links, created_at')
+      .select('id, body, summary, concepts, links, verification_status, created_at')
       .order('created_at', { ascending: false })
       .eq('state', 'approved'),
     db
       .from('relay_pieces')
-      .select('id, body, summary, concepts, links, created_at')
+      .select('id, body, summary, concepts, links, verification_status, created_at')
       .order('created_at', { ascending: false })
       .eq('state', 'rejected'),
     db.from('relay_pieces').select('*', { count: 'exact', head: true }).eq('state', 'pending_review'),
@@ -84,7 +84,7 @@ export default async function AdminPage() {
     db.from('relay_decisions').select('*', { count: 'exact', head: true }).eq('verdict', 'declined'),
     db
       .from('relay_decisions')
-      .select('verdict, piece_id, reason, degraded, stimulus_ref, created_at')
+      .select('verdict, piece_id, reason, degraded, stimulus_ref, sources, created_at')
       .order('created_at', { ascending: false })
       .limit(200),
   ]);
@@ -179,6 +179,7 @@ export default async function AdminPage() {
     reason: string | null;
     degraded: string | null;
     stimulus_ref: string[] | null;
+    sources: DecisionSource[] | null;
     created_at: string;
   }>;
   const stimulusIds = [...new Set(decisionRows.flatMap((d) => d.stimulus_ref ?? []))];
@@ -199,21 +200,42 @@ export default async function AdminPage() {
     ((pieceSummaryResult.data ?? []) as { id: string; summary: string | null }[]).map((p) => [p.id, p.summary]),
   );
 
+  // Normalise a piece's links into tagged PieceLinks. New pieces store {type,ref,title?}; legacy
+  // Stage-1 pieces stored bare {id} — treat those as recall links so old pieces still render.
+  const normalizeLinks = (links: unknown[]): PieceLink[] =>
+    links
+      .map((l): PieceLink | null => {
+        if (!l || typeof l !== 'object') return null;
+        const o = l as Record<string, unknown>;
+        if (o.type === 'source' || o.type === 'recall') {
+          return { type: o.type, ref: String(o.ref ?? ''), title: typeof o.title === 'string' ? o.title : undefined };
+        }
+        if (typeof o.id === 'string') return { type: 'recall', ref: o.id };
+        return null;
+      })
+      .filter((l): l is PieceLink => l !== null && l.ref !== '');
+
   const mapPiece = (p: {
     id: string;
     body: string;
     summary: string | null;
     concepts: string[] | null;
     links: unknown[] | null;
+    verification_status: string | null;
     created_at: string;
-  }) => ({
-    id: p.id,
-    body: p.body,
-    summary: p.summary,
-    concepts: p.concepts ?? [],
-    recalledCount: (p.links ?? []).length,
-    createdAt: p.created_at,
-  });
+  }): RelayPieceRow => {
+    const links = normalizeLinks(p.links ?? []);
+    return {
+      id: p.id,
+      body: p.body,
+      summary: p.summary,
+      concepts: p.concepts ?? [],
+      recalledCount: links.filter((l) => l.type === 'recall').length,
+      verificationStatus: p.verification_status ?? 'unverified',
+      sourceLinks: links.filter((l) => l.type === 'source'),
+      createdAt: p.created_at,
+    };
+  };
 
   // Build relay stats — pieces by gate state (read-only operator view) + decision log + counts.
   const relayStats: RelayStats = {
@@ -235,6 +257,7 @@ export default async function AdminPage() {
       stimulusRef: d.stimulus_ref ?? [],
       stimulusTitles: (d.stimulus_ref ?? []).map((rid) => titleByReaderId.get(rid) ?? rid),
       pieceSummary: d.piece_id ? summaryByPieceId.get(d.piece_id) ?? null : null,
+      sources: d.sources ?? [],
       createdAt: d.created_at,
     })),
   };

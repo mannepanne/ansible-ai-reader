@@ -1,6 +1,6 @@
 # Relay — Stage 2.1: Fact-grounding & outward research (spec)
 
-**Status:** REVISED post-`/review-spec` (2026-07-09) — three-lens review (Requirements Auditor · Technical Skeptic · Devil's Advocate) folded in. Was NEEDS-REVISION; this is the buildable revision.
+**Status:** IMPLEMENTED (2026-07-09, branch `feature/relay-stage-2.1-fact-grounding`) — code + tests complete (full suite, `tsc`, `next lint` all green). Three manual rollout steps remain for the operator: (1) run the `relay_decisions.sources` migration in the Supabase SQL editor; (2) `wrangler secret put PERPLEXITY_API_KEY --config wrangler-relay-bridge.toml`; (3) run the CLI once against the prod agent to enable the `research` + `ingest_reference` tools. Revised post-`/review-spec` (three-lens review) before build.
 **Roadmap:** [stage-2-roadmap.md](./stage-2-roadmap.md) Phase 2.1 · **North star:** [ORIGINAL_IDEA/ansible-relay-agent-memory-system-spec.md](../ORIGINAL_IDEA/ansible-relay-agent-memory-system-spec.md) §"Outward research"
 
 ## Problem

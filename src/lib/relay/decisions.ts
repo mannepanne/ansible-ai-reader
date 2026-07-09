@@ -2,6 +2,7 @@
 // ABOUT: Derives verdict + real piece_id from DB state (pending pieces in the T0 window), agent stays blind
 
 import type { ToolDeps } from './tools';
+import type { SessionSource } from './session-readout';
 
 export interface FinalizeDecisionInput {
   // The reader_id(s) that seeded this session — recorded for traceability.
@@ -12,6 +13,9 @@ export interface FinalizeDecisionInput {
   reason?: string;
   // e.g. 'summary_only' when a mid-session fetch degraded to stored content.
   degraded?: string;
+  // Research sources the agent consulted this session — recorded for BOTH writes and declines (on a
+  // decline this is the only provenance there is: what the agent read before choosing silence).
+  sources?: SessionSource[];
 }
 
 export interface DecisionResult {
@@ -80,6 +84,7 @@ export async function finalizeDecision(
     reason: input.reason ?? null,
     piece_id: pieceId,
     degraded: input.degraded ?? null,
+    sources: Array.isArray(input.sources) ? input.sources : [],
   });
   if (insertError) {
     throw new Error(`finalizeDecision: ${insertError.message}`);

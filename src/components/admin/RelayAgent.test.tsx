@@ -4,18 +4,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import RelayAgent from './RelayAgent';
-import type { RelayStats } from './types';
+import type { RelayStats, RelayPieceRow } from './types';
 
 const mockRefresh = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: mockRefresh }) }));
 
-const piece = (id: string, title: string, summary: string) => ({
+const piece = (id: string, title: string, summary: string, over: Partial<RelayPieceRow> = {}): RelayPieceRow => ({
   id,
   body: `# ${title}\n\n${summary} body text here.`,
   summary,
   concepts: ['x'],
   recalledCount: 2,
+  verificationStatus: 'unverified',
+  sourceLinks: [],
   createdAt: '2026-06-28T10:00:00Z',
+  ...over,
 });
 
 const stats: RelayStats = {
@@ -32,6 +35,7 @@ const stats: RelayStats = {
       stimulusRef: ['r2'],
       stimulusTitles: ['A neutral changelog'],
       pieceSummary: null,
+      sources: [],
       createdAt: '2026-06-28T12:00:00Z',
     },
   ],
@@ -121,6 +125,7 @@ describe('RelayAgent', () => {
         stimulusRef: [`r${i}`],
         stimulusTitles: [`Material ${i}`],
         pieceSummary: null,
+        sources: [],
         createdAt: `2026-06-28T12:${String(i).padStart(2, '0')}:00Z`,
       })),
     };
@@ -153,6 +158,45 @@ describe('RelayAgent', () => {
     const [url, opts] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(url).toBe('/api/admin/relay/run');
     expect(JSON.parse(opts.body as string)).toEqual({ readerId: 'abc123' });
+  });
+
+  it('surfaces grounding: a sourced badge and clickable source links on a grounded piece', async () => {
+    const grounded: RelayStats = {
+      ...stats,
+      pending: [
+        piece('p-grounded', 'Grounded Piece', 'grounded summary', {
+          verificationStatus: 'sourced',
+          sourceLinks: [{ type: 'source', ref: 'https://reuters.com/x', title: 'Reuters report' }],
+        }),
+      ],
+    };
+    render(<RelayAgent stats={grounded} />);
+
+    expect(screen.getByText(/sourced/i)).toBeDefined();
+    const link = screen.getByRole('link', { name: /Reuters report/ });
+    expect(link.getAttribute('href')).toBe('https://reuters.com/x');
+  });
+
+  it('shows an unverified badge on a piece with no source links', async () => {
+    render(<RelayAgent stats={stats} />);
+    expect(screen.getByText(/unverified/i)).toBeDefined();
+  });
+
+  it('surfaces research sources on a decision in the log', async () => {
+    const withSources: RelayStats = {
+      ...stats,
+      decisions: [
+        {
+          ...stats.decisions[0],
+          sources: [{ quote: 'a verbatim fact', source_url: 'https://ft.com/y', source_title: 'FT analysis' }],
+        },
+      ],
+    };
+    const user = userEvent.setup();
+    render(<RelayAgent stats={withSources} />);
+    await user.click(screen.getByRole('tab', { name: /decision log/i }));
+    const link = screen.getByRole('link', { name: /FT analysis/ });
+    expect(link.getAttribute('href')).toBe('https://ft.com/y');
   });
 
   it('shows an empty state for a list with no pieces', async () => {

@@ -62,11 +62,11 @@ export class RelayOrchestrator {
     });
     const base = this.env.RELAY_BRIDGE_URL || DEFAULT_BRIDGE_URL;
     // Finalize stays behind the bridge (sole owned-memory writer); the DO only orchestrates.
-    const finalize: FinalizeFn = async ({ stimulusRef, startedAt, reason, degraded }) => {
+    const finalize: FinalizeFn = async ({ stimulusRef, startedAt, reason, degraded, sources }) => {
       const res = await fetch(`${base}/decision`, {
         method: 'POST',
         headers: { authorization: `Bearer ${this.env.RELAY_CONTROL_TOKEN}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ stimulus_ref: stimulusRef, started_at: startedAt, reason, degraded }),
+        body: JSON.stringify({ stimulus_ref: stimulusRef, started_at: startedAt, reason, degraded, sources }),
       });
       if (!res.ok) throw new Error(`decision → ${res.status}: ${await res.text()}`);
       return res.json() as Promise<{ verdict: string; piece_id: string | null }>;

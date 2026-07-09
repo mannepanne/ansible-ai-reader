@@ -7,11 +7,13 @@ const mockRecall = vi.fn();
 const mockFetchById = vi.fn();
 const mockWritePending = vi.fn();
 const mockIngestReference = vi.fn();
+const mockResearch = vi.fn();
 vi.mock('./tools', () => ({
   recall: (...a: unknown[]) => mockRecall(...a),
   fetchById: (...a: unknown[]) => mockFetchById(...a),
   writePending: (...a: unknown[]) => mockWritePending(...a),
   ingestReference: (...a: unknown[]) => mockIngestReference(...a),
+  research: (...a: unknown[]) => mockResearch(...a),
 }));
 
 import {
@@ -65,16 +67,24 @@ describe('notifications', () => {
 });
 
 describe('tools/list', () => {
-  it('lists exactly the four tools with names, descriptions and input schemas', async () => {
+  it('lists exactly the five tools with names, descriptions and input schemas', async () => {
     const res = (await handleMcpMessage({ jsonrpc: '2.0', id: 3, method: 'tools/list' }, deps)) as {
       result: { tools: Array<{ name: string; description: string; inputSchema: object }> };
     };
     const names = res.result.tools.map((t) => t.name).sort();
-    expect(names).toEqual(['fetch', 'ingest_reference', 'recall', 'write_pending']);
+    expect(names).toEqual(['fetch', 'ingest_reference', 'recall', 'research', 'write_pending']);
     for (const t of res.result.tools) {
       expect(t.description).toBeTruthy();
       expect(t.inputSchema).toMatchObject({ type: 'object' });
     }
+  });
+
+  it('instructs write_pending to attach type:"source" links (else verification_status never fires)', () => {
+    const wp = TOOLS.find((t) => t.name === 'write_pending')!;
+    // The agent only stamps a piece 'sourced' if it attaches a source link — so the contract must ask for it.
+    expect(wp.description).toMatch(/source/i);
+    const links = (wp.inputSchema.properties as Record<string, { items?: { properties?: Record<string, { enum?: string[] }> } }>).links;
+    expect(links.items?.properties?.type?.enum).toEqual(['source', 'recall']);
   });
 
   it('keeps log_decision / publish / promote off the surface (agent stays blind to the gate)', () => {
@@ -113,6 +123,18 @@ describe('tools/call', () => {
     expect(mockFetchById).toHaveBeenCalledWith(deps, { id: 'p' });
     expect(mockWritePending).toHaveBeenCalledWith(deps, { body: 'b' });
     expect(mockIngestReference).toHaveBeenCalledWith(deps, { text: 't' });
+  });
+
+  it('dispatches the research tool to its implementation', async () => {
+    mockResearch.mockResolvedValue({ findings: [{ quote: 'q', source_url: 'https://a', source_title: 't' }] });
+    const res = (await handleMcpMessage(
+      { jsonrpc: '2.0', id: 12, method: 'tools/call', params: { name: 'research', arguments: { query: 'a fact', k: 3 } } },
+      deps,
+    )) as { result: { content: Array<{ text: string }>; isError?: boolean } };
+
+    expect(mockResearch).toHaveBeenCalledWith(deps, { query: 'a fact', k: 3 });
+    expect(res.result.isError).toBeUndefined();
+    expect(JSON.parse(res.result.content[0].text).findings).toHaveLength(1);
   });
 
   it('returns an isError result (not a protocol error) when a tool throws', async () => {

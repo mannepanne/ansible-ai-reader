@@ -38,12 +38,31 @@ export interface DemoStats {
 
 // --- Relay agent (autonomous narrator) review surface ---
 
+// A piece's provenance link: a `recall` ref points at a memory (ref = a title or short id), a `source`
+// ref at a research URL. The reviewer sees these so grounding is visible, not just asserted.
+export interface PieceLink {
+  type: 'recall' | 'source';
+  ref: string;
+  title?: string;
+}
+
+// A research source consulted in a session (recorded on the decision, for writes AND declines).
+export interface DecisionSource {
+  quote: string;
+  source_url: string;
+  source_title: string;
+}
+
 export interface RelayPieceRow {
   id: string;
   body: string;
   summary: string | null;
   concepts: string[];
-  recalledCount: number; // how many memory ids the piece linked to (links.length)
+  recalledCount: number; // how many recall (memory) links the piece drew on
+  // 'sourced' = the piece cites at least one research URL; 'unverified' = it does not (NOT "false").
+  // 'verified' is reserved for the deferred re-verification pass and not produced in 2.1.
+  verificationStatus: string;
+  sourceLinks: PieceLink[]; // the type:'source' links, surfaced as clickable provenance
   createdAt: string;
 }
 
@@ -55,6 +74,7 @@ export interface RelayDecisionRow {
   stimulusRef: string[];
   stimulusTitles: string[]; // titles of the reader_items behind stimulusRef (the material decided on)
   pieceSummary: string | null; // for 'wrote': a summary of the piece that resulted
+  sources: DecisionSource[]; // research consulted this session (the only provenance on a decline)
   createdAt: string;
 }
 
