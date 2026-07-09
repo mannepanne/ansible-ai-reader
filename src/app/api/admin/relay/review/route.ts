@@ -20,15 +20,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  let body: { id?: string; action?: string };
+  // Upper bounds guard the free-text taste-signal fields (Stage 2.2a); pieces are short, so these are
+  // generous. Validation stays here (the trusted control-plane edge) rather than in the bridge.
+  const MAX_NOTE = 4000;
+  const MAX_BODY = 100000;
+
+  let body: { id?: string; action?: string; note?: unknown; edited_body?: unknown };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
-  const { id, action } = body;
+  const { id, action, note, edited_body } = body;
   if (!id || (action !== 'approve' && action !== 'reject')) {
     return NextResponse.json({ error: 'id and action (approve|reject) are required' }, { status: 400 });
+  }
+  if (note !== undefined && (typeof note !== 'string' || note.length > MAX_NOTE)) {
+    return NextResponse.json({ error: `note must be a string ≤ ${MAX_NOTE} chars` }, { status: 400 });
+  }
+  if (edited_body !== undefined && (typeof edited_body !== 'string' || edited_body.length > MAX_BODY)) {
+    return NextResponse.json({ error: `edited_body must be a string ≤ ${MAX_BODY} chars` }, { status: 400 });
   }
 
   // The gate-bypassing control plane uses the operator token, never the agent's bridge token.
@@ -38,11 +49,16 @@ export async function POST(request: Request) {
   }
   const base = process.env.RELAY_BRIDGE_URL || DEFAULT_BRIDGE_URL;
 
+  // Forward the taste-signal fields only when supplied, so the bridge body stays minimal otherwise.
+  const forwarded: Record<string, unknown> = { id };
+  if (note !== undefined) forwarded.note = note;
+  if (edited_body !== undefined) forwarded.edited_body = edited_body;
+
   // Writes stay behind the bridge (the sole relay_* writer); this route only proxies, admin-gated.
   const bridgeRes = await fetch(`${base}/${action}`, {
     method: 'POST',
     headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ id }),
+    body: JSON.stringify(forwarded),
   });
   const text = await bridgeRes.text();
   if (!bridgeRes.ok) {

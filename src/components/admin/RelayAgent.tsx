@@ -65,8 +65,17 @@ function bodyWithoutTitle(body: string): string {
   return rest.join('\n');
 }
 
+// A piece carries captured taste signal (Channel 2) if it has a reviewer note or was edited on approval.
+// Used to badge/filter the approved + rejected lists so the periodic distillation pass can find them.
+function hasSignal(p: RelayPieceRow): boolean {
+  return Boolean(p.reviewNote || p.originalBody);
+}
+
+const signalCount = (pieces: RelayPieceRow[]): number => pieces.filter(hasSignal).length;
+
 type View = 'log' | 'pending' | 'rejected' | 'approved';
 type Action = 'approve' | 'reject';
+type ReviewOpts = { note?: string; editedBody?: string };
 
 export default function RelayAgent({ stats }: { stats: RelayStats }) {
   const router = useRouter();
@@ -74,14 +83,22 @@ export default function RelayAgent({ stats }: { stats: RelayStats }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function review(id: string, action: Action) {
+  async function review(id: string, action: Action, opts?: ReviewOpts) {
     setBusyId(id);
     setError(null);
     try {
+      const note = opts?.note?.trim();
       const res = await fetch('/api/admin/relay/review', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id, action }),
+        body: JSON.stringify({
+          id,
+          action,
+          ...(note ? { note } : {}),
+          // edited_body only rides along on approve, and only when it actually differs (the backend
+          // also guards this, but sending nothing on a no-op keeps the request honest).
+          ...(action === 'approve' && opts?.editedBody !== undefined ? { edited_body: opts.editedBody } : {}),
+        }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string; detail?: string };
@@ -145,17 +162,17 @@ export default function RelayAgent({ stats }: { stats: RelayStats }) {
           Awaiting review{stats.pending.length > 0 ? ` (${stats.pending.length})` : ''}
         </button>
         <button role="tab" aria-selected={view === 'rejected'} onClick={() => setView('rejected')} style={subTabStyle('rejected')}>
-          Rejected
+          Rejected{signalCount(stats.rejected) > 0 ? ` · ✎${signalCount(stats.rejected)}` : ''}
         </button>
         <button role="tab" aria-selected={view === 'approved'} onClick={() => setView('approved')} style={subTabStyle('approved')}>
-          Approved
+          Approved{signalCount(stats.approved) > 0 ? ` · ✎${signalCount(stats.approved)}` : ''}
         </button>
       </div>
 
       {view === 'log' && <LogPanel decisions={stats.decisions} />}
       {view === 'pending' && <PieceList pieces={stats.pending} actions={['approve', 'reject']} busyId={busyId} onReview={review} empty="No pieces awaiting review." />}
-      {view === 'rejected' && <PieceList pieces={stats.rejected} actions={['approve']} busyId={busyId} onReview={review} empty="No rejected pieces." />}
-      {view === 'approved' && <PieceList pieces={stats.approved} actions={['reject']} busyId={busyId} onReview={review} empty="No approved pieces." />}
+      {view === 'rejected' && <PieceList pieces={stats.rejected} actions={['approve']} busyId={busyId} onReview={review} empty="No rejected pieces." filterable />}
+      {view === 'approved' && <PieceList pieces={stats.approved} actions={['reject']} busyId={busyId} onReview={review} empty="No approved pieces." filterable />}
     </div>
   );
 }
@@ -238,19 +255,33 @@ function PieceList({
   busyId,
   onReview,
   empty,
+  filterable = false,
 }: {
   pieces: RelayPieceRow[];
   actions: Action[];
   busyId: string | null;
-  onReview: (id: string, action: Action) => void;
+  onReview: (id: string, action: Action, opts?: ReviewOpts) => void;
   empty: string;
+  filterable?: boolean;
 }) {
+  // On the decided lists, let Magnus collapse to just the pieces carrying taste signal — the findability
+  // the periodic distillation pass needs (spec §F). Pending has no signal yet, so no filter there.
+  const [onlySignal, setOnlySignal] = useState(false);
+  const withSignal = signalCount(pieces);
+  const shown = filterable && onlySignal ? pieces.filter(hasSignal) : pieces;
+
   if (pieces.length === 0) {
     return <p style={{ color: '#6c757d', fontSize: '0.9em' }}>{empty}</p>;
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {pieces.map((p) => (
+      {filterable && withSignal > 0 && (
+        <label style={{ fontSize: '0.8em', color: '#495057', display: 'flex', alignItems: 'center', gap: '7px' }}>
+          <input type="checkbox" checked={onlySignal} onChange={(e) => setOnlySignal(e.target.checked)} />
+          Show only noted / edited pieces (✎{withSignal})
+        </label>
+      )}
+      {shown.map((p) => (
         <PieceCard key={p.id} piece={p} actions={actions} busyId={busyId} onReview={onReview} />
       ))}
     </div>
@@ -266,11 +297,16 @@ function PieceCard({
   piece: RelayPieceRow;
   actions: Action[];
   busyId: string | null;
-  onReview: (id: string, action: Action) => void;
+  onReview: (id: string, action: Action, opts?: ReviewOpts) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [note, setNote] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(piece.body);
   const busy = busyId === piece.id;
   const indent = { marginLeft: '26px' };
+  const canEdit = actions.includes('approve'); // an edit only rides along on approval
+  const edited = editing && draft.trim() !== piece.body.trim() ? draft : undefined;
 
   return (
     <article style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '8px', padding: '16px 20px' }}>
@@ -285,6 +321,14 @@ function PieceCard({
         </button>
         <h3 style={{ margin: 0, fontSize: '1.02em', fontWeight: 700, color: '#212529' }}>{titleOf(piece.body)}</h3>
         <VerificationBadge status={piece.verificationStatus} />
+        {hasSignal(piece) && (
+          <span
+            title={piece.originalBody ? 'Edited on approval; has a note' : 'Has a reviewer note'}
+            style={{ fontSize: '0.62em', fontWeight: 700, color: '#664d03', background: '#fff3cd', borderRadius: '4px', padding: '2px 7px' }}
+          >
+            ✎ {piece.originalBody ? 'edited' : 'noted'}
+          </span>
+        )}
       </div>
 
       {piece.summary && <p style={{ fontStyle: 'italic', color: '#495057', margin: '8px 0 8px 0', ...indent }}>{piece.summary}</p>}
@@ -307,32 +351,82 @@ function PieceCard({
         </div>
       )}
 
-      {open && (
-        <div style={{ fontSize: '0.92em', lineHeight: 1.6, color: '#212529', marginTop: '12px', ...indent }}>
-          <ReactMarkdown>{bodyWithoutTitle(piece.body)}</ReactMarkdown>
+      {/* Captured taste signal (Channel 2), shown to Magnus only — never to a writing session. */}
+      {piece.reviewNote && (
+        <div style={{ fontSize: '0.8em', color: '#664d03', background: '#fffbea', border: '1px solid #ffe69c', borderRadius: '6px', padding: '7px 10px', marginTop: '10px', ...indent }}>
+          <span style={{ color: '#997404', fontWeight: 600 }}>note:</span> {piece.reviewNote}
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '10px', marginTop: '14px', ...indent }}>
-        {actions.includes('approve') && (
-          <button
-            onClick={() => onReview(piece.id, 'approve')}
-            disabled={busy}
-            style={{ padding: '7px 16px', border: 'none', borderRadius: '6px', background: '#198754', color: '#fff', fontWeight: 600, cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}
-          >
-            {busy ? '…' : 'Approve'}
-          </button>
-        )}
-        {actions.includes('reject') && (
-          <button
-            onClick={() => onReview(piece.id, 'reject')}
-            disabled={busy}
-            style={{ padding: '7px 16px', border: '1px solid #dc3545', borderRadius: '6px', background: '#fff', color: '#dc3545', fontWeight: 600, cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}
-          >
-            {busy ? '…' : 'Reject'}
-          </button>
-        )}
-      </div>
+      {open && (
+        <div style={{ fontSize: '0.92em', lineHeight: 1.6, color: '#212529', marginTop: '12px', ...indent }}>
+          <ReactMarkdown>{bodyWithoutTitle(piece.body)}</ReactMarkdown>
+          {piece.originalBody && (
+            <details style={{ marginTop: '12px', fontSize: '0.92em' }}>
+              <summary style={{ cursor: 'pointer', color: '#997404', fontSize: '0.86em' }}>
+                original — before your edit
+              </summary>
+              <div style={{ opacity: 0.75, marginTop: '8px', borderLeft: '3px solid #ffe69c', paddingLeft: '12px' }}>
+                <ReactMarkdown>{bodyWithoutTitle(piece.originalBody)}</ReactMarkdown>
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+
+      {actions.length > 0 && (
+        <div style={{ marginTop: '14px', ...indent }}>
+          {canEdit && editing && (
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              aria-label="Edit piece body"
+              rows={Math.min(20, Math.max(6, draft.split('\n').length + 1))}
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid #ced4da', borderRadius: '6px', fontSize: '0.86em', fontFamily: 'ui-monospace, monospace', lineHeight: 1.5, marginBottom: '10px', boxSizing: 'border-box' }}
+            />
+          )}
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            aria-label="Review note"
+            placeholder={actions.includes('reject') ? 'Why? (a note — the reject reason, or a note on approval)' : 'A note (optional)'}
+            rows={2}
+            style={{ width: '100%', padding: '8px 10px', border: '1px solid #ced4da', borderRadius: '6px', fontSize: '0.84em', lineHeight: 1.5, marginBottom: '10px', boxSizing: 'border-box' }}
+          />
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {actions.includes('approve') && (
+              <button
+                onClick={() => onReview(piece.id, 'approve', { note, editedBody: edited })}
+                disabled={busy}
+                style={{ padding: '7px 16px', border: 'none', borderRadius: '6px', background: '#198754', color: '#fff', fontWeight: 600, cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}
+              >
+                {busy ? '…' : edited ? 'Approve with edit' : 'Approve'}
+              </button>
+            )}
+            {actions.includes('reject') && (
+              <button
+                onClick={() => onReview(piece.id, 'reject', { note })}
+                disabled={busy}
+                style={{ padding: '7px 16px', border: '1px solid #dc3545', borderRadius: '6px', background: '#fff', color: '#dc3545', fontWeight: 600, cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}
+              >
+                {busy ? '…' : 'Reject'}
+              </button>
+            )}
+            {canEdit && (
+              <button
+                onClick={() => {
+                  setDraft(piece.body);
+                  setEditing((v) => !v);
+                }}
+                disabled={busy}
+                style={{ padding: '7px 14px', border: '1px solid #ced4da', borderRadius: '6px', background: '#fff', color: '#495057', fontSize: '0.85em', cursor: 'pointer' }}
+              >
+                {editing ? 'Cancel edit' : 'Edit'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </article>
   );
 }

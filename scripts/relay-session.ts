@@ -11,6 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import { assembleSystemPrompt, PERSONA_FILES } from '../src/lib/relay/persona';
+import { selectExemplar, renderExemplarSection } from '../src/lib/relay/exemplars';
 import { readSession, renderTrace, type MaEvent } from '../src/lib/relay/session-readout';
 import { loadDevVars, bridgeBase } from './relay-env';
 
@@ -49,14 +50,20 @@ type Ids = { environment_id?: string; vault_id?: string; agent_id?: string; agen
 const loadIds = (): Ids => (fs.existsSync(IDS_PATH) ? JSON.parse(fs.readFileSync(IDS_PATH, 'utf-8')) : {});
 const saveIds = (ids: Ids) => fs.writeFileSync(IDS_PATH, JSON.stringify(ids, null, 2));
 
-function buildSystemPrompt(): string {
+// versionIndex picks the curated style exemplar (Channel 1) from exemplars.ts, not the static craft doc,
+// so the on-page anchor can vary as the approved corpus grows. The exemplar is baked into the agent
+// resource here at provision time, so a running (prod-orchestrator) session never re-rotates it — it is
+// fixed per agent version. Because ensureResources re-pushes on every CLI run (see its note), each
+// re-push may land a different exemplar once more than one is curated.
+function buildSystemPrompt(versionIndex: number): string {
   const dir = path.join(process.cwd(), 'relay-agent');
   const read = (f: string) => fs.readFileSync(path.join(dir, f), 'utf-8');
+  const cadence = `${read(PERSONA_FILES.cadence).trim()}\n\n${renderExemplarSection(selectExemplar(versionIndex))}`;
   return assembleSystemPrompt({
     trunk: read(PERSONA_FILES.trunk),
     grain: read(PERSONA_FILES.grain),
     rings: read(PERSONA_FILES.rings),
-    cadence: read(PERSONA_FILES.cadence),
+    cadence,
     coda: read(PERSONA_FILES.coda),
   });
 }
@@ -175,7 +182,10 @@ async function main() {
 
   await preflightBridge();
   console.log('Assembling the voice + ensuring Anthropic resources...');
-  const system = buildSystemPrompt();
+  // Index by the agent version as it stands BEFORE this run's update bump, so version N carries the
+  // exemplar chosen at index N-1 (a harmless off-by-one — the mapping just needs to be deterministic).
+  const priorIds = loadIds();
+  const system = buildSystemPrompt(priorIds.agent_version ?? 0);
   const ids = await ensureResources(system);
   console.log(`  agent=${ids.agent_id} v${ids.agent_version} env=${ids.environment_id} vault=${ids.vault_id}`);
 

@@ -115,18 +115,20 @@ export default {
     // on approval; the agent stays blind). Approve embeds the body with the sealed fn (AI binding lives
     // here) then flips the piece to approved; reject marks it rejected, never embedded.
     if (request.method === 'POST' && (url.pathname === '/approve' || url.pathname === '/reject')) {
-      let input: { id?: string };
+      let input: { id?: string; note?: string; edited_body?: string };
       try {
-        input = (await request.json()) as { id?: string };
+        input = (await request.json()) as { id?: string; note?: string; edited_body?: string };
       } catch {
         return Response.json({ error: 'invalid JSON body' }, { status: 400 });
       }
       const deps = bridgeDeps(env);
       try {
+        // note = the reviewer's "why" (Channel 2); edited_body = an approve-time fix (approve only —
+        // rejectPiece ignores it). Both are optional taste signal captured behind the gate.
         const result =
           url.pathname === '/approve'
-            ? await approvePiece(deps, { id: input.id as string })
-            : await rejectPiece(deps, { id: input.id as string });
+            ? await approvePiece(deps, { id: input.id as string, note: input.note, edited_body: input.edited_body })
+            : await rejectPiece(deps, { id: input.id as string, note: input.note });
         return Response.json(result);
       } catch (err) {
         return Response.json({ error: (err as Error).message }, { status: 400 });
