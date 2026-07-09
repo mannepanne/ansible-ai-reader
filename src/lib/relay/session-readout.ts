@@ -64,7 +64,11 @@ function sourcesFrom(raw: string): SessionSource[] {
 
 export function readSession(events: MaEvent[]): SessionReadout {
   let closingText: string | null = null;
-  let degraded: string | null = null;
+  // Degradation markers seen mid-session, surfaced on the decision so total-failure isn't silent:
+  // 'summary_only' (a fetch fell back to stored content) and 'research_unavailable' (research fired but
+  // came back empty/errored — e.g. the Perplexity key is unset). The latter distinguishes "research
+  // failed" from "the agent chose not to research", which the empty-sources list alone cannot.
+  const degradedMarkers = new Set<string>();
   const sources: SessionSource[] = [];
   const seenUrls = new Set<string>();
 
@@ -78,7 +82,10 @@ export function readSession(events: MaEvent[]): SessionReadout {
     } else if (e.type === 'agent.mcp_tool_result') {
       const raw = (e.content ?? []).map((b) => b.text ?? '').join('');
       if (raw.includes('"degraded":"summary_only"')) {
-        degraded = 'summary_only';
+        degradedMarkers.add('summary_only');
+      }
+      if (raw.includes('"degraded":"research_unavailable"')) {
+        degradedMarkers.add('research_unavailable');
       }
       for (const s of sourcesFrom(raw)) {
         if (!seenUrls.has(s.source_url)) {
@@ -89,6 +96,7 @@ export function readSession(events: MaEvent[]): SessionReadout {
     }
   }
 
+  const degraded = degradedMarkers.size ? [...degradedMarkers].join(',') : null;
   return { closingText, degraded, sources };
 }
 

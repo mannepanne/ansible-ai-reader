@@ -13,6 +13,18 @@ const fmt = (iso: string) => new Date(iso).toISOString().slice(0, 16).replace('T
 const excerpt = (s: string, n = 280) => (s.length > n ? `${s.slice(0, n)}…` : s);
 const LOG_PAGE_SIZE = 10;
 
+// Only http(s) is safe in an href: an agent/web-supplied `javascript:` or `data:` URL would execute on
+// click (these two link renders bypass ReactMarkdown's URL sanitiser). Anything else → href omitted, so
+// the label still shows but the link is inert. href is the sole injection sink on this surface.
+function safeHref(url: string): string | undefined {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'http:' || u.protocol === 'https:' ? url : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 // Grounding at a glance: 'sourced' = the piece cites a checkable research URL; 'unverified' = it does
 // not (NOT a claim of falsehood). Honest labels — 'verified' is the deferred re-verification pass.
 function VerificationBadge({ status }: { status: string }) {
@@ -287,7 +299,7 @@ function PieceCard({
           {piece.sourceLinks.map((l, i) => (
             <span key={`${l.ref}-${i}`}>
               {i > 0 ? ' · ' : ''}
-              <a href={l.ref} target="_blank" rel="noreferrer noopener" style={{ color: '#0d6efd' }}>
+              <a href={safeHref(l.ref)} target="_blank" rel="noreferrer noopener" style={{ color: '#0d6efd' }}>
                 {l.title || l.ref}
               </a>
             </span>
@@ -380,7 +392,7 @@ function LogPanel({ decisions }: { decisions: RelayDecisionRow[] }) {
                 {d.sources.map((s, si) => (
                   <span key={`${s.source_url}-${si}`}>
                     {si > 0 ? ' · ' : ''}
-                    <a href={s.source_url} target="_blank" rel="noreferrer noopener" style={{ color: '#0d6efd' }}>
+                    <a href={safeHref(s.source_url)} target="_blank" rel="noreferrer noopener" style={{ color: '#0d6efd' }}>
                       {s.source_title || s.source_url}
                     </a>
                   </span>

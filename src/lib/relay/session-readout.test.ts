@@ -89,11 +89,22 @@ describe('readSession', () => {
     expect(readSession(events).sources).toEqual([{ quote: 'q1', source_url: 'https://a.example', source_title: 'A' }]);
   });
 
-  it('ignores a degraded research result (empty findings) — no sources', () => {
+  it('ignores a degraded research result (empty findings) — no sources, but surfaces the degradation', () => {
     const events = [
       { type: 'agent.mcp_tool_result', content: [{ type: 'text', text: '{"findings":[],"degraded":"research_unavailable"}' }] },
     ];
-    expect(readSession(events).sources).toEqual([]);
+    const out = readSession(events);
+    expect(out.sources).toEqual([]);
+    // research_unavailable is surfaced so a total failure (e.g. unset key) is visible, not silent.
+    expect(out.degraded).toBe('research_unavailable');
+  });
+
+  it('joins multiple degradation markers (a fetch fell back AND research was unavailable)', () => {
+    const events = [
+      { type: 'agent.mcp_tool_result', content: [{ type: 'text', text: '{"id":"x","kind":"reference","degraded":"summary_only"}' }] },
+      { type: 'agent.mcp_tool_result', content: [{ type: 'text', text: '{"findings":[],"degraded":"research_unavailable"}' }] },
+    ];
+    expect(readSession(events).degraded).toBe('summary_only,research_unavailable');
   });
 });
 

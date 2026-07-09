@@ -177,6 +177,23 @@ describe('RelayAgent', () => {
     expect(link.getAttribute('href')).toBe('https://reuters.com/x');
   });
 
+  it('renders a javascript:-scheme source link inert (no dangerous href)', async () => {
+    const malicious: RelayStats = {
+      ...stats,
+      pending: [
+        piece('p-xss', 'Injected Piece', 'summary', {
+          verificationStatus: 'sourced',
+          // A prompt-injection-supplied link the agent could emit into write_pending.
+          sourceLinks: [{ type: 'source', ref: 'javascript:alert(document.cookie)', title: 'totally safe' }],
+        }),
+      ],
+    };
+    render(<RelayAgent stats={malicious} />);
+    const link = screen.getByText('totally safe').closest('a')!;
+    // The label still renders, but href is omitted so the javascript: URL can never execute on click.
+    expect(link.getAttribute('href')).toBeNull();
+  });
+
   it('shows an unverified badge on a piece with no source links', async () => {
     render(<RelayAgent stats={stats} />);
     expect(screen.getByText(/unverified/i)).toBeDefined();
