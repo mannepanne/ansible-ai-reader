@@ -38,6 +38,22 @@ Stage 2.5 removes the *click* (trigger-automation, still gated). Stage 3 faces t
 ## Carried guardrails (the north-star's "what not to build")
 No prediction/forecasting; no threads as tracked objects (continuity stays associative; a rollup is *consulted, not advanced*); no audience/engagement tracking; no simulated-fallible memory (the record is perfect; the only "forgetting" is narrowing what's foregrounded); **no echo chamber** (admired voices sharpen, always balanced by the opposing and unaffiliated; fact-sources trusted for accuracy, not for taking Relay's side); **no grievance engine** (the frontier grows on pattern + power, never offence — the steelman gate is mandatory).
 
+## Deferred *here* from Stage 2.1 (recorded per the `/review-spec`, 2026-07-09)
+
+The fact-grounding review consciously shrank 2.1 to its irreducible core and pushed these here — noted so they
+aren't silently lost:
+- **The admired-voices list + its consumer, the standing reading** (§3.1). 2.1 ships only a seeded
+  *trusted-source* config; the admired-voices list has no real consumer until the scheduled standing reading exists.
+- **The curated lists as editable, *growing* state** — a list table + an editing surface. 2.1 uses a checked-in
+  seed config, because a list only earns a table + admin UI once it must grow *from use* — which is the frontier (§3.2).
+- **The structural anti-echo-chamber guarantee.** 2.1's opposition-reading is *prompt-level discretion* (and the
+  stimulus already carries a Perplexity counter-view), so balance rests on the agent's goodwill + the human gate.
+  The **mandatory, structural** balance — the steelman gate (§3.2) — is what turns that intent into a guarantee.
+- **The automated re-verification pass** that upgrades a piece's `verification_status` from `sourced` →
+  `verified` (2.1 only records honest *provenance*, never a truth-claim). *(This one is a committed Stage-2
+  follow-on to 2.1/2.2, not strictly Stage 3 — but it's the other half of "fact-grounding" and belongs on the
+  same thread.)*
+
 ## Dependencies on Stage 2
 - **2.1 grounding** → the steelman gate and the three-kinds research are the frontier's promotion machinery.
 - **2.2 corpus + taste** → rollups and "have I said this" restraint need an accreted self-corpus.

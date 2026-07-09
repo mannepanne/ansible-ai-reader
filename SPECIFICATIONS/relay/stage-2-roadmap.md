@@ -40,10 +40,12 @@
 ## Stage 2 — the phases
 
 ### Phase 2.1 — Fact-grounding & outward research (the biggest lever)
-**Goal:** Relay engages verified reality before it writes.
-**In scope:** the north-star's **three kinds of research** — fact-finding against a **trusted-source list**, **admired voices** read as sparring partners (never authorities), and **other voices** (the steelman of the opposition the trunk requires); a **verification** pass (claims → sources, flag the unverifiable); **naming/legal hygiene** ([[relay-agent-guardrails]]: situations-not-people, care with victims/the dead); seed the **trusted-source + admired-voices lists** as editable store state (operator-supplied — not in the persona docs); and consolidation's **ingest-found-sources** so today's research is tomorrow's recall.
+**Spec:** [stage-2.1-fact-grounding-spec.md](./stage-2.1-fact-grounding-spec.md) — `/review-spec`'d (2026-07-09), revised to buildable.
+**Goal:** Relay gathers **verbatim, source-attributable facts** before it writes (reduces *fabrication*; the automated *verification* pass is a deferred follow-on).
+**In scope (per the reviewed spec):** a live agent-facing **`research`** tool returning quoted snippets + source (fact-finding only — `opposition` dropped since the commentariat already supplies a counter-view); re-enable `ingest_reference` (+ the `fetchById` origin-fix + dedup); a **seeded trusted-source config** (not a table); backend-derived honest `verification_status` (`sourced`, never `grounded`); provenance on pieces (`links`) and **on decisions incl. declines** (`relay_decisions.sources`); the admin-tab grounding surface; prompt-level hygiene.
+**Deferred to Stage 3** (per review): the admired-voices list + standing reading; the editable/growing list table; the structural anti-echo (steelman) guarantee.
 **Depends on:** nothing — start here.
-**Open questions:** search backend (Perplexity / a search API / reuse commentariat); research budget per session; how verification status is stored + shown; inline citation or silent links.
+**Open questions (remaining):** the MA per-tool-call timeout; the per-session research cap; conflicting-sources handling.
 
 ### Phase 2.2 — Voice & the editorial/taste loop (the spine)
 **Goal:** the writing reads like a thinking entity; the system learns your taste.
