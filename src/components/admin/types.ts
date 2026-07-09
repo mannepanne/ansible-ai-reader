@@ -63,6 +63,10 @@ export interface RelayPieceRow {
   // 'verified' is reserved for the deferred re-verification pass and not produced in 2.1.
   verificationStatus: string;
   sourceLinks: PieceLink[]; // the type:'source' links, surfaced as clickable provenance
+  // Stage 2.2a taste-signal capture (Channel 2): the reviewer's note (the "why" of a decision) and, when
+  // the body was edited on approval, the piece as Relay first wrote it (write-once — the edit delta).
+  reviewNote: string | null;
+  originalBody: string | null;
   createdAt: string;
 }
 

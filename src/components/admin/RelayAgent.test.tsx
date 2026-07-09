@@ -17,6 +17,8 @@ const piece = (id: string, title: string, summary: string, over: Partial<RelayPi
   recalledCount: 2,
   verificationStatus: 'unverified',
   sourceLinks: [],
+  reviewNote: null,
+  originalBody: null,
   createdAt: '2026-06-28T10:00:00Z',
   ...over,
 });
@@ -221,5 +223,91 @@ describe('RelayAgent', () => {
     render(<RelayAgent stats={{ ...stats, approved: [] }} />);
     await user.click(screen.getByRole('tab', { name: /^approved$/i }));
     expect(screen.getByText(/No approved pieces/i)).toBeDefined();
+  });
+
+  // --- Stage 2.2a: taste-signal capture ---
+
+  it('captures a reject reason: posts the note to the review route', async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, id: 'p-pending' }), { status: 200 }),
+    );
+    const user = userEvent.setup();
+    render(<RelayAgent stats={stats} />);
+
+    await user.type(screen.getByLabelText(/review note/i), 'announced-turn tell in para 3');
+    await user.click(screen.getByRole('button', { name: /^reject$/i }));
+
+    await waitFor(() => expect(mockRefresh).toHaveBeenCalled());
+    expect(JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body as string)).toEqual({
+      id: 'p-pending',
+      action: 'reject',
+      note: 'announced-turn tell in para 3',
+    });
+  });
+
+  it('approve-with-edit: edits the body and posts edited_body on approval', async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, id: 'p-pending', slug: 's' }), { status: 200 }),
+    );
+    const user = userEvent.setup();
+    render(<RelayAgent stats={stats} />);
+
+    await user.click(screen.getByRole('button', { name: /^edit$/i }));
+    const editor = screen.getByLabelText(/edit piece body/i);
+    await user.clear(editor);
+    await user.type(editor, '# Pending Piece\n\nfixed prose.');
+    await user.click(screen.getByRole('button', { name: /approve with edit/i }));
+
+    await waitFor(() => expect(mockRefresh).toHaveBeenCalled());
+    const body = JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body as string);
+    expect(body).toMatchObject({ id: 'p-pending', action: 'approve', edited_body: '# Pending Piece\n\nfixed prose.' });
+  });
+
+  it('renders a captured note and the original→edited delta on a decided piece', async () => {
+    const withSignal: RelayStats = {
+      ...stats,
+      rejected: [
+        piece('p-noted', 'Noted Piece', 'summary', {
+          reviewNote: 'too abstract in the middle',
+          originalBody: '# Noted Piece\n\nthe original clumsy prose.',
+        }),
+      ],
+    };
+    const user = userEvent.setup();
+    render(<RelayAgent stats={withSignal} />);
+    await user.click(screen.getByRole('tab', { name: /^rejected/i }));
+
+    expect(screen.getByText(/too abstract in the middle/)).toBeDefined(); // the note, visible
+    expect(screen.getByText('✎ edited')).toBeDefined(); // the signal badge
+    await user.click(screen.getByRole('button', { name: /expand/i }));
+    expect(screen.getByText(/original — before your edit/i)).toBeDefined();
+  });
+
+  it('filters the rejected list to only noted/edited pieces', async () => {
+    const mixed: RelayStats = {
+      ...stats,
+      rejected: [
+        piece('p-plain', 'Plain Reject', 'no signal'),
+        piece('p-noted', 'Noted Reject', 'has signal', { reviewNote: 'weak close' }),
+      ],
+    };
+    const user = userEvent.setup();
+    render(<RelayAgent stats={mixed} />);
+    await user.click(screen.getByRole('tab', { name: /^rejected/i }));
+
+    expect(screen.getByText('Plain Reject')).toBeDefined();
+    expect(screen.getByText('Noted Reject')).toBeDefined();
+    await user.click(screen.getByRole('checkbox', { name: /only noted \/ edited/i }));
+    expect(screen.queryByText('Plain Reject')).toBeNull(); // filtered out
+    expect(screen.getByText('Noted Reject')).toBeDefined();
+  });
+
+  it('badges the rejected sub-tab with the count of noted/edited pieces', async () => {
+    const mixed: RelayStats = {
+      ...stats,
+      rejected: [piece('p-noted', 'Noted Reject', 'x', { reviewNote: 'weak close' })],
+    };
+    render(<RelayAgent stats={mixed} />);
+    expect(screen.getByRole('tab', { name: /rejected · ✎1/i })).toBeDefined();
   });
 });

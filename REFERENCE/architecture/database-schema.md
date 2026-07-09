@@ -271,6 +271,7 @@ supabase db push
 - `20260622_add_relay_recall_fn.sql` - `relay_recall()` ANN function (cosine UNION over references + approved pieces; service-role EXECUTE only)
 - `20260707_add_agent_session_runs.sql` - Relay orchestrator run ledger (`agent_session_runs`; RLS enabled, zero policies)
 - `20260709_add_relay_decision_sources.sql` - Stage 2.1 fact-grounding: `relay_decisions.sources` (jsonb) — research provenance captured on every decision, writes AND declines. Pairs with `relay_pieces.verification_status` (`unverified` \| `sourced`; `verified` reserved for the deferred re-verification pass) and `relay_pieces.links` (`[{type:'recall'|'source', ref, title?}]`)
+- `20260709_add_relay_piece_review_capture.sql` - Stage 2.2a voice/editorial loop: `relay_pieces.review_note` (text) — the reviewer's "why" captured at decision time — and `relay_pieces.original_body` (text, **write-once**) — the piece as Relay first wrote it, set the first time a human edits the body on approval (the edit delta = `original_body` vs `body`). Both are Channel-2 taste signal for Magnus/curation only; **never** read on the writing-session path (recall / `relay_recall` / system-prompt assembly) — gate-blindness (`stage-1-technical-spec.md` §7/A4).
 
 > **Note:** the `relay_*` migrations are applied via the Supabase dashboard SQL editor, not `supabase db push` — the CLI migration history is out of sync (the initial schema was created directly).
 

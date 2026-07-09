@@ -82,6 +82,39 @@ describe('POST /api/admin/relay/review', () => {
     expect((fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]).toBe('https://bridge.test/reject');
   });
 
+  it('forwards a review note and edited_body to the bridge when present', async () => {
+    asAdmin();
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, id: 'p1', slug: 's' }), { status: 200 }),
+    );
+    await POST(makeReq({ id: 'p1', action: 'approve', note: '  soft 2nd para  ', edited_body: '# T\n\nfixed' }));
+    const body = JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body as string);
+    expect(body).toEqual({ id: 'p1', note: '  soft 2nd para  ', edited_body: '# T\n\nfixed' });
+  });
+
+  it('omits note/edited_body from the bridge body when not supplied', async () => {
+    asAdmin();
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, id: 'p1' }), { status: 200 }),
+    );
+    await POST(makeReq({ id: 'p1', action: 'reject' }));
+    expect(JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body as string)).toEqual({ id: 'p1' });
+  });
+
+  it('returns 400 when the note is not a string or is too long', async () => {
+    asAdmin();
+    expect((await POST(makeReq({ id: 'p1', action: 'approve', note: 123 }))).status).toBe(400);
+    expect((await POST(makeReq({ id: 'p1', action: 'approve', note: 'x'.repeat(4001) }))).status).toBe(400);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when edited_body is not a string or is too long', async () => {
+    asAdmin();
+    expect((await POST(makeReq({ id: 'p1', action: 'approve', edited_body: 42 }))).status).toBe(400);
+    expect((await POST(makeReq({ id: 'p1', action: 'approve', edited_body: 'x'.repeat(100001) }))).status).toBe(400);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('returns 502 with the bridge error detail when the bridge rejects', async () => {
     asAdmin();
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(

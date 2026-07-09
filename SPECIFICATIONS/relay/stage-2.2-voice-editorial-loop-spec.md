@@ -1,6 +1,8 @@
 # Relay — Stage 2.2: Voice & the editorial/taste loop (spec)
 
-**Status:** REVISED post-`/review-spec` (2026-07-09, 3-lens team review — APPROVED WITH CONDITIONS, all conditions folded in below). Ready to build **2.2a**. 2.2b follows once there's a captured corpus.
+**Status:** **2.2a IMPLEMENTED** (2026-07-09, branch `feature/relay-stage-2.2a-capture`) — code + tests complete (full suite, `tsc`, `next lint` green). One manual rollout step remains for the operator: run the `20260709_add_relay_piece_review_capture.sql` migration in the Supabase SQL editor. Then the §G DoD (close the loop once by hand from real captures) is a live/curation step. **2.2b** (editor-agent + distiller) follows once there's a captured corpus. Revised post-`/review-spec` (3-lens team review — APPROVED WITH CONDITIONS, all conditions folded in).
+
+**Build note (a §H simplification):** because Magnus chose **curated checked-in exemplars** (not auto-drawn), the exemplar path has **no DB reader at all** — the whole system-prompt assembly is DB-free. So blindness is *structural*, stronger than the review's §H assumed: the test asserts the assembly modules (`persona.ts`, `exemplars.ts`) and the recall SQL reference **no** Channel-2 column, and that `exemplars.ts` imports no DB client — there is simply no query that could pull `original_body` into the agent's context.
 **Roadmap:** [stage-2-roadmap.md](./stage-2-roadmap.md) Phase 2.2 · **North star:** [ORIGINAL_IDEA/ansible-relay-agent-memory-system-spec.md](../ORIGINAL_IDEA/ansible-relay-agent-memory-system-spec.md) — "voice sharpening over time; remember rejections/edits."
 **Design memory:** [[relay-agent-editorial-design]] (restraint/variety is a memory + material feature, not a prompt feature).
 

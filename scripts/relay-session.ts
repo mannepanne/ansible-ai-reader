@@ -11,6 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import { assembleSystemPrompt, PERSONA_FILES } from '../src/lib/relay/persona';
+import { selectExemplar, renderExemplarSection } from '../src/lib/relay/exemplars';
 import { readSession, renderTrace, type MaEvent } from '../src/lib/relay/session-readout';
 import { loadDevVars, bridgeBase } from './relay-env';
 
@@ -49,14 +50,17 @@ type Ids = { environment_id?: string; vault_id?: string; agent_id?: string; agen
 const loadIds = (): Ids => (fs.existsSync(IDS_PATH) ? JSON.parse(fs.readFileSync(IDS_PATH, 'utf-8')) : {});
 const saveIds = (ids: Ids) => fs.writeFileSync(IDS_PATH, JSON.stringify(ids, null, 2));
 
-function buildSystemPrompt(): string {
+// versionIndex rotates the curated style exemplar (Channel 1) per agent version — the exemplar lives in
+// exemplars.ts, not the static craft doc, so the on-page anchor varies as the approved corpus grows.
+function buildSystemPrompt(versionIndex: number): string {
   const dir = path.join(process.cwd(), 'relay-agent');
   const read = (f: string) => fs.readFileSync(path.join(dir, f), 'utf-8');
+  const cadence = `${read(PERSONA_FILES.cadence).trim()}\n\n${renderExemplarSection(selectExemplar(versionIndex))}`;
   return assembleSystemPrompt({
     trunk: read(PERSONA_FILES.trunk),
     grain: read(PERSONA_FILES.grain),
     rings: read(PERSONA_FILES.rings),
-    cadence: read(PERSONA_FILES.cadence),
+    cadence,
     coda: read(PERSONA_FILES.coda),
   });
 }
@@ -175,7 +179,10 @@ async function main() {
 
   await preflightBridge();
   console.log('Assembling the voice + ensuring Anthropic resources...');
-  const system = buildSystemPrompt();
+  // Rotate the exemplar by the current agent version (before this run's update bump) — per-version, not
+  // per-session: the prompt is baked into the pinned agent resource, so it can only vary on a re-push.
+  const priorIds = loadIds();
+  const system = buildSystemPrompt(priorIds.agent_version ?? 0);
   const ids = await ensureResources(system);
   console.log(`  agent=${ids.agent_id} v${ids.agent_version} env=${ids.environment_id} vault=${ids.vault_id}`);
 

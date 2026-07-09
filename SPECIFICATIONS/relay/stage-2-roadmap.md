@@ -48,6 +48,7 @@
 **Open questions (remaining):** the MA per-tool-call timeout; the per-session research cap; conflicting-sources handling.
 
 ### Phase 2.2 — Voice & the editorial/taste loop (the spine)
+**Spec:** [stage-2.2-voice-editorial-loop-spec.md](./stage-2.2-voice-editorial-loop-spec.md) — `/review-spec`'d (2026-07-09, APPROVED WITH CONDITIONS). Sliced: **2.2a** (capture the why + the fix + findability + curated exemplar) **IMPLEMENTED**; **2.2b** (editor-agent + distiller) deferred until a captured corpus exists.
 **Goal:** the writing reads like a thinking entity; the system learns your taste.
 **In scope (machinery, build once):** a phrase-level **"red pen"** (highlight AI-tells / weak lines, like an editor before a rewrite); **remember rejections & edits as anti-examples** (closing today's gap where a reject is forgotten and its embedding cleared); optionally an **editor-agent pass** that critiques before you see it ([[relay-agent-editorial-design]]).
 **In scope (continuous discipline):** curated runs + approvals so recall + restraint mature; subtractive voice-tuning (minimal coda; concrete-true-detail over metaphor; kill fixed tics via varied material — spike findings). The engagement signals from 2.3 also feed taste here.

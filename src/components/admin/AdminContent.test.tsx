@@ -82,6 +82,8 @@ const mockRelayStats: RelayStats = {
       recalledCount: 4,
       verificationStatus: 'unverified',
       sourceLinks: [],
+      reviewNote: null,
+      originalBody: null,
       createdAt: '2026-06-28T10:53:36Z',
     },
   ],

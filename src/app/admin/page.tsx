@@ -64,17 +64,17 @@ export default async function AdminPage() {
     db.from('demo_events').select('event_type'),
     db
       .from('relay_pieces')
-      .select('id, body, summary, concepts, links, verification_status, created_at')
+      .select('id, body, summary, concepts, links, verification_status, review_note, original_body, created_at')
       .order('created_at', { ascending: false })
       .eq('state', 'pending_review'),
     db
       .from('relay_pieces')
-      .select('id, body, summary, concepts, links, verification_status, created_at')
+      .select('id, body, summary, concepts, links, verification_status, review_note, original_body, created_at')
       .order('created_at', { ascending: false })
       .eq('state', 'approved'),
     db
       .from('relay_pieces')
-      .select('id, body, summary, concepts, links, verification_status, created_at')
+      .select('id, body, summary, concepts, links, verification_status, review_note, original_body, created_at')
       .order('created_at', { ascending: false })
       .eq('state', 'rejected'),
     db.from('relay_pieces').select('*', { count: 'exact', head: true }).eq('state', 'pending_review'),
@@ -222,6 +222,8 @@ export default async function AdminPage() {
     concepts: string[] | null;
     links: unknown[] | null;
     verification_status: string | null;
+    review_note: string | null;
+    original_body: string | null;
     created_at: string;
   }): RelayPieceRow => {
     const links = normalizeLinks(p.links ?? []);
@@ -233,6 +235,8 @@ export default async function AdminPage() {
       recalledCount: links.filter((l) => l.type === 'recall').length,
       verificationStatus: p.verification_status ?? 'unverified',
       sourceLinks: links.filter((l) => l.type === 'source'),
+      reviewNote: p.review_note ?? null,
+      originalBody: p.original_body ?? null,
       createdAt: p.created_at,
     };
   };
