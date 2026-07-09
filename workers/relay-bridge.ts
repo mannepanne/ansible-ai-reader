@@ -25,6 +25,9 @@ export interface Env {
   // The bridge's own Reader API token — lets the `fetch` MCP tool pull full article bodies.
   // Optional: without it, `fetch` returns stored reference content rather than the full body.
   READER_API_TOKEN?: string;
+  // Perplexity key for the `research` MCP tool's grounded-search calls.
+  // Optional: without it, `research` fails CLOSED (returns degraded) rather than aborting the session.
+  PERPLEXITY_API_KEY?: string;
 }
 
 // The gate-bypassing control plane. These need the separate operator token; everything else (the
@@ -48,7 +51,12 @@ function serviceRoleClient(env: Env) {
 
 // A fresh service-role dep bundle per request (Workers isolates don't share a client across requests).
 function bridgeDeps(env: Env) {
-  return { supabase: serviceRoleClient(env), ai: env.AI, readerToken: env.READER_API_TOKEN };
+  return {
+    supabase: serviceRoleClient(env),
+    ai: env.AI,
+    readerToken: env.READER_API_TOKEN,
+    perplexityKey: env.PERPLEXITY_API_KEY,
+  };
 }
 
 export default {

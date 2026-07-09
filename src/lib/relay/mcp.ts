@@ -2,7 +2,7 @@
 // ABOUT: Implements initialize / notifications/initialized / tools/list / tools/call — tools only,
 // ABOUT: no Durable Objects, no SDK; the leanest surface a Managed Agent's MCP connector needs.
 
-import { recall, fetchById, writePending, ingestReference, type ToolDeps } from './tools';
+import { recall, fetchById, writePending, ingestReference, research, type ToolDeps } from './tools';
 
 // Identity returned in the initialize handshake.
 export const SERVER_INFO = { name: 'relay-bridge', version: '1.0.0' };
@@ -51,14 +51,27 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: 'write_pending',
-    description: 'Write a new piece. Provide the full body, a short summary, the concepts it touches, and the ids it drew on.',
+    description:
+      'Write a new piece. Provide the full body, a short summary, the concepts it touches, and its links — the provenance behind it. The prose itself names no source; the links carry that record privately. Add one link per thing you drew on: {type:"source", ref:<url>, title?} for each research finding you grounded a specific claim on, and {type:"recall", ref:<id>} for each memory you leaned on. This is how the work is later checked, so record the sources you grounded on.',
     inputSchema: {
       type: 'object',
       properties: {
         body: { type: 'string', description: 'The full piece.' },
         summary: { type: 'string', description: 'A one-line summary for later recall.' },
         concepts: { type: 'array', items: { type: 'string' }, description: 'Concepts the piece touches.' },
-        links: { type: 'array', description: 'The recall ids this piece drew on (provenance).' },
+        links: {
+          type: 'array',
+          description: 'Provenance links: {type:"source", ref:<url>, title?} for grounded facts, {type:"recall", ref:<id>} for memory drawn on.',
+          items: {
+            type: 'object',
+            properties: {
+              type: { type: 'string', enum: ['source', 'recall'], description: '"source" = a research URL; "recall" = a memory id.' },
+              ref: { type: 'string', description: 'A source URL (for type:"source") or a recall id (for type:"recall").' },
+              title: { type: 'string', description: 'Optional human-readable label.' },
+            },
+            required: ['type', 'ref'],
+          },
+        },
       },
       required: ['body'],
     },
@@ -67,17 +80,32 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: 'ingest_reference',
-    description: 'Record a piece of reference material you gathered, so it becomes recallable later.',
+    description:
+      'Record a piece of reference material you gathered, so it becomes recallable later. Requires the source URL it came from (used to avoid storing the same source twice).',
     inputSchema: {
       type: 'object',
       properties: {
-        source_ref: { type: 'string', description: 'Where it came from (e.g. a URL).' },
+        source_ref: { type: 'string', description: 'The source URL it came from (required).' },
         title: { type: 'string', description: 'A title for the reference.' },
         text: { type: 'string', description: 'The reference text to remember.' },
       },
-      required: ['text'],
+      required: ['text', 'source_ref'],
     },
     handler: (deps, args) => ingestReference(deps, args as { source_ref?: string; title?: string; text: string }),
+  },
+  {
+    name: 'research',
+    description:
+      'Search the web for verifiable facts before you assert a specific. Returns findings as {quote, source_url, source_title} — verbatim extracts you can attribute to a source, not a paraphrase. If it returns nothing (degraded), do not assert the specific: hedge or stay silent.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'What fact to check or find.' },
+        k: { type: 'integer', description: 'How many findings to return (1–10, default 5).', minimum: 1, maximum: 10 },
+      },
+      required: ['query'],
+    },
+    handler: (deps, args) => research(deps, args as { query: string; k?: number }),
   },
 ];
 

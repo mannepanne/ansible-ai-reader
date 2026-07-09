@@ -10,7 +10,7 @@ import {
   type MaClient,
   type RunResourceIds,
 } from './session-run';
-import { readSession } from './session-readout';
+import { readSession, type SessionSource } from './session-readout';
 
 export interface CurrentRun {
   runId: string; // agent_session_runs row id
@@ -36,6 +36,7 @@ export type FinalizeFn = (args: {
   startedAt: string;
   reason: string | null;
   degraded: string | null;
+  sources: SessionSource[];
 }) => Promise<{ verdict: string; piece_id: string | null }>;
 
 export interface OrchestratorDeps {
@@ -167,6 +168,7 @@ export async function onAlarm(deps: OrchestratorDeps): Promise<void> {
         startedAt: current.startedAt,
         reason: readout.closingText,
         degraded: readout.degraded,
+        sources: readout.sources,
       });
       await updateRun(deps, current.runId, { state: result.verdict, piece_id: result.piece_id, degraded: readout.degraded ?? null });
       deps.log(`finalized ${current.readerId} verdict=${result.verdict} piece=${result.piece_id ?? '—'}`);

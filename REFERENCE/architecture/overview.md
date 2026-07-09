@@ -63,7 +63,7 @@ We deploy **three core Cloudflare Workers** (plus a fourth for the Relay subsyst
 ### 4. Relay Bridge Worker (`wrangler-relay-bridge.toml`)
 - The owned-memory gateway for the **Relay** subsystem (an autonomous-narrator experiment layered on Ansible)
 - The **only** thing that touches the `relay_*` tables (service-role; bypasses RLS)
-- Exposes a back-fill route and a small MCP tool surface (`recall` / `fetch` / `write_pending` / `ingest_reference`) behind a shared-secret bearer
+- Exposes a back-fill route and a small MCP tool surface (`recall` / `fetch` / `write_pending` / `ingest_reference` / `research`) behind a shared-secret bearer
 - Separate from the main app for a **different reason than the cron/consumer split**: it is the deliberate "swappable seam" — all of Relay's durable state lives behind it so the agent harness (Managed Agents now, Cloudflare Agents SDK later) can be swapped by rewriting only a thin adapter
 - See `SPECIFICATIONS/relay/stage-1-technical-spec.md`
 

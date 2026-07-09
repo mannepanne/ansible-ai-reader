@@ -99,13 +99,24 @@ describe('finalizeDecision', () => {
     });
   });
 
-  it('defaults stimulus_ref to an empty array and reason/degraded to null', async () => {
+  it('records research sources on the decision (for a decline as well as a write)', async () => {
+    const supabase = makeSupabase({ pieces: [] });
+    const sources = [{ quote: 'a fact', source_url: 'https://a.example', source_title: 'A' }];
+    await finalizeDecision(deps(supabase), { stimulus_ref: ['r1'], started_at: T0, sources });
+    expect((supabase as never as { __inserted: Record<string, unknown>[] }).__inserted[0]).toMatchObject({
+      verdict: 'declined',
+      sources,
+    });
+  });
+
+  it('defaults stimulus_ref to an empty array and reason/degraded to null, sources to []', async () => {
     const supabase = makeSupabase({ pieces: [] });
     await finalizeDecision(deps(supabase), { started_at: T0 } as never);
     expect((supabase as never as { __inserted: Record<string, unknown>[] }).__inserted[0]).toMatchObject({
       stimulus_ref: [],
       reason: null,
       degraded: null,
+      sources: [],
     });
   });
 

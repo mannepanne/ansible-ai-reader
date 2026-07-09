@@ -269,6 +269,8 @@ supabase db push
 - `20260411_add_item_signals.sql` - Add item_signals engagement event log table
 - `20260621_add_relay_tables.sql` - Relay subsystem: pgvector + relay_pieces / relay_references / relay_decisions (RLS enabled, zero policies; service-role-only)
 - `20260622_add_relay_recall_fn.sql` - `relay_recall()` ANN function (cosine UNION over references + approved pieces; service-role EXECUTE only)
+- `20260707_add_agent_session_runs.sql` - Relay orchestrator run ledger (`agent_session_runs`; RLS enabled, zero policies)
+- `20260709_add_relay_decision_sources.sql` - Stage 2.1 fact-grounding: `relay_decisions.sources` (jsonb) — research provenance captured on every decision, writes AND declines. Pairs with `relay_pieces.verification_status` (`unverified` \| `sourced`; `verified` reserved for the deferred re-verification pass) and `relay_pieces.links` (`[{type:'recall'|'source', ref, title?}]`)
 
 > **Note:** the `relay_*` migrations are applied via the Supabase dashboard SQL editor, not `supabase db push` — the CLI migration history is out of sync (the initial schema was created directly).
 

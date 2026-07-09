@@ -33,7 +33,7 @@ describe('readSession', () => {
   });
 
   it('returns nulls when there is no agent message or degradation', () => {
-    expect(readSession([{ type: 'session.status_idle' }])).toEqual({ closingText: null, degraded: null });
+    expect(readSession([{ type: 'session.status_idle' }])).toEqual({ closingText: null, degraded: null, sources: [] });
   });
 
   it('ignores non-text content blocks and does not let an empty trailing message clear the closing text', () => {
@@ -46,8 +46,65 @@ describe('readSession', () => {
   });
 
   it('tolerates a missing or empty events array', () => {
-    expect(readSession(undefined as never)).toEqual({ closingText: null, degraded: null });
-    expect(readSession([])).toEqual({ closingText: null, degraded: null });
+    expect(readSession(undefined as never)).toEqual({ closingText: null, degraded: null, sources: [] });
+    expect(readSession([])).toEqual({ closingText: null, degraded: null, sources: [] });
+  });
+
+  it('extracts research sources from a research tool result (findings array)', () => {
+    const events = [
+      {
+        type: 'agent.mcp_tool_result',
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              findings: [
+                { quote: 'Fines up to 35m euros.', source_url: 'https://a.example', source_title: 'A' },
+                { quote: 'Second fact.', source_url: 'https://b.example', source_title: 'B' },
+              ],
+            }),
+          },
+        ],
+      },
+      { type: 'agent.message', content: [{ type: 'text', text: 'wrote something' }] },
+    ];
+    expect(readSession(events).sources).toEqual([
+      { quote: 'Fines up to 35m euros.', source_url: 'https://a.example', source_title: 'A' },
+      { quote: 'Second fact.', source_url: 'https://b.example', source_title: 'B' },
+    ]);
+  });
+
+  it('dedups research sources by URL across multiple research calls, and ignores non-research results', () => {
+    const events = [
+      { type: 'agent.mcp_tool_result', content: [{ type: 'text', text: '[{"id":"1","kind":"reference","title":"recall hit"}]' }] },
+      {
+        type: 'agent.mcp_tool_result',
+        content: [{ type: 'text', text: JSON.stringify({ findings: [{ quote: 'q1', source_url: 'https://a.example', source_title: 'A' }] }) }],
+      },
+      {
+        type: 'agent.mcp_tool_result',
+        content: [{ type: 'text', text: JSON.stringify({ findings: [{ quote: 'again', source_url: 'https://a.example', source_title: 'A' }] }) }],
+      },
+    ];
+    expect(readSession(events).sources).toEqual([{ quote: 'q1', source_url: 'https://a.example', source_title: 'A' }]);
+  });
+
+  it('ignores a degraded research result (empty findings) — no sources, but surfaces the degradation', () => {
+    const events = [
+      { type: 'agent.mcp_tool_result', content: [{ type: 'text', text: '{"findings":[],"degraded":"research_unavailable"}' }] },
+    ];
+    const out = readSession(events);
+    expect(out.sources).toEqual([]);
+    // research_unavailable is surfaced so a total failure (e.g. unset key) is visible, not silent.
+    expect(out.degraded).toBe('research_unavailable');
+  });
+
+  it('joins multiple degradation markers (a fetch fell back AND research was unavailable)', () => {
+    const events = [
+      { type: 'agent.mcp_tool_result', content: [{ type: 'text', text: '{"id":"x","kind":"reference","degraded":"summary_only"}' }] },
+      { type: 'agent.mcp_tool_result', content: [{ type: 'text', text: '{"findings":[],"degraded":"research_unavailable"}' }] },
+    ];
+    expect(readSession(events).degraded).toBe('summary_only,research_unavailable');
   });
 });
 

@@ -19,6 +19,13 @@ Development followed 5 sequential phases (all complete). Active work is now feat
 
 - **[12-content-security-policy.md](./12-content-security-policy.md)** - Content-Security-Policy (Report-Only first, then enforce). Follow-up to the baseline security-headers work.
 
+### Relay (autonomous narrator)
+
+Stage 0 (voice spike) + Stage 1 (mechanical engine) complete. Forward plan:
+- **[relay/stage-2-roadmap.md](./relay/stage-2-roadmap.md)** — Stage 2 "making it come alive": Phases 2.1 fact-grounding → 2.2 voice/editorial loop → 2.3 engine (archive-hook + rich engagement stimulus) → 2.4 blog → 2.5 trigger-automation. Maps every idea from the north-star memory-system spec.
+- **[relay/stage-3-outline.md](./relay/stage-3-outline.md)** — Stage 3 outline: the frontier of attention + full autonomy (the anti-radicalisation machinery). To be enriched at kickoff.
+- North star: **[ORIGINAL_IDEA/ansible-relay-agent-memory-system-spec.md](./ORIGINAL_IDEA/ansible-relay-agent-memory-system-spec.md)**. Delivered Stage-1 specs also in [relay/](./relay/).
+
 ### Completed Feature Specs
 
 - ✅ **[ARCHIVE/features/11-interest-signals-phase1.md](./ARCHIVE/features/11-interest-signals-phase1.md)** - Interest Signals Phase 1: append-only event log of local engagement actions (Apr 2026)

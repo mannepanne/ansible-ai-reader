@@ -10,6 +10,8 @@
 #   RELAY_CONTROL_TOKEN        - gates /decision, /approve, /reject (operator-only; never given to the agent)
 #   READER_API_TOKEN           - Reader API token for the `fetch` tool's full-text body pulls
 #                                (optional; if unset, `fetch` silently degrades to summary-only)
+#   PERPLEXITY_API_KEY         - Perplexity key for the `research` tool's grounded-search calls
+#                                (optional; if unset, `research` fails closed to degraded)
 
 name = "ansible-relay-bridge"
 main = "workers/relay-bridge.ts"

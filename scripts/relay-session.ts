@@ -62,8 +62,9 @@ function buildSystemPrompt(): string {
 }
 
 const MCP_SERVERS = [{ type: 'url', url: BRIDGE_MCP_URL, name: 'relay-bridge' }];
-// recall/fetch/write_pending enabled and always_allow (unattended — never block on a confirmation).
-// ingest_reference stays disabled: the research path is not exercised in Stage 1.
+// All five tools enabled and always_allow (unattended — never block on a confirmation). research +
+// ingest_reference are the Stage 2.1 fact-grounding pair: research fetches verbatim sourced facts, and
+// ingest_reference keeps a worthwhile source so today's checking becomes tomorrow's recall.
 const TOOLSET = {
   type: 'mcp_toolset',
   mcp_server_name: 'relay-bridge',
@@ -72,6 +73,8 @@ const TOOLSET = {
     { name: 'recall', enabled: true, permission_policy: { type: 'always_allow' } },
     { name: 'fetch', enabled: true, permission_policy: { type: 'always_allow' } },
     { name: 'write_pending', enabled: true, permission_policy: { type: 'always_allow' } },
+    { name: 'research', enabled: true, permission_policy: { type: 'always_allow' } },
+    { name: 'ingest_reference', enabled: true, permission_policy: { type: 'always_allow' } },
   ],
 };
 
@@ -235,6 +238,7 @@ async function main() {
       started_at: startedAt,
       reason: readout.closingText,
       degraded: readout.degraded,
+      sources: readout.sources,
     }),
   });
   if (!res.ok) throw new Error(`decision finalize → ${res.status}: ${await res.text()}`);
@@ -244,6 +248,7 @@ async function main() {
   console.log(`verdict:   ${decision.verdict}`);
   console.log(`piece_id:  ${decision.piece_id ?? '(none — silence)'}`);
   if (readout.degraded) console.log(`degraded:  ${readout.degraded}`);
+  if (readout.sources.length) console.log(`sources:   ${readout.sources.length} consulted`);
   console.log(`\nclosing text:\n${readout.closingText ?? '(none)'}`);
 }
 
