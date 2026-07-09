@@ -62,17 +62,25 @@ describe('gate-blindness: the writing-session path never references Channel-2 co
     'src/lib/relay/persona.ts', // system-prompt assembly
     'src/lib/relay/exemplars.ts', // the Channel-1 anchor (must not read the DB)
     // The actual runtime read path that feeds the agent: recall() (via the RPC) and fetchById() hand a
-    // self-piece's body back to the agent. This is the door that opens — guard it, so a future select('*')
-    // that started pulling original_body would fail here rather than silently leak.
+    // self-piece's body back to the agent — the one door that opens onto piece rows.
     'src/lib/relay/tools.ts',
     'supabase/migrations/20260622_add_relay_recall_fn.sql', // the recall query the agent's tool runs
   ];
 
-  it.each(sessionPathFiles)('%s references no Channel-2 column', (rel) => {
+  it.each(sessionPathFiles)('%s names no Channel-2 column', (rel) => {
     const src = fs.readFileSync(path.join(repoRoot, rel), 'utf-8');
     for (const col of CHANNEL2) {
       expect(src.includes(col)).toBe(false);
     }
+  });
+
+  // The name check above only catches an EXPLICIT `original_body` reference. A wildcard `select('*')`
+  // names no column yet would pull every column into the agent's reach — so guard that separately: the
+  // session read path must select explicit columns. This is what makes the "no leak" guarantee robust
+  // against a future regression, not just true today (the property the whole phase rests on).
+  it('the session read path uses explicit column selects, never select(*)', () => {
+    const toolsSrc = fs.readFileSync(path.join(repoRoot, 'src/lib/relay/tools.ts'), 'utf-8');
+    expect(toolsSrc).not.toMatch(/\.select\(\s*['"`]\s*\*/);
   });
 
   it('exemplars.ts does not import supabase/embed (assembly stays DB-free)', () => {

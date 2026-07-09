@@ -50,8 +50,11 @@ type Ids = { environment_id?: string; vault_id?: string; agent_id?: string; agen
 const loadIds = (): Ids => (fs.existsSync(IDS_PATH) ? JSON.parse(fs.readFileSync(IDS_PATH, 'utf-8')) : {});
 const saveIds = (ids: Ids) => fs.writeFileSync(IDS_PATH, JSON.stringify(ids, null, 2));
 
-// versionIndex rotates the curated style exemplar (Channel 1) per agent version — the exemplar lives in
-// exemplars.ts, not the static craft doc, so the on-page anchor varies as the approved corpus grows.
+// versionIndex picks the curated style exemplar (Channel 1) from exemplars.ts, not the static craft doc,
+// so the on-page anchor can vary as the approved corpus grows. The exemplar is baked into the agent
+// resource here at provision time, so a running (prod-orchestrator) session never re-rotates it — it is
+// fixed per agent version. Because ensureResources re-pushes on every CLI run (see its note), each
+// re-push may land a different exemplar once more than one is curated.
 function buildSystemPrompt(versionIndex: number): string {
   const dir = path.join(process.cwd(), 'relay-agent');
   const read = (f: string) => fs.readFileSync(path.join(dir, f), 'utf-8');
@@ -179,8 +182,8 @@ async function main() {
 
   await preflightBridge();
   console.log('Assembling the voice + ensuring Anthropic resources...');
-  // Rotate the exemplar by the current agent version (before this run's update bump) — per-version, not
-  // per-session: the prompt is baked into the pinned agent resource, so it can only vary on a re-push.
+  // Index by the agent version as it stands BEFORE this run's update bump, so version N carries the
+  // exemplar chosen at index N-1 (a harmless off-by-one — the mapping just needs to be deterministic).
   const priorIds = loadIds();
   const system = buildSystemPrompt(priorIds.agent_version ?? 0);
   const ids = await ensureResources(system);

@@ -17,8 +17,7 @@ export interface Exemplar {
   body: string;
 }
 
-// Seeded with the piece that was formerly hardcoded in ansible-agent-craft-and-cadence.md. Add more
-// curated approved pieces here over time; each new entry widens the rotation.
+// Add more curated approved pieces here over time; each new entry widens the rotation.
 export const EXEMPLARS: Exemplar[] = [
   {
     title: 'Seeing like a vendor',
@@ -59,9 +58,9 @@ export function selectExemplar(versionIndex: number, exemplars: Exemplar[] = EXE
 }
 
 /**
- * Render the "texture to aim for" craft section around a chosen exemplar, as a blockquote — the same
- * shape the exemplar formerly had inline in the craft doc. Assembled into the cadence part so it stays
- * within craft & cadence, before the coda.
+ * Render the "texture to aim for" craft section around a chosen exemplar, as a blockquote — the shape
+ * used inline in the craft doc. Assembled into the cadence part so it stays within craft & cadence,
+ * before the coda.
  */
 export function renderExemplarSection(ex: Exemplar): string {
   const quoted = ex.body

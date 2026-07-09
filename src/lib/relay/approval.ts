@@ -32,7 +32,7 @@ function trimToUndefined(s: unknown): string | undefined {
 }
 
 /**
- * Approve a piece per the Stage 2.2a review truth table. Capture is decoupled from the transition guard:
+ * Approve a piece per the Stage 2.2a review truth table (spec §C). Capture is decoupled from the transition guard:
  * a review action always records the human judgment, but the `.in('state', [...])` guard still prevents
  * double-*publishing* (double-embed), never the annotation.
  *
@@ -118,7 +118,7 @@ export async function approvePiece(
 }
 
 /**
- * Reject a piece per the Stage 2.2a review truth table.
+ * Reject a piece per the Stage 2.2a review truth table (spec §C).
  *
  * - pending_review | approved → rejected: clear embedding + slug (a previously-approved piece stops
  *   being recallable; preserves the "rejected = never embedded" invariant), set decided_at, guarded on
