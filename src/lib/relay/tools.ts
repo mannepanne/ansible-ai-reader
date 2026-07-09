@@ -166,6 +166,29 @@ export async function fetchById(deps: ToolDeps, args: { id: string }): Promise<F
 }
 
 /**
+ * Coerce an agent-supplied array argument into a real array. The Managed Agent intermittently sends
+ * array/object tool arguments as a JSON *string* (a known LLM tool-calling quirk) even when the schema
+ * says `type: array` — passing that straight through would throw (`.some is not a function`) or insert a
+ * string into a jsonb/`text[]` column. Parse a JSON string, wrap a bare object, and fall back to `[]`,
+ * so a malformed argument degrades gracefully instead of losing the whole write.
+ */
+export function coerceArray(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && typeof parsed === 'object') return [parsed];
+    } catch {
+      /* not JSON — drop it rather than store a raw string */
+    }
+    return [];
+  }
+  if (raw && typeof raw === 'object') return [raw];
+  return [];
+}
+
+/**
  * Whether a piece carries at least one grounded source link. `verification_status` is derived from
  * this backend-side (never trusted from the agent), and it is deliberately honest: a source link
  * means the piece is `sourced` (it cites a real, checkable URL), NOT `verified` (proven true — that
@@ -192,14 +215,16 @@ export async function writePending(
     throw new Error('write_pending: body is required');
   }
 
-  const links = args.links ?? [];
+  // Coerce array args defensively — the agent sometimes sends them as JSON strings (see coerceArray).
+  const links = coerceArray(args.links);
+  const concepts = coerceArray(args.concepts).filter((c): c is string => typeof c === 'string');
   // state defaults to 'pending_review' and embedding stays null — both set on approval, backend-side.
   const { error } = await deps.supabase
     .from('relay_pieces')
     .insert({
       body,
       summary: args.summary ?? null,
-      concepts: args.concepts ?? [],
+      concepts,
       links,
       verification_status: hasSourceLink(links) ? 'sourced' : 'unverified',
     })

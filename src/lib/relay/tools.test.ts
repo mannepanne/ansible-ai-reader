@@ -244,6 +244,53 @@ describe('writePending', () => {
     expect(row.verification_status).toBe('unverified');
   });
 
+  it('coerces a JSON-STRING links argument (the LLM stringify quirk) instead of throwing', async () => {
+    // The live agent intermittently sends `links` as a JSON string rather than a native array —
+    // `hasSourceLink` would throw `links.some is not a function` and the whole write is lost if the
+    // agent doesn't retry. Coerce defensively: parse the string, keep the source links, stay 'sourced'.
+    const supabase = makeSupabase();
+    (supabase as never as { __builder: { single: ReturnType<typeof vi.fn> } }).__builder.single.mockResolvedValue({ data: { id: 'p' }, error: null });
+
+    await writePending(deps(supabase), {
+      body: 'grounded piece',
+      links: '[{"type":"source","ref":"https://a.example","title":"A"},{"type":"recall","ref":"uuid-1"}]' as never,
+    });
+
+    const insert = (supabase as never as { __builder: { insert: ReturnType<typeof vi.fn> } }).__builder.insert;
+    const row = insert.mock.calls[0][0] as { verification_status: string; links: unknown[] };
+    expect(row.verification_status).toBe('sourced');
+    expect(row.links).toEqual([
+      { type: 'source', ref: 'https://a.example', title: 'A' },
+      { type: 'recall', ref: 'uuid-1' },
+    ]);
+  });
+
+  it('wraps a single link object passed instead of an array', async () => {
+    const supabase = makeSupabase();
+    (supabase as never as { __builder: { single: ReturnType<typeof vi.fn> } }).__builder.single.mockResolvedValue({ data: { id: 'p' }, error: null });
+    await writePending(deps(supabase), { body: 'x', links: { type: 'source', ref: 'https://a.example' } as never });
+    const row = (supabase as never as { __builder: { insert: ReturnType<typeof vi.fn> } }).__builder.insert.mock.calls[0][0] as { links: unknown[]; verification_status: string };
+    expect(row.links).toEqual([{ type: 'source', ref: 'https://a.example' }]);
+    expect(row.verification_status).toBe('sourced');
+  });
+
+  it('coerces an unparseable links string to an empty array (no throw)', async () => {
+    const supabase = makeSupabase();
+    (supabase as never as { __builder: { single: ReturnType<typeof vi.fn> } }).__builder.single.mockResolvedValue({ data: { id: 'p' }, error: null });
+    await writePending(deps(supabase), { body: 'x', links: 'not json at all' as never });
+    const row = (supabase as never as { __builder: { insert: ReturnType<typeof vi.fn> } }).__builder.insert.mock.calls[0][0] as { links: unknown[]; verification_status: string };
+    expect(row.links).toEqual([]);
+    expect(row.verification_status).toBe('unverified');
+  });
+
+  it('coerces a JSON-string concepts argument to an array (same LLM quirk, text[] column)', async () => {
+    const supabase = makeSupabase();
+    (supabase as never as { __builder: { single: ReturnType<typeof vi.fn> } }).__builder.single.mockResolvedValue({ data: { id: 'p' }, error: null });
+    await writePending(deps(supabase), { body: 'x', concepts: '["memory","voice"]' as never });
+    const row = (supabase as never as { __builder: { insert: ReturnType<typeof vi.fn> } }).__builder.insert.mock.calls[0][0] as { concepts: unknown };
+    expect(row.concepts).toEqual(['memory', 'voice']);
+  });
+
   it('rejects an empty body', async () => {
     await expect(writePending(deps(makeSupabase()), { body: '   ' } as never)).rejects.toThrow(/body/);
   });
