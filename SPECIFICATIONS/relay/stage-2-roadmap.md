@@ -66,8 +66,9 @@
 ### Phase 2.4 — The blog (echoreflex.me), password-gated
 **Goal:** the output surface — anonymous, sparse, static, **password-gated first** ([[relay-agent-guardrails]]).
 **In scope:** backfills from the approved corpus in one deploy; the agent stays blind to it; the invisible password gate. Orthogonal to the mind — low-risk.
+**Locked requirement — the publish gate must be provenance-aware (decided 2026-07-09):** the concern is "no ungrounded claim goes out as fact." The publish step surfaces grounding status and lets a piece that **asserts an ungrounded specific** be held back — but **`unverified` ≠ unpublishable.** An `unverified` piece is one that attached no source link; a good *analytical* piece about a situation makes no checkable factual claim and is legitimately unverified and safe to publish. The discriminator is **claim-type (does it assert a checkable fact, and is it grounded?), NOT the `verification_status` label** — filtering on `sourced` would both block sound analysis and miss a fact-asserting piece that stapled on a weak link (`sourced` is the agent-supplied, weaker provenance signal; the honest "actually supported" upgrade is the Stage-3 re-verification pass). The human gate remains the primary check; this is the automated *assist* at publish time.
 **Depends on:** enough approved pieces worth showing (2.1–2.2 maturing).
-**Open questions:** hosting/design; the situations-not-people presentation; when the password comes off.
+**Open questions:** hosting/design; the situations-not-people presentation; when the password comes off; how the provenance-aware hold is presented/enforced (advisory flag vs. hard hold).
 
 ### Phase 2.5 — Automation (trigger-automation) → the on-ramp to Stage 3
 **Goal:** reactions run without a click — the archive-hook operating unattended, still landing in the gate.
