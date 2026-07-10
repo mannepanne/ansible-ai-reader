@@ -60,6 +60,26 @@ describe('formatStimulus', () => {
     expect(out).not.toMatch(/interesting|rated|💡|🤷/i);
   });
 
+  it("lean mode drops tags and the note but keeps title, summary, counter-case (pre-2.3a shape)", () => {
+    const out = formatStimulus(engagedRow, 'lean');
+    expect(out).toContain('Title: Seeing like a vendor');
+    expect(out).toContain('Summary:\nThe submarine surfaces in the metadata.');
+    expect(out).toContain('Counter-case:\nBut procurement is boring.');
+    expect(out).not.toContain('Tags:');
+    expect(out).not.toContain('Note:');
+  });
+
+  it('defaults to full mode when no mode is passed', () => {
+    expect(formatStimulus(engagedRow)).toContain('Tags:');
+    expect(formatStimulus(engagedRow, 'full')).toContain('Note:');
+  });
+
+  it('enforces the summary-guard in lean mode too', () => {
+    expect(() =>
+      formatStimulus({ title: 'T', short_summary: null, commentariat_summary: 'c', tags: ['a'], document_note: 'n' }, 'lean'),
+    ).toThrow(/summary/);
+  });
+
   it('throws when there is no summary text, even with tags/note present (summary-guard)', () => {
     expect(() => formatStimulus({ title: 'T', short_summary: null, commentariat_summary: null, tags: null, document_note: null })).toThrow(/summary/);
     expect(() => formatStimulus({ title: 'T', short_summary: '   ', commentariat_summary: null, tags: null, document_note: null })).toThrow(/summary/);
