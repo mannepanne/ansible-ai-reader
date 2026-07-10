@@ -10,6 +10,7 @@ const fullRow: StimulusRow = {
   commentariat_summary: 'It is advocacy, not analysis.',
   tags: ['techno-optimism', 'silicon valley'],
   document_note: 'Who wields the tool, and to what end?',
+  reader_note: null,
 };
 
 describe('readerDeepLink', () => {

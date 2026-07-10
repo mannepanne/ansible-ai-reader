@@ -12,7 +12,7 @@ import * as path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import { assembleSystemPrompt, PERSONA_FILES } from '../src/lib/relay/persona';
 import { selectExemplar, renderExemplarSection } from '../src/lib/relay/exemplars';
-import { formatStimulus } from '../src/lib/relay/session-run';
+import { formatStimulus, type StimulusMode } from '../src/lib/relay/session-run';
 import { readSession, renderTrace, type MaEvent } from '../src/lib/relay/session-readout';
 import { loadDevVars, bridgeBase } from './relay-env';
 
@@ -56,10 +56,13 @@ const saveIds = (ids: Ids) => fs.writeFileSync(IDS_PATH, JSON.stringify(ids, nul
 // resource here at provision time, so a running (prod-orchestrator) session never re-rotates it — it is
 // fixed per agent version. Because ensureResources re-pushes on every CLI run (see its note), each
 // re-push may land a different exemplar once more than one is curated.
-function buildSystemPrompt(versionIndex: number): string {
+function buildSystemPrompt(versionIndex: number, exemplarOverride?: number): string {
   const dir = path.join(process.cwd(), 'relay-agent');
   const read = (f: string) => fs.readFileSync(path.join(dir, f), 'utf-8');
-  const cadence = `${read(PERSONA_FILES.cadence).trim()}\n\n${renderExemplarSection(selectExemplar(versionIndex))}`;
+  // exemplarOverride PINS the Channel-1 exemplar to a fixed index — used by the enrichment A/B so a
+  // back-to-back lean/full pair shares one exemplar (the per-run version bump otherwise rotates it).
+  const exemplarIndex = exemplarOverride ?? versionIndex;
+  const cadence = `${read(PERSONA_FILES.cadence).trim()}\n\n${renderExemplarSection(selectExemplar(exemplarIndex))}`;
   return assembleSystemPrompt({
     trunk: read(PERSONA_FILES.trunk),
     grain: read(PERSONA_FILES.grain),
@@ -134,20 +137,20 @@ async function ensureResources(system: string): Promise<Ids> {
   return ids;
 }
 
-async function fetchStimulus(readerId: string): Promise<string> {
+async function fetchStimulus(readerId: string, mode: StimulusMode): Promise<string> {
   const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const { data, error } = await supabase
     .from('reader_items')
-    .select('title, short_summary, commentariat_summary, tags, document_note')
+    .select('title, short_summary, commentariat_summary, tags, document_note, reader_note')
     .eq('reader_id', readerId)
     .maybeSingle();
   if (error) throw new Error(`stimulus: ${error.message}`);
   if (!data) throw new Error(`stimulus: no reader_item with reader_id ${readerId}`);
   // Share the assembler with the DO path (formatStimulus) so both triggers enrich identically —
   // no second copy of the summary-guard or the tags/note ordering to drift out of sync.
-  return formatStimulus(data);
+  return formatStimulus(data, mode);
 }
 
 // Fail fast if the bridge's decision-finalize route is not deployed, BEFORE we spend a session we
@@ -172,23 +175,34 @@ async function preflightBridge() {
 }
 
 async function main() {
-  const readerId = process.argv[2];
+  // Flags (for the enrichment A/B ablation): --lean writes from the pre-2.3a stimulus (no tags/note);
+  // --exemplar <n> pins the Channel-1 exemplar so a lean/full pair shares one voice anchor.
+  const argv = process.argv.slice(2);
+  const mode: StimulusMode = argv.includes('--lean') ? 'lean' : 'full';
+  const exIdx = argv.indexOf('--exemplar');
+  const exemplarOverride = exIdx >= 0 ? Number(argv[exIdx + 1]) : undefined;
+  const exemplarValue = exIdx >= 0 ? argv[exIdx + 1] : undefined;
+  const readerId = argv.find((a) => !a.startsWith('--') && a !== exemplarValue);
   if (!readerId) {
-    console.error('Usage: npx tsx scripts/relay-session.ts <reader_id>');
+    console.error('Usage: npx tsx scripts/relay-session.ts <reader_id> [--lean] [--exemplar <index>]');
+    process.exit(1);
+  }
+  if (exemplarOverride !== undefined && !Number.isFinite(exemplarOverride)) {
+    console.error(`--exemplar expects a number, got "${exemplarValue}"`);
     process.exit(1);
   }
 
   await preflightBridge();
-  console.log('Assembling the voice + ensuring Anthropic resources...');
+  console.log(`Assembling the voice + ensuring Anthropic resources... [mode=${mode}${exemplarOverride !== undefined ? `, exemplar=${exemplarOverride}` : ''}]`);
   // Index by the agent version as it stands BEFORE this run's update bump, so version N carries the
   // exemplar chosen at index N-1 (a harmless off-by-one — the mapping just needs to be deterministic).
   const priorIds = loadIds();
-  const system = buildSystemPrompt(priorIds.agent_version ?? 0);
+  const system = buildSystemPrompt(priorIds.agent_version ?? 0, exemplarOverride);
   const ids = await ensureResources(system);
   console.log(`  agent=${ids.agent_id} v${ids.agent_version} env=${ids.environment_id} vault=${ids.vault_id}`);
 
-  console.log(`\nFetching stimulus for reader_id ${readerId}...`);
-  const stimulus = await fetchStimulus(readerId);
+  console.log(`\nFetching stimulus for reader_id ${readerId} (${mode})...`);
+  const stimulus = await fetchStimulus(readerId, mode);
   console.log(`  stimulus: ${stimulus.slice(0, 120).replace(/\n/g, ' ')}...`);
 
   // T0: a backward margin absorbs orchestrator↔DB clock skew. Safe because Stage-1 sessions are

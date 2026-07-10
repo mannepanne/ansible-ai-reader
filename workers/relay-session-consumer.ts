@@ -70,7 +70,7 @@ async function runOne(readerId: string, env: Env, supabase: any): Promise<void> 
 
   const { data: row, error } = await supabase
     .from('reader_items')
-    .select('title, short_summary, commentariat_summary, tags, document_note')
+    .select('title, short_summary, commentariat_summary, tags, document_note, reader_note')
     .eq('reader_id', readerId)
     .maybeSingle();
   if (error) throw new Error(`stimulus fetch: ${error.message}`);

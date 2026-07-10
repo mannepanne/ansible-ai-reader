@@ -21,6 +21,9 @@ export interface StimulusRow {
   // design: a verdict on the desk's output would bias the agent toward feeling commissioned.
   tags: string[] | null;
   document_note: string | null;
+  // reader_note (Stage 2.3b, §C): a note authored on the Reader side, retained from the archive
+  // response. Same category as document_note — Magnus's own thought — so it enriches the stimulus too.
+  reader_note: string | null;
 }
 
 export interface SessionRunResult {
@@ -29,21 +32,32 @@ export interface SessionRunResult {
   events: MaEvent[];
 }
 
+// 'full' = the Stage 2.3a enriched stimulus (＋tags＋note); 'lean' = the pre-2.3a shape (title +
+// summary + counter-case only). The mode is the lever for the enrichment A/B ablation, and the same
+// switch 2.3b uses if the verdict is "trigger on engagement, but write from a lean stimulus".
+export type StimulusMode = 'full' | 'lean';
+
 /**
- * Format a reader_items row into the stimulus text the agent sees: summary, plus topical tags, the
- * operator's note, and the counter-case (Stage 2.3a enrichment). The summary is the irreducible
+ * Format a reader_items row into the stimulus text the agent sees: summary, plus (in 'full' mode)
+ * topical tags and the operator's note, and the counter-case. The summary is the irreducible
  * stimulus — enforced explicitly (not via a part count) so no enrichment field can let a
  * summary-less item slip through and spend a session on nothing to react to (stage-2.3 spec §A/§C).
  */
-export function formatStimulus(row: StimulusRow): string {
+export function formatStimulus(row: StimulusRow, mode: StimulusMode = 'full'): string {
   if (!row.short_summary?.trim()) throw new Error('stimulus: reader_item has no summary text');
 
   const parts: string[] = [];
   if (row.title) parts.push(`Title: ${row.title}`);
   parts.push(`Summary:\n${row.short_summary.trim()}`);
-  const tags = (row.tags ?? []).map((t) => t.trim()).filter(Boolean);
-  if (tags.length) parts.push(`Tags: ${tags.join(', ')}`);
-  if (row.document_note?.trim()) parts.push(`Note:\n${row.document_note.trim()}`);
+  if (mode === 'full') {
+    const tags = (row.tags ?? []).map((t) => t.trim()).filter(Boolean);
+    if (tags.length) parts.push(`Tags: ${tags.join(', ')}`);
+    // Both note sources are Magnus's own thought; merge them under one Note block (no duplicate label).
+    // Dedup identical text: document_note is pushed Ansible→Reader, so it round-trips back as reader_note
+    // — without the Set the narrator would see the same sentence twice.
+    const notes = [...new Set([row.document_note, row.reader_note].map((n) => n?.trim()).filter(Boolean))];
+    if (notes.length) parts.push(`Note:\n${notes.join('\n')}`);
+  }
   if (row.commentariat_summary?.trim()) parts.push(`Counter-case:\n${row.commentariat_summary.trim()}`);
   return parts.join('\n\n');
 }

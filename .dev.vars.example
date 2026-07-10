@@ -28,3 +28,7 @@ CONTACT_EMAIL=your-recipient-email@example.com
 # Cloudflare Web Analytics (public site token, cookieless pageview + CWV beacon)
 # Get one at: https://dash.cloudflare.com → Analytics & Logs → Web Analytics → Add a site
 NEXT_PUBLIC_CF_ANALYTICS_TOKEN=your-cloudflare-web-analytics-token-here
+
+# Relay Stage 2.3b — the single-owner user id the engagement-gated archive-hook is scoped to.
+# Unset ⟹ the auto-trigger never fires and the admin toggle renders disabled. See the 2026-07-10 ADR.
+RELAY_OWNER_USER_ID=your-relay-owner-user-uuid-here

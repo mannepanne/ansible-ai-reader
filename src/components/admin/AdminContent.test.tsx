@@ -115,6 +115,7 @@ const mockRelayStats: RelayStats = {
       createdAt: '2026-06-28T12:00:00Z',
     },
   ],
+  engagementGate: { enabled: false, ownerConfigured: true },
 };
 
 describe('AdminContent', () => {

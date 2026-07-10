@@ -11,7 +11,21 @@ vi.mock('./reader-api', () => ({
   fetchRecentlyArchivedItems: vi.fn(),
 }));
 
+// Mock the Relay trigger-eval phase — its own logic is covered in engagement-trigger.test.ts.
+// Here we only assert the wiring (called with the right args) and that a throw stays non-fatal.
+// Default: a no-op 'not-owner' skip, so the vast majority of sync tests are undisturbed.
+vi.mock('./relay/engagement-trigger', () => ({
+  evaluateRelayTriggers: vi.fn().mockResolvedValue({
+    skipped: 'not-owner',
+    scanned: 0,
+    enqueued: 0,
+    skippedItems: 0,
+    deferred: 0,
+  }),
+}));
+
 import { fetchUnreadItems, fetchRecentlyArchivedItems } from './reader-api';
+import { evaluateRelayTriggers } from './relay/engagement-trigger';
 
 describe('performSyncForUser', () => {
   let mockSupabase: any;
@@ -562,10 +576,64 @@ describe('performSyncForUser', () => {
       });
 
       expect(result.itemsArchived).toBe(1);
-      // Verify the per-item UPDATE used Reader's archived_at timestamp
+      // Verify the per-item UPDATE used Reader's archived_at timestamp, and retains the Relay signal
+      // fields (defaulting to 0 / null when the archive response omits them).
       expect(mockItemsUpdate).toHaveBeenCalledWith({
         archived: true,
         archived_at: '2026-04-01T12:00:00Z',
+        highlights_count: 0,
+        reader_note: null,
+      });
+    });
+
+    it('retains highlights_count and the Reader note from the archive response', async () => {
+      const { mockInsert, mockUpdate, mockUpsert } = makeBaseMocks();
+
+      (fetchRecentlyArchivedItems as any).mockResolvedValue({
+        results: [
+          {
+            id: 'reader-archived-1',
+            updated_at: '2026-04-01T12:00:00Z',
+            highlights_count: 3,
+            notes: 'a reader-side note',
+          },
+        ],
+        nextPageCursor: null,
+      });
+
+      const mockItemsSelect = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          in: vi.fn().mockReturnValue({
+            is: vi.fn().mockResolvedValue({
+              data: [{ id: 'local-item-uuid', reader_id: 'reader-archived-1' }],
+              error: null,
+            }),
+          }),
+        }),
+      });
+      const mockItemsUpdate = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ error: null }),
+      });
+
+      (mockSupabase.from as any).mockImplementation((table: string) => {
+        if (table === 'sync_log') return { insert: mockInsert, update: mockUpdate, select: mockSyncLogSelect };
+        if (table === 'reader_items') return { upsert: mockUpsert, select: mockItemsSelect, update: mockItemsUpdate };
+        if (table === 'processing_jobs') return { insert: mockInsert };
+        return {};
+      });
+
+      await performSyncForUser(mockSupabase, {
+        userId: 'user-123',
+        triggeredBy: 'manual',
+        readerApiToken: 'test-token',
+        cloudflareEnv: { PROCESSING_QUEUE: mockQueue },
+      });
+
+      expect(mockItemsUpdate).toHaveBeenCalledWith({
+        archived: true,
+        archived_at: '2026-04-01T12:00:00Z',
+        highlights_count: 3,
+        reader_note: 'a reader-side note',
       });
     });
 
@@ -838,6 +906,89 @@ describe('performSyncForUser', () => {
       totalFetched: 1,
       itemsArchived: 0,
       errors: undefined,
+    });
+  });
+
+  describe('Relay trigger-eval phase (2.3b)', () => {
+    function makeFullSyncMocks() {
+      const mockInsert = vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: { id: 'job-1' }, error: null }),
+        }),
+      });
+      const mockUpdate = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
+      const mockUpsert = vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'item-1', reader_id: 'reader-1', short_summary: null },
+            error: null,
+          }),
+        }),
+      });
+      (fetchUnreadItems as any).mockResolvedValue({
+        results: [{ id: 'reader-1', title: 'T', url: 'https://example.com/t', created_at: '2026-04-01T10:00:00Z' }],
+        nextPageCursor: null,
+      });
+      (mockSupabase.from as any).mockImplementation((table: string) => {
+        if (table === 'sync_log') return { insert: mockInsert, update: mockUpdate, select: mockSyncLogSelect };
+        if (table === 'reader_items') return { upsert: mockUpsert };
+        if (table === 'processing_jobs') return { insert: mockInsert };
+        return {};
+      });
+    }
+
+    it('passes the owner config + orchestrator binding from the sync env', async () => {
+      makeFullSyncMocks();
+      const fakeOrchestrator = { idFromName: vi.fn(), get: vi.fn() };
+      const prev = process.env.RELAY_OWNER_USER_ID;
+      process.env.RELAY_OWNER_USER_ID = 'owner-xyz';
+      try {
+        await performSyncForUser(mockSupabase, {
+          userId: 'user-123',
+          triggeredBy: 'cron',
+          readerApiToken: 'test-token',
+          cloudflareEnv: { PROCESSING_QUEUE: mockQueue, RELAY_ORCHESTRATOR: fakeOrchestrator as any },
+        });
+      } finally {
+        process.env.RELAY_OWNER_USER_ID = prev;
+      }
+      expect(evaluateRelayTriggers).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-123',
+          ownerId: 'owner-xyz',
+          orchestrator: fakeOrchestrator,
+        })
+      );
+    });
+
+    it('logs and completes cleanly when trigger-eval enqueues sessions (non-skipped result)', async () => {
+      makeFullSyncMocks();
+      (evaluateRelayTriggers as any).mockResolvedValueOnce({
+        scanned: 2,
+        enqueued: 1,
+        skippedItems: 1,
+        deferred: 0,
+      });
+      const result = await performSyncForUser(mockSupabase, {
+        userId: 'user-123',
+        triggeredBy: 'cron',
+        readerApiToken: 'test-token',
+        cloudflareEnv: { PROCESSING_QUEUE: mockQueue },
+      });
+      expect(result.errors).toBeUndefined();
+    });
+
+    it('stays non-fatal when trigger-eval throws (sync completes, error recorded)', async () => {
+      makeFullSyncMocks();
+      (evaluateRelayTriggers as any).mockRejectedValueOnce(new Error('trigger boom'));
+      const result = await performSyncForUser(mockSupabase, {
+        userId: 'user-123',
+        triggeredBy: 'cron',
+        readerApiToken: 'test-token',
+        cloudflareEnv: { PROCESSING_QUEUE: mockQueue },
+      });
+      expect(result.syncId).toEqual(expect.any(String));
+      expect(result.errors).toBeGreaterThanOrEqual(1);
     });
   });
 });

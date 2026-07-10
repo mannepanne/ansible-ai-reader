@@ -95,4 +95,7 @@ export interface RelayStats {
   approved: RelayPieceRow[];
   rejected: RelayPieceRow[];
   decisions: RelayDecisionRow[];
+  // Stage 2.3b engagement-gate toggle state (default-off). ownerConfigured is false when
+  // RELAY_OWNER_USER_ID is unset — the toggle then renders disabled with an explanatory note.
+  engagementGate: { enabled: boolean; ownerConfigured: boolean };
 }

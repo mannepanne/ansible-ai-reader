@@ -43,6 +43,7 @@ const stats: RelayStats = {
       createdAt: '2026-06-28T12:00:00Z',
     },
   ],
+  engagementGate: { enabled: false, ownerConfigured: true },
 };
 
 describe('RelayAgent', () => {
@@ -333,5 +334,45 @@ describe('RelayAgent', () => {
     };
     render(<RelayAgent stats={mixed} />);
     expect(screen.getByRole('tab', { name: /rejected · ✎1/i })).toBeDefined();
+  });
+
+  describe('GateToggle (engagement-gate, 2.3b)', () => {
+    const switchName = /engagement-gated auto-trigger/i;
+
+    it('renders the auto-trigger switch OFF by default', () => {
+      render(<RelayAgent stats={stats} />);
+      const sw = screen.getByRole('switch', { name: switchName });
+      expect(sw.getAttribute('aria-checked')).toBe('false');
+      expect((sw as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it('flips the switch ON and PATCHes the gate route', async () => {
+      (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+        new Response(JSON.stringify({ enabled: true }), { status: 200 }),
+      );
+      const user = userEvent.setup();
+      render(<RelayAgent stats={stats} />);
+      await user.click(screen.getByRole('switch', { name: switchName }));
+
+      await waitFor(() =>
+        expect(screen.getByRole('switch', { name: switchName }).getAttribute('aria-checked')).toBe('true'),
+      );
+      const [url, opts] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(url).toBe('/api/admin/relay/gate');
+      expect((opts as RequestInit).method).toBe('PATCH');
+      expect(JSON.parse((opts as RequestInit).body as string)).toEqual({ enabled: true });
+    });
+
+    it('disables the switch and explains when the owner is unconfigured', () => {
+      render(<RelayAgent stats={{ ...stats, engagementGate: { enabled: false, ownerConfigured: false } }} />);
+      const sw = screen.getByRole('switch', { name: switchName });
+      expect((sw as HTMLButtonElement).disabled).toBe(true);
+      expect(screen.getByText(/RELAY_OWNER_USER_ID is not configured/i)).toBeDefined();
+    });
+
+    it('reflects an already-ON gate from server state', () => {
+      render(<RelayAgent stats={{ ...stats, engagementGate: { enabled: true, ownerConfigured: true } }} />);
+      expect(screen.getByRole('switch', { name: switchName }).getAttribute('aria-checked')).toBe('true');
+    });
   });
 });
