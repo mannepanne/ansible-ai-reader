@@ -351,6 +351,48 @@ function PieceCard({
         </div>
       )}
 
+      {piece.readerLinks.length > 0 && (
+        <div style={{ fontSize: '0.75em', color: '#495057', marginTop: '8px', ...indent }}>
+          <span style={{ color: '#6c757d' }}>in Reader:</span>{' '}
+          {piece.readerLinks.map((l, i) => (
+            <span key={`${l.readerId}-${i}`}>
+              {i > 0 ? ' · ' : ''}
+              <a href={safeHref(l.url)} target="_blank" rel="noreferrer noopener" style={{ color: '#0d6efd' }}>
+                {l.title}
+              </a>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* The stimulus is RECONSTRUCTED with today's assembler, not the text actually sent — a piece
+          written before an assembler change (e.g. pre-2.3a Tags/Note) renders lines it never saw. The
+          label says "reconstructed" so it stays an honest instrument, not a false record. */}
+      {piece.stimulus && (
+        <details style={{ marginTop: '8px', ...indent }}>
+          <summary style={{ cursor: 'pointer', color: '#6c757d', fontSize: '0.75em' }}>
+            stimulus — reconstructed (current logic)
+          </summary>
+          <pre
+            style={{
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              fontSize: '0.78em',
+              color: '#495057',
+              background: '#f8f9fa',
+              border: '1px solid #e9ecef',
+              borderRadius: '6px',
+              padding: '10px 12px',
+              marginTop: '6px',
+              fontFamily: 'ui-monospace, monospace',
+              lineHeight: 1.5,
+            }}
+          >
+            {piece.stimulus}
+          </pre>
+        </details>
+      )}
+
       {/* Captured taste signal (Channel 2), shown to Magnus only — never to a writing session. */}
       {piece.reviewNote && (
         <div style={{ fontSize: '0.8em', color: '#664d03', background: '#fffbea', border: '1px solid #ffe69c', borderRadius: '6px', padding: '7px 10px', marginTop: '10px', ...indent }}>

@@ -19,6 +19,8 @@ const piece = (id: string, title: string, summary: string, over: Partial<RelayPi
   sourceLinks: [],
   reviewNote: null,
   originalBody: null,
+  stimulus: null,
+  readerLinks: [],
   createdAt: '2026-06-28T10:00:00Z',
   ...over,
 });
@@ -199,6 +201,28 @@ describe('RelayAgent', () => {
   it('shows an unverified badge on a piece with no source links', async () => {
     render(<RelayAgent stats={stats} />);
     expect(screen.getByText(/unverified/i)).toBeDefined();
+  });
+
+  it('shows the reconstructed stimulus and a Reader deep-link on a piece', async () => {
+    const withStimulus: RelayStats = {
+      ...stats,
+      pending: [
+        piece('p-stim', 'Reviewed Piece', 'summary', {
+          stimulus: 'Title: Faith in the Possible\n\nSummary:\nTech as faith.\n\nNote:\nWho wields it?',
+          readerLinks: [
+            { readerId: 'r9', title: 'Faith in the Possible', url: 'https://read.readwise.io/read/r9' },
+          ],
+        }),
+      ],
+    };
+    render(<RelayAgent stats={withStimulus} />);
+
+    // the Reader deep-link is clickable and points at the Reader app
+    const link = screen.getByRole('link', { name: /Faith in the Possible/ });
+    expect(link.getAttribute('href')).toBe('https://read.readwise.io/read/r9');
+    // the reconstructed stimulus is present and honestly labelled (not "as sent")
+    expect(screen.getByText(/reconstructed \(current logic\)/i)).toBeDefined();
+    expect(screen.getByText(/Note:\s*Who wields it\?/)).toBeDefined();
   });
 
   it('surfaces research sources on a decision in the log', async () => {
