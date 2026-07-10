@@ -21,6 +21,9 @@ export interface StimulusRow {
   // design: a verdict on the desk's output would bias the agent toward feeling commissioned.
   tags: string[] | null;
   document_note: string | null;
+  // reader_note (Stage 2.3b, §C): a note authored on the Reader side, retained from the archive
+  // response. Same category as document_note — Magnus's own thought — so it enriches the stimulus too.
+  reader_note: string | null;
 }
 
 export interface SessionRunResult {
@@ -49,7 +52,9 @@ export function formatStimulus(row: StimulusRow, mode: StimulusMode = 'full'): s
   if (mode === 'full') {
     const tags = (row.tags ?? []).map((t) => t.trim()).filter(Boolean);
     if (tags.length) parts.push(`Tags: ${tags.join(', ')}`);
-    if (row.document_note?.trim()) parts.push(`Note:\n${row.document_note.trim()}`);
+    // Both note sources are Magnus's own thought; merge them under one Note block (no duplicate label).
+    const notes = [row.document_note, row.reader_note].map((n) => n?.trim()).filter(Boolean);
+    if (notes.length) parts.push(`Note:\n${notes.join('\n')}`);
   }
   if (row.commentariat_summary?.trim()) parts.push(`Counter-case:\n${row.commentariat_summary.trim()}`);
   return parts.join('\n\n');

@@ -127,6 +127,7 @@ export default function RelayAgent({ stats }: { stats: RelayStats }) {
   return (
     <div>
       <RunControl />
+      <GateToggle gate={stats.engagementGate} />
 
       {/* Widgets: decision verdicts (declined/wrote) then gate states (pending/rejected/approved) */}
       <div style={{ display: 'flex', gap: '16px', marginBottom: '28px', flexWrap: 'wrap' }}>
@@ -243,6 +244,74 @@ function RunControl() {
       {msg && (
         <div role="status" style={{ marginTop: '10px', fontSize: '0.82em', color: msg.ok ? '#0f5132' : '#842029' }}>
           {msg.text}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// The engagement-gated archive-hook enable toggle (Stage 2.3b, default-off). Initial state is
+// server-seeded via props (RelayStats.engagementGate); flipping it PATCHes /api/admin/relay/gate.
+// When ON, an item you archive in Reader with a strong engagement signal (💡 / note / highlight)
+// auto-triggers a Relay session — landing in this review gate, never published unattended.
+function GateToggle({ gate }: { gate: RelayStats['engagementGate'] }) {
+  const [enabled, setEnabled] = useState(gate.enabled);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const disabled = busy || !gate.ownerConfigured;
+
+  async function toggle() {
+    const next = !enabled;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/relay/gate', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ enabled: next }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; enabled?: boolean };
+      if (!res.ok) throw new Error(data.error || `toggle failed (${res.status})`);
+      setEnabled(!!data.enabled);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '8px', padding: '16px 20px', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <button
+          role="switch"
+          aria-checked={enabled}
+          aria-label="Engagement-gated auto-trigger"
+          onClick={toggle}
+          disabled={disabled}
+          style={{
+            padding: '7px 16px',
+            border: '1px solid ' + (enabled ? '#0f5132' : '#ced4da'),
+            borderRadius: '6px',
+            background: enabled ? '#d1e7dd' : '#f8f9fa',
+            color: enabled ? '#0f5132' : '#495057',
+            fontWeight: 600,
+            fontSize: '0.85em',
+            cursor: disabled ? 'not-allowed' : busy ? 'wait' : 'pointer',
+            opacity: disabled ? 0.6 : 1,
+          }}
+        >
+          Auto-trigger on engaged archives: {enabled ? 'ON' : 'OFF'}
+        </button>
+        <span style={{ fontSize: '0.8em', color: '#6c757d' }}>
+          {gate.ownerConfigured
+            ? 'When on, archiving an engaged item in Reader queues a Relay session for review here.'
+            : 'RELAY_OWNER_USER_ID is not configured — set it to enable.'}
+        </span>
+      </div>
+      {error && (
+        <div role="status" style={{ marginTop: '10px', fontSize: '0.82em', color: '#842029' }}>
+          {error}
         </div>
       )}
     </div>

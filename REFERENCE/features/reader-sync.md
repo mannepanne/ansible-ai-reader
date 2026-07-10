@@ -242,6 +242,9 @@ CREATE TABLE reader_items (
   content_truncated BOOLEAN,
   archived BOOLEAN DEFAULT FALSE,
   archived_at TIMESTAMP,
+  highlights_count INTEGER NOT NULL DEFAULT 0,  -- Retained from archive response (Relay 2.3b filter)
+  reader_note TEXT,                              -- Reader-authored note retained from archive response
+  relay_triggered_at TIMESTAMPTZ,               -- Relay 2.3b work-queue marker; NULL = not yet evaluated
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
 
@@ -425,14 +428,15 @@ After the unread items fetch completes, `performSyncForUser()` runs a second ste
 2. GET /api/v3/list/?location=archive&updatedAfter={timestamp}
 3. Batch SELECT local reader_items matching the returned reader_ids
    (only items where archived_at IS NULL)
-4. Per-item UPDATE: archived=true, archived_at=Reader's updated_at timestamp
+4. Per-item UPDATE: archived=true, archived_at=Reader's updated_at timestamp,
+   highlights_count + reader_note retained from the response, relay_triggered_at left NULL
 ```
 
 The Reader's `updated_at` timestamp is used for `archived_at` rather than the sync time, preserving the actual moment the item was archived in Reader.
 
-### Signal Data (Future)
+### Signal Data (Relay engagement trigger)
 
-The archive API response also carries `highlights_count` and `notes` per item. These are captured in `ArchivedReaderItemSchema` for future interest-signal tracking (issue #58) without requiring a separate API integration.
+The archive API response also carries `highlights_count` and `notes` per item (captured in `ArchivedReaderItemSchema`). As of Stage 2.3b these are **retained** on the archived `reader_items` row (`highlights_count`, `reader_note`) rather than discarded — they are the inputs to the Relay engagement filter. A **final sync phase** (`evaluateRelayTriggers`, `src/lib/relay/engagement-trigger.ts`) then scans archived rows with `relay_triggered_at IS NULL` and, for Relay's owner only, enqueues a narrator session per strongly-engaged item. See [relay-operator-cli.md](./relay-operator-cli.md#engagement-gated-auto-trigger-stage-23b) and the [single-owner ADR](../decisions/2026-07-10-relay-single-owner-engagement-gate.md). Like archive sync, this phase is non-fatal to the rest of the sync.
 
 ### Error Handling
 

@@ -18,7 +18,7 @@ Relay reacts only to a **manual** trigger today: an operator opens the admin tab
 
 - **Archive-sync poll:** `performSyncForUser()` (`src/lib/sync-operations.ts`) calls `fetchRecentlyArchivedItems(apiToken, updatedAfter)` each sync and flips `reader_items.archived = true, archived_at = NOW()` on newly-archived items (selecting `WHERE archived_at IS NULL`).
 - **The archive response already carries what the filter needs, and sync discards it:** `ArchivedReaderItemSchema` (`src/lib/reader-api.ts`) includes **`highlights_count`** and **`notes`** (the Reader-authored note), but the archive step maps only `id` + `updated_at`. Retaining those two fields is the crux of 2.3b (fixes the "Reader-side note never reaches the filter" bug).
-- **Engagement data in Ansible:** `short_summary` (auto), `commentariat_summary` (+`commentariat_generated_at`, on-demand), `tags[]`, `document_note` (Ansible-authored note, one-directional Ansible→Reader). Interest signals in append-only `item_signals` (`item_id` → `reader_items.id` UUID, **not** `reader_id`); rating types `rated_interesting` / `rated_not_interesting` (toggles preserved — read the *latest*). **Ignore** the legacy `reader_items.rating` column (split-brain).
+- **Engagement data in Ansible:** `short_summary` (auto), `commentariat_summary` (+`commentariat_generated_at`, on-demand), `tags[]`, `document_note` (Ansible-authored note, one-directional Ansible→Reader). Interest signals in append-only `item_signals` (`item_id` → `reader_items.id` UUID, **not** `reader_id`). The engagement filter reads the **live `reader_items.rating`** column (`4` interesting / `1` not-interesting / `null` neutral), not `item_signals` — decision 2026-07-10, see §B for why (un-rating skips the signal insert, so the log goes stale).
 - **The trigger target:** the manual admin button (`src/app/api/admin/relay/run/route.ts`) resolves the singleton `RelayOrchestrator` DO (`idFromName('relay')`) and `fetch`es `/enqueue {readerId}`. Confirmed reachable from sync: cron → HTTP → the main worker, which declares the `RELAY_ORCHESTRATOR` binding; the binding is in the `env` already passed to `performSyncForUser`. **No new orchestration.**
 
 ## Goals (2.3 delivers)
@@ -51,9 +51,15 @@ Enrich the orchestrator's fetch (`src/lib/relay/orchestrator.ts`, today `.select
 ### B. The engagement filter (2.3b) — strong signal, from existing data
 
 Classify a candidate archived item *react* / *skip*:
-- **💡 interesting** — the item's **latest** rating row in `item_signals` is `rated_interesting` (resolve `reader_id → reader_items.id` first; read the latest, toggles preserved).
+- **💡 interesting** — the item's **live** `reader_items.rating` column is `4` (interesting). *(Decision 2026-07-10, deviates from the original "read `item_signals` latest / ignore the legacy rating column" line — see below and the 2026-07-10 single-owner ADR.)* A `1` (not-interesting) is the veto.
 - **note** — a note exists: `document_note` non-empty (Ansible-authored) **OR** `reader_note` non-empty (the retained Reader-authored note, §C). Reading the live column(s), not the `note_added` signal (which survives note deletion).
 - **highlight** — `highlights_count >= 1` (retained from the archive response, §C).
+
+**Why live rating, not `item_signals` (decision 2026-07-10).** Un-rating (`rating: null`) updates the live
+column but **skips** the `item_signals` insert, so the latest signal row survives a cleared rating — a lifted
+🤷 veto would never actually lift. This is the identical stale-on-removal problem this spec already avoids for
+notes ("read the live column, not the `note_added` signal"). Applied consistently, the filter reads the live
+`reader_items.rating`. The rating is still used server-side only and never enters the prompt (§D).
 
 **React iff ≥1 of the above AND the latest rating is not `rated_not_interesting`** (explicit 🤷 vetoes even if highlighted — respect the verdict; consistent with gate-blindness). Click-through and commentariat-generation never trigger.
 
@@ -113,10 +119,10 @@ So highlight *count* is a trigger signal; the text is not sourced. (Revisit only
 ## Testing
 
 - Stimulus assembly (2.3a) — includes note/tags/commentary; **excludes ratings** (blindness/bias test).
-- Filter (2.3b) — each strong signal independently (latest 💡; Ansible note; Reader `reader_note`; `highlights_count>=1`); 🤷 veto; no-signal skip; click-through-only skip.
+- Filter (2.3b) — each strong signal independently (live 💡 rating=4; Ansible note; Reader `reader_note`; `highlights_count>=1`); 🤷 veto (rating=1); no-signal skip; click-through-only skip.
 - **Owner-scoping** — a non-owner user's qualifying archive does **not** enqueue.
 - **Self-healing idempotency** — success stamps and does not re-fire; enqueue-failure leaves NULL and retries next sync; no-engagement skip stamps; **summary-not-ready leaves NULL and fires once the summary lands**; the migration baseline means a first post-deploy sync fires nothing on history.
-- `reader_id → item_id` resolve is correct; the legacy `rating` column is ignored.
+- The filter reads engagement fields directly off the scanned `reader_items` row (rating/notes/highlights) — no separate `reader_id → item_id` resolve needed; the append-only `item_signals` log is not consulted.
 - Trigger-eval failure is non-fatal to the rest of sync.
 
 ## Rollout

@@ -10,6 +10,7 @@ const engagedRow = {
   commentariat_summary: 'But procurement is boring.',
   tags: ['sovereignty', 'surveillance', 'defence'],
   document_note: 'The exit was sold off with the entrance.',
+  reader_note: null,
 };
 
 describe('formatStimulus', () => {
@@ -20,6 +21,7 @@ describe('formatStimulus', () => {
       commentariat_summary: 'But procurement is boring.',
       tags: null,
       document_note: null,
+      reader_note: null,
     });
     expect(out).toContain('Title: Seeing like a vendor');
     expect(out).toContain('Summary:\nThe submarine surfaces in the metadata.');
@@ -27,7 +29,7 @@ describe('formatStimulus', () => {
   });
 
   it('works with just a summary (no counter-case)', () => {
-    const out = formatStimulus({ title: 'T', short_summary: 'A point.', commentariat_summary: null, tags: null, document_note: null });
+    const out = formatStimulus({ title: 'T', short_summary: 'A point.', commentariat_summary: null, tags: null, document_note: null, reader_note: null });
     expect(out).toContain('Title: T');
     expect(out).toContain('Summary:\nA point.');
     expect(out).not.toContain('Counter-case');
@@ -41,6 +43,23 @@ describe('formatStimulus', () => {
     expect(out.indexOf('Summary:')).toBeLessThan(out.indexOf('Tags:'));
     expect(out.indexOf('Tags:')).toBeLessThan(out.indexOf('Note:'));
     expect(out.indexOf('Note:')).toBeLessThan(out.indexOf('Counter-case:'));
+  });
+
+  it('enriches with a Reader-authored note when there is no Ansible note (2.3b)', () => {
+    const out = formatStimulus({ ...engagedRow, document_note: null, reader_note: 'Marked on the train.' });
+    expect(out).toContain('Note:\nMarked on the train.');
+  });
+
+  it('merges both note sources under one Note block (2.3b)', () => {
+    const out = formatStimulus({ ...engagedRow, document_note: 'Ansible thought.', reader_note: 'Reader thought.' });
+    expect(out).toContain('Note:\nAnsible thought.\nReader thought.');
+    expect(out.match(/Note:/g)?.length).toBe(1); // single label, not two
+  });
+
+  it('drops the Reader note in lean mode', () => {
+    const out = formatStimulus({ ...engagedRow, reader_note: 'Reader thought.' }, 'lean');
+    expect(out).not.toContain('Reader thought.');
+    expect(out).not.toContain('Note:');
   });
 
   it('omits tags/note when absent or empty', () => {
@@ -76,15 +95,15 @@ describe('formatStimulus', () => {
 
   it('enforces the summary-guard in lean mode too', () => {
     expect(() =>
-      formatStimulus({ title: 'T', short_summary: null, commentariat_summary: 'c', tags: ['a'], document_note: 'n' }, 'lean'),
+      formatStimulus({ title: 'T', short_summary: null, commentariat_summary: 'c', tags: ['a'], document_note: 'n', reader_note: null }, 'lean'),
     ).toThrow(/summary/);
   });
 
   it('throws when there is no summary text, even with tags/note present (summary-guard)', () => {
-    expect(() => formatStimulus({ title: 'T', short_summary: null, commentariat_summary: null, tags: null, document_note: null })).toThrow(/summary/);
-    expect(() => formatStimulus({ title: 'T', short_summary: '   ', commentariat_summary: null, tags: null, document_note: null })).toThrow(/summary/);
+    expect(() => formatStimulus({ title: 'T', short_summary: null, commentariat_summary: null, tags: null, document_note: null, reader_note: null })).toThrow(/summary/);
+    expect(() => formatStimulus({ title: 'T', short_summary: '   ', commentariat_summary: null, tags: null, document_note: null, reader_note: null })).toThrow(/summary/);
     // enrichment parts must not let a summary-less item satisfy the guard and spend a session
-    expect(() => formatStimulus({ title: 'T', short_summary: null, commentariat_summary: 'c', tags: ['a'], document_note: 'n' })).toThrow(/summary/);
+    expect(() => formatStimulus({ title: 'T', short_summary: null, commentariat_summary: 'c', tags: ['a'], document_note: 'n', reader_note: null })).toThrow(/summary/);
   });
 });
 

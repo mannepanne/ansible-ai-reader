@@ -143,7 +143,7 @@ async function fetchStimulus(readerId: string, mode: StimulusMode): Promise<stri
   });
   const { data, error } = await supabase
     .from('reader_items')
-    .select('title, short_summary, commentariat_summary, tags, document_note')
+    .select('title, short_summary, commentariat_summary, tags, document_note, reader_note')
     .eq('reader_id', readerId)
     .maybeSingle();
   if (error) throw new Error(`stimulus: ${error.message}`);

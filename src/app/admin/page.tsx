@@ -194,7 +194,7 @@ export default async function AdminPage() {
     stimulusIds.length
       ? db
           .from('reader_items')
-          .select('reader_id, title, short_summary, commentariat_summary, tags, document_note')
+          .select('reader_id, title, short_summary, commentariat_summary, tags, document_note, reader_note')
           .in('reader_id', stimulusIds)
       : Promise.resolve({ data: [] as StimulusItemRow[] }),
     wrotePieceIds.length
@@ -212,6 +212,7 @@ export default async function AdminPage() {
         commentariat_summary: r.commentariat_summary,
         tags: r.tags,
         document_note: r.document_note,
+        reader_note: r.reader_note,
       },
     ]),
   );
@@ -274,6 +275,20 @@ export default async function AdminPage() {
     };
   };
 
+  // Read the Relay engagement-gate toggle state (Stage 2.3b, default-off). The flag lives on the
+  // owner's row (single-owner system, keyed by RELAY_OWNER_USER_ID); the toggle renders disabled with
+  // a note when the owner is unconfigured. Kept out of the big Promise.all above since it is conditional.
+  const relayOwnerId = process.env.RELAY_OWNER_USER_ID;
+  let engagementGate = { enabled: false, ownerConfigured: false };
+  if (relayOwnerId) {
+    const { data: ownerRow } = await db
+      .from('users')
+      .select('relay_engagement_gate_enabled')
+      .eq('id', relayOwnerId)
+      .maybeSingle();
+    engagementGate = { enabled: !!ownerRow?.relay_engagement_gate_enabled, ownerConfigured: true };
+  }
+
   // Build relay stats — pieces by gate state (read-only operator view) + decision log + counts.
   const relayStats: RelayStats = {
     counts: {
@@ -297,6 +312,7 @@ export default async function AdminPage() {
       sources: d.sources ?? [],
       createdAt: d.created_at,
     })),
+    engagementGate,
   };
 
   return (
