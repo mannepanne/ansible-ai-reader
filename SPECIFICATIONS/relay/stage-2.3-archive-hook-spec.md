@@ -56,16 +56,21 @@ This phase turns the manual trigger into an **engagement-gated archive-hook**, a
 
 On a newly-archived item (see C), classify **react** vs **skip**:
 - **💡 interesting** — the item's **latest** rating signal in `item_signals` is `rated_interesting` (append-only + toggles preserved, so read the most recent rating row for the item).
-- **note** — `document_note` is non-empty (equivalently, a `note_added` signal exists).
+- **note** — `document_note` is non-empty. (The live column, **not** the `note_added` signal: add-then-delete a note leaves the signal row but empties the column, so the column is the honest test.)
 - **highlight** — `reader_highlights` has ≥1 row for the item's `reader_id`.
 
 **React iff ≥1 of the above AND the latest rating is not `rated_not_interesting`.** `click_through` and commentariat-generation never qualify as triggers (they may still *enrich* the stimulus, §D). The 🤷-veto-vs-highlight conflict is an open question (§Open questions) — proposed default: an explicit latest 🤷 vetoes (you said "not interesting," we respect it) even if highlights exist.
 
-### C. The poll-hook (trigger)
+### C. The poll-hook (trigger) — a final sync phase over *this sync's* archive delta
 
-- **Where:** in the archive-sync step, at the point a document transitions `archived: false → true`. On that transition, evaluate §B; if **react**, `fetch` the DO's `/enqueue {readerId}`.
-- **Idempotency (at most once per archive):** add `reader_items.relay_triggered_at (timestamptz null)`. Enqueue only when it's null; stamp it on enqueue. This survives re-syncs and mid-sync crashes without double-triggering. (Re-archiving after an unarchive is an accepted edge — we can clear the stamp on unarchive if desired, deferred.)
-- **Batch:** several qualifying items in one sync each enqueue; the DO runs them serially. No debounce needed (one-per-item decision).
+**Ordering is load-bearing.** Trigger evaluation is the **last** phase of `performSyncForUser()`, run **after** the unread fetch, the archive-detection step, *and* the highlight-sync step (A) have all completed. It iterates **only the set of items that transitioned `archived: false → true` during this sync** — the archive step already computes this delta; the hook consumes it. It does **not** scan `WHERE archived AND relay_triggered_at IS NULL`. This ordering is what makes the design correct:
+
+- **Highlights are present when the filter runs.** A "highlighted-and-archived since the last sync" item (the highlight-*only* engagement case — the common one for a highlighting tool) has its highlights stored by step A before §B evaluates it. Evaluating the filter before the highlight-sync would skip it forever (it's already `archived=true`, so it never re-transitions).
+- **No first-deploy flood.** Only *fresh* transitions are considered, so the one-time highlight backfill (which creates no archive transitions) cannot enqueue the entire historical archive. A pure re-sync with no new archives evaluates an empty delta.
+
+- **Per item in the delta:** evaluate §B; if **react**, `fetch` the DO's `/enqueue {readerId}`, then stamp `reader_items.relay_triggered_at`.
+- **Idempotency (secondary crash-guard, not the selector):** `relay_triggered_at` guards against a mid-sync crash re-processing the same delta on the next run — skip an item already stamped. The *primary* selector is always "this sync's new transitions," never a standing archived-untriggered scan. (Re-archiving after an unarchive is an accepted edge — clearing the stamp on unarchive is deferred.)
+- **Batch:** several qualifying items in one delta each enqueue; the DO runs them serially. No debounce needed (one-per-item decision).
 
 ### D. Rich stimulus assembly
 
@@ -100,6 +105,8 @@ On a newly-archived item (see C), classify **react** vs **skip**:
 - Highlight **upsert idempotency** (re-sync same highlight → update, not duplicate).
 - Filter logic — each strong signal independently; 🤷 veto; no-signal skip; click-through-only skip.
 - **Trigger idempotency** — a re-detected archive does not double-enqueue (`relay_triggered_at` guard).
+- **Ordering: highlight-then-archive in one cycle triggers** — an item highlighted and archived since the last sync enqueues (highlights synced before trigger-eval; the highlight-only case).
+- **Ordering: no first-deploy flood** — a sync that backfills historical highlights but has no new archive transitions enqueues nothing (trigger-eval consumes the archive delta, not an archived-untriggered scan).
 - Stimulus assembly — includes highlights/note/tags/commentary; **excludes ratings** (blindness/bias test, analogous to the 2.2a Channel-2 blindness test).
 - Sync-step failure is non-fatal to the rest of sync.
 
