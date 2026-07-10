@@ -1,117 +1,124 @@
 # Relay — Stage 2.3: The archive-hook engine + rich stimulus (spec)
 
-**Status:** **DRAFT — awaiting `/review-spec`.** Four kickoff forks decided with Magnus (2026-07-10, see §"What's decided"). The one spec-blocking unknown (how to fetch highlight text from Readwise) was resolved by a live API probe before drafting — findings in §Design A. Builds on Stage 2.1 (grounding) + 2.2 (voice/taste). North star: `SPECIFICATIONS/ORIGINAL_IDEA/ansible-relay-agent-memory-system-spec.md` ("A webhook starts the session. The stimulus is the thing on the desk — one newly archived article, or a few.").
+**Status:** **DRAFT v2 — revised after `/review-spec` (3-lens: requirements / feasibility / strategy).** Reshaped to **two slices** (2.3a rich stimulus, 2.3b engagement-gated hook); the highlight-**text** sync-and-store is **dropped** (value didn't match expense — §E). Three blocking findings folded in: **owner-scoping** (multi-user/GDPR), **self-healing idempotency** (missed-trigger, not double-trigger), **note source** (Reader-authored notes). Builds on Stage 2.1 (grounding) + 2.2 (voice/taste). North star: `SPECIFICATIONS/ORIGINAL_IDEA/ansible-relay-agent-memory-system-spec.md`.
 
 ## Problem
 
-Relay reacts only to a **manual** trigger today: an operator opens the admin tab, types a `reader_id`, clicks run. The north-star wants Relay to react to **the thing on the desk** — an item you just archived in Readwise Reader — and specifically to react to your **engagement** with it, not the bare fact of archiving. Most archives are low-signal (batch headline-dumps cleared unread); those must **not** trigger a reaction. The reaction should be enriched by everything you did with the item: your highlights, your note, whether you found it interesting.
+Relay reacts only to a **manual** trigger today: an operator opens the admin tab, types a `reader_id`, clicks run. The north-star wants Relay to react to **the thing on the desk** — an item you just archived in Readwise Reader — and specifically to your **engagement** with it, not the bare fact of archiving. Most archives are low-signal (batch headline-dumps cleared unread); those must **not** trigger. Triggered reactions still land in the **human gate** (Relay stays blind to the gate, per Stage 1/2.2).
 
-This phase turns the manual trigger into an **engagement-gated archive-hook**, and enriches the stimulus from the full engagement record. Triggered reactions still land in the **human gate** (Relay stays blind to the gate, per Stage 1/2.2).
+## What's decided (forks + the post-review reshape)
 
-## What's decided (the four forks, locked with Magnus)
-
-1. **Trigger = poll-hook.** Reuse the existing archive-sync poll; **no webhook** (Readwise archive-webhook support is undocumented/sparse, and we already poll archived items on every sync). No real-time need — a gate-published narrator reacting within a sync interval is fine.
-2. **Filter = strong signal required.** React only if the archived item has a **💡 interesting rating**, **a note**, or **≥1 highlight**. A bare click-through (or a generated commentariat) does **not** qualify as a trigger. A 🤷 not-interesting rating means skip.
-3. **Highlights = full text, in scope.** Fetch and store the actual highlighted passages + inline annotations. This is the one genuinely new data sub-project (highlights are not in Ansible today).
-4. **Batch = one session per item.** Each qualifying archive gets its own session (the orchestrator DO already serialises). Braiding/cross-cut of related items is **deferred** (open research question; needs relatedness detection + orchestrator changes).
+1. **Trigger = poll-hook** (reuse the archive-sync poll; no webhook). No real-time need.
+2. **Filter = strong signal required** — a **💡 interesting rating**, **a note**, or **≥1 highlight** (by *count*). Bare click-through / generated commentariat do not qualify. A 🤷 not-interesting rating vetoes.
+3. **Highlights = COUNT only** (revised from "full text"). The trigger uses `highlights_count`, which the archive response already returns for free. The highlight **text** sync-and-store is **dropped** — see §E for the reasoning.
+4. **Batch = one session per item** (the DO serialises; braiding deferred).
+5. **Two slices (post-review reshape):** ship the mechanism in the smallest useful increments — **2.3a** enriches the stimulus, **2.3b** adds the engagement-gated hook. No new table in either.
 
 ## What already exists (hooks we build on)
 
-- **Archive-sync poll:** `performSyncForUser()` (`src/lib/sync-operations.ts`) already calls `fetchRecentlyArchivedItems(apiToken, updatedAfter)` (`src/lib/reader-api.ts`) each sync and flips `reader_items.archived = true, archived_at = NOW()` on newly-archived items. **This is the transition point the hook hangs on.**
-- **Engagement data:** `reader_items.short_summary` (auto AI summary), `commentariat_summary` (+`commentariat_generated_at`, on-demand), `tags[]`, `document_note` (synced to Reader). Interest signals in the append-only `item_signals` table — types `click_through`, `note_added`, `rated_interesting`, `rated_not_interesting`.
-- **The trigger target:** the manual admin button posts to `src/app/api/admin/relay/run/route.ts`, which resolves the singleton `RelayOrchestrator` Durable Object (`idFromName('relay')`) and `fetch`es `/enqueue {readerId}`. The DO serialises runs (one in flight; T0-window attribution). **The archive-hook enqueues on this same DO** — no new orchestration.
-- **Reader API client + token:** `src/lib/reader-api.ts` uses the v3 Reader API with `READER_API_TOKEN`. The probe (§Design A) confirmed this same token authenticates the highlight endpoints — no new secret.
+- **Archive-sync poll:** `performSyncForUser()` (`src/lib/sync-operations.ts`) calls `fetchRecentlyArchivedItems(apiToken, updatedAfter)` each sync and flips `reader_items.archived = true, archived_at = NOW()` on newly-archived items (selecting `WHERE archived_at IS NULL`).
+- **The archive response already carries what the filter needs, and sync discards it:** `ArchivedReaderItemSchema` (`src/lib/reader-api.ts`) includes **`highlights_count`** and **`notes`** (the Reader-authored note), but the archive step maps only `id` + `updated_at`. Retaining those two fields is the crux of 2.3b (fixes the "Reader-side note never reaches the filter" bug).
+- **Engagement data in Ansible:** `short_summary` (auto), `commentariat_summary` (+`commentariat_generated_at`, on-demand), `tags[]`, `document_note` (Ansible-authored note, one-directional Ansible→Reader). Interest signals in append-only `item_signals` (`item_id` → `reader_items.id` UUID, **not** `reader_id`); rating types `rated_interesting` / `rated_not_interesting` (toggles preserved — read the *latest*). **Ignore** the legacy `reader_items.rating` column (split-brain).
+- **The trigger target:** the manual admin button (`src/app/api/admin/relay/run/route.ts`) resolves the singleton `RelayOrchestrator` DO (`idFromName('relay')`) and `fetch`es `/enqueue {readerId}`. Confirmed reachable from sync: cron → HTTP → the main worker, which declares the `RELAY_ORCHESTRATOR` binding; the binding is in the `env` already passed to `performSyncForUser`. **No new orchestration.**
 
 ## Goals (2.3 delivers)
 
-- **G1.** A **highlights sync-and-store** pipeline: newly created/modified Reader highlights are pulled incrementally during sync and persisted locally, keyed to their parent document.
-- **G2.** An **engagement filter** that classifies a newly-archived item as *worth a reaction* (strong signal) or *skip*.
-- **G3.** A **poll-hook** that, on a qualifying archive transition, enqueues a Relay session on the existing DO — idempotently (at most once per archive).
-- **G4.** A **rich stimulus**: the session's prompt is assembled from summary + tags + commentariat + note + **highlights** (not just title/summary/commentariat as today).
-- **G5.** Gate-blindness preserved, and **rating-bias avoided** (see Design D).
+- **G1 (2.3a).** Rich stimulus: the session prompt is assembled from summary + tags + commentariat + note (not just title/summary/commentariat as today).
+- **G2 (2.3b).** An engagement filter classifying a newly-archived item *react* / *skip*, read entirely off data we already have.
+- **G3 (2.3b).** An **owner-scoped, self-healing** poll-hook that enqueues a session on the existing DO — at most once per archive, never silently lost.
+- **G4.** Gate-blindness + rating-bias preserved (ratings filter server-side only; never in the prompt).
 
-## Non-goals (deferred)
+## The two slices
 
-- **Braiding / cross-cut** (one session per item this phase).
-- **Full unattended always-on automation at scale** — that is **Phase 2.5**. The 2.3/2.5 boundary is an open question (§Open questions): 2.3 delivers the working mechanism, likely behind an operator **enable toggle / default-off**; 2.5 turns it fully on and hardens volume/cost.
-- **Highlights as a first-class `item_signals` type** (the interest-signals Phase 2 / issue #58). We store highlights in a dedicated table; emitting a signal row too is optional and not required here.
-- **A real Readwise webhook** (decided against; revisit only if real-time ever matters).
+- **2.3a — rich stimulus (tiny, high-learning, zero new infra).** Enrich the *existing manual* trigger's prompt with note/tags/commentariat. Proves richer stimulus writes better pieces before any trigger machinery exists.
+- **2.3b — the engagement-gated archive-hook.** Retain `highlights_count`+`notes` on the archive step; add the filter, owner-scoping, the idempotency column, and the enqueue. Adds **3 columns, no table**.
+
+## Non-goals (deferred / dropped)
+
+- **Highlight-text sync-and-store — dropped** (§E). Highlight *count* is used; the passages are not.
+- **Braiding / cross-cut** (one session per item).
+- **Full unattended always-on automation at scale** — Phase 2.5. 2.3 ships the mechanism behind an operator **enable toggle, default-off**; 2.5 turns it on and hardens volume/cost.
+- **A real Readwise webhook** (decided against).
 
 ## Design
 
-### A. Highlights sync-and-store (the new data sub-project)
+### A. Rich stimulus (2.3a)
 
-**Live-probe findings (2026-07-10, verified against Magnus's real Readwise account, same `READER_API_TOKEN`, both APIs `200`):**
+Enrich the orchestrator's fetch (`src/lib/relay/orchestrator.ts`, today `.select('title, short_summary, commentariat_summary')`) and `formatStimulus` + `StimulusRow` (`session-run.ts`) to add **tags**, **note** (`document_note` and/or the retained Reader `reader_note`, §C), and **commentariat**. Applies to the manual trigger immediately; 2.3b's auto-trigger reuses it.
 
-- **Use the v3 Reader API, not v2.** Highlights are **child documents**: `GET /api/v3/list/?category=highlight` returns highlight docs, each with **`parent_id`** = the parent article's Reader document id. **The highlighted text is in the `content` field**; the inline annotation is in `notes`. (Confirmed empirically: `content` len ~945 carried the real passage; `summary`/`html_content`/`text` were empty/absent.)
-- **Cross-validated but not needed:** the v2 `/export/` path also works and confirms the mapping (`book.external_id == v3 parent_id == Reader doc id`, v2 `.text` ≈ v3 `.content`). We prefer v3: single API, single token, **id-native** (no client-side book join, no `external_id` assumption, avoids v2's "`updatedAfter` filters on highlight-mtime" gotcha).
-- **Gotcha that shapes the architecture:** the v3 list has **no `parent_id` filter** (`?parent_id=` / `?parentId=` are ignored — count stayed 1041). So we cannot cheaply fetch *one document's* highlights on demand. → **Sync-and-store**, not fetch-on-demand.
+**`formatStimulus` guard:** it throws when `parts.length <= 1`. Adding parts must not let a **summary-less** item newly satisfy the guard and spend a session on a title-only stimulus — the summary requirement is enforced in §C, and a dedicated test asserts a highlight-only, summary-less item does not trigger.
 
-**Mechanism:**
-- **New client fn** `fetchHighlightChildren(apiToken, updatedAfter, pageCursor?)` in `reader-api.ts`: `GET /api/v3/list/?category=highlight&updatedAfter=<iso>&withHtmlContent=true`, paginating `nextPageCursor`. Rate limit is 20/min (v3 list); a full initial backfill (~1041 highlights ≈ 11 pages @ 100) fits inside one minute; incremental syncs are 1–2 pages.
-- **New sync step** inside `performSyncForUser()`: incremental by a stored per-user highlight cursor (last `updatedAfter`); **upsert by highlight `id`** into a new table (idempotent — re-editing a highlight updates the row).
-- **New table `reader_highlights`** (Ansible data, *not* `relay_*`): `(user_id, parent_reader_id, highlight_id UNIQUE, text, note, location, highlighted_at, created_at, updated_at)`. Keyed for lookup by `(user_id, parent_reader_id)`. We store highlights even when the parent document was never synced into `reader_items` (harmless; the hook only ever queries by an *archived* item's `reader_id`).
+### B. The engagement filter (2.3b) — strong signal, from existing data
 
-### B. The engagement filter (strong signal)
+Classify a candidate archived item *react* / *skip*:
+- **💡 interesting** — the item's **latest** rating row in `item_signals` is `rated_interesting` (resolve `reader_id → reader_items.id` first; read the latest, toggles preserved).
+- **note** — a note exists: `document_note` non-empty (Ansible-authored) **OR** `reader_note` non-empty (the retained Reader-authored note, §C). Reading the live column(s), not the `note_added` signal (which survives note deletion).
+- **highlight** — `highlights_count >= 1` (retained from the archive response, §C).
 
-On a newly-archived item (see C), classify **react** vs **skip**:
-- **💡 interesting** — the item's **latest** rating signal in `item_signals` is `rated_interesting` (append-only + toggles preserved, so read the most recent rating row for the item).
-- **note** — `document_note` is non-empty. (The live column, **not** the `note_added` signal: add-then-delete a note leaves the signal row but empties the column, so the column is the honest test.)
-- **highlight** — `reader_highlights` has ≥1 row for the item's `reader_id`.
+**React iff ≥1 of the above AND the latest rating is not `rated_not_interesting`** (explicit 🤷 vetoes even if highlighted — respect the verdict; consistent with gate-blindness). Click-through and commentariat-generation never trigger.
 
-**React iff ≥1 of the above AND the latest rating is not `rated_not_interesting`.** `click_through` and commentariat-generation never qualify as triggers (they may still *enrich* the stimulus, §D). The 🤷-veto-vs-highlight conflict is an open question (§Open questions) — proposed default: an explicit latest 🤷 vetoes (you said "not interesting," we respect it) even if highlights exist.
+### C. The poll-hook (2.3b) — owner-scoped, self-healing, a final sync phase
 
-### C. The poll-hook (trigger) — a final sync phase over *this sync's* archive delta
+**Owner-scoping (blocking fix #1).** Relay is a **single-owner** system (singleton DO; relay tables have no `user_id`). But `performSyncForUser()` runs for **every** auto-sync user. The hook **must no-op for every user except Relay's owner**, or another user's private highlights/notes would feed Magnus's narrator (a correctness *and* GDPR problem). Gate trigger-eval on `syncUserId === RELAY_OWNER_USER_ID` (a configured value; today = Magnus). Record the single-owner assumption as an ADR ("Relay is single-user until multi-tenant").
 
-**Ordering is load-bearing.** Trigger evaluation is the **last** phase of `performSyncForUser()`, run **after** the unread fetch, the archive-detection step, *and* the highlight-sync step (A) have all completed. It iterates **only the set of items that transitioned `archived: false → true` during this sync** — the archive step already computes this delta; the hook consumes it. It does **not** scan `WHERE archived AND relay_triggered_at IS NULL`. This ordering is what makes the design correct:
+**Self-healing idempotency (blocking fix #2).** The archive step stamps `archived_at` for the whole delta *before* trigger-eval; a crash (or the 14-min cron cap) in that gap would strand items as `archived` but never-evaluated, and the next sync's archive step won't re-detect them (`WHERE archived_at IS NULL`). So the real failure mode is a **missed** trigger, not a double one. Design a proper work-queue marker:
+- **Migration** adds `reader_items.relay_triggered_at (timestamptz null)`, and **baselines it**: `SET relay_triggered_at = NOW()` for all **existing** archived rows — so history never fires and there is no first-deploy flood.
+- **Archive step** (extended): on new archives set `archived=true, archived_at=NOW()`, retain **`highlights_count`** and **`reader_note`** (from the response), and leave `relay_triggered_at` **NULL**.
+- **Trigger-eval** (new **final** sync phase, after unread + archive steps): if not the owner, return. Else `SELECT` archived rows `WHERE relay_triggered_at IS NULL` (this standing scan *is* the recovery mechanism — safe because of the baseline). For each, apply §B, with this outcome table:
+  - **qualifies + summary present** → `fetch` the DO `/enqueue {readerId}`; on **success**, stamp `relay_triggered_at = NOW()`; on **enqueue failure**, leave NULL (retries next sync).
+  - **skips (no engagement / 🤷 veto)** → stamp `relay_triggered_at = NOW()` (permanent skip; don't re-evaluate forever).
+  - **qualifies but summary not ready** (async summary job hasn't run) → leave NULL (retry next sync once the summary lands). This is the summary-guard.
+- **Batch:** several qualifying items each enqueue; the DO runs them serially. No debounce (one-per-item).
 
-- **Highlights are present when the filter runs.** A "highlighted-and-archived since the last sync" item (the highlight-*only* engagement case — the common one for a highlighting tool) has its highlights stored by step A before §B evaluates it. Evaluating the filter before the highlight-sync would skip it forever (it's already `archived=true`, so it never re-transitions).
-- **No first-deploy flood.** Only *fresh* transitions are considered, so the one-time highlight backfill (which creates no archive transitions) cannot enqueue the entire historical archive. A pure re-sync with no new archives evaluates an empty delta.
+This is simpler than threading an in-memory delta through the sync phases *and* it is self-healing: crashed and enqueue-failed items are naturally retried; skipped and succeeded items are marked done; history and other users never fire.
 
-- **Per item in the delta:** evaluate §B; if **react**, `fetch` the DO's `/enqueue {readerId}`, then stamp `reader_items.relay_triggered_at`.
-- **Idempotency (secondary crash-guard, not the selector):** `relay_triggered_at` guards against a mid-sync crash re-processing the same delta on the next run — skip an item already stamped. The *primary* selector is always "this sync's new transitions," never a standing archived-untriggered scan. (Re-archiving after an unarchive is an accepted edge — clearing the stamp on unarchive is deferred.)
-- **Batch:** several qualifying items in one delta each enqueue; the DO runs them serially. No debounce needed (one-per-item decision).
+### D. Gate-blindness + rating-bias (G4)
 
-### D. Rich stimulus assembly
+Ratings (💡/🤷) are used **server-side for the filter only** and are **never** placed in the prompt — telling the agent "Magnus rated this interesting" would bias it toward writing (it would feel commissioned), undercutting the restraint the project depends on. The **content** signals enrich the prompt: the note(s) (Magnus's own thought), tags, commentary. A blindness test asserts ratings do not appear in the assembled stimulus (analogous to the 2.2a Channel-2 blindness test).
 
-- Enrich the orchestrator's fetch (today `src/lib/relay/orchestrator.ts` selects only `title, short_summary, commentariat_summary`) and `formatStimulus` (`session-run.ts`) to add **tags**, **document_note**, **commentariat**, and the item's **highlights** (`text` + `note`).
-- **Gate-blindness + rating-bias (G5):** ratings (💡/🤷) are used **server-side for the filter only** and are **not** placed in the prompt — telling the agent "Magnus rated this interesting" risks biasing it toward writing (it would feel commissioned), undercutting the restraint the whole project depends on. The **content** signals do enrich the prompt: highlights (the passages that landed), the note (Magnus's marginal thought), tags, commentary. Whether even framing highlights as "passages the reader marked" leaks salient bias is flagged for review (§Open questions) — proposed: include them as neutral context ("marked passages"), since input salience ≠ an output verdict, and it genuinely sharpens the stimulus.
+### E. Considered and dropped: the highlight-text store
+
+The kickoff chose "full highlight text." A live API probe (kept for the record) then showed: highlights are v3 **child documents** (`category=highlight`, `parent_id` = the article, text in the **`content`** field), and — decisively — **the v3 list has no `parent_id` filter**, so there is *no cheap on-demand fetch of one document's highlights*; it is a full **sync-and-store** (new table, RLS, ~1041-row resumable backfill under a shared 20/min limiter, ~830 lines of test-mock churn) or nothing. Weighed against its value, we dropped it:
+- The highlight **passages are a subset of the article Relay already reads** — a salience marker, not new information.
+- Feeding "the exact sentences Magnus marked" is a soft cousin of the **rating-bias** we deliberately design out in §D — it would steer Relay toward Magnus's emphasis instead of its own reading.
+- The trigger needs only the **count**, which is free on the archive response.
+
+So highlight *count* is a trigger signal; the text is not sourced. (Revisit only if a concrete need for the passages appears.) With the store gone, the **backfill, the FK/cascade question, the rate-limiter contention, and the highlight-sync-before-filter ordering dependency all disappear.**
 
 ## Data model changes
 
-- **New table `reader_highlights`** (see A). Migration + RLS consistent with `reader_items` (user-scoped).
-- **New column `reader_items.relay_triggered_at timestamptz null`** (trigger idempotency).
-- **Highlight sync cursor** per user — store last `updatedAfter` (reuse the existing sync-state mechanism used for archived-items polling, or a small column; align with how archive-sync persists its cursor).
+- **`reader_items.relay_triggered_at timestamptz null`** — the work-queue marker (baselined to `NOW()` for existing archived rows in the same migration).
+- **`reader_items.highlights_count int not null default 0`** — retained from the archive response (filter input; recovery-readable).
+- **`reader_items.reader_note text null`** — the Reader-authored note retained from the archive response (filter input + stimulus enrichment; kept separate from Ansible-authored `document_note` to avoid clobbering).
+- **No new table.**
 
 ## Blast radius, cost, latency
 
-- **Sync gains a highlight step:** extra v3 calls, rate-limited and incremental (cheap after the one-time backfill). Failure must be non-fatal to the rest of sync (mirror archive-sync's "log to `sync_log.errors`, continue").
-- **Trigger latency = sync interval** (acceptable; gate-published narrator).
-- **DO serial:** many qualifying archives at once process sequentially (~5 min/session). Could back up under a big engaged batch; acceptable for now, noted for 2.5 scale work.
-- **Reader-side writes:** none — highlights are read-only pulls.
+- **Sync gains a retain-two-fields tweak (archive step) + a final trigger-eval phase.** Trigger-eval failure must be non-fatal to the rest of sync (mirror archive-sync's log-and-continue).
+- **Test churn (real cost):** `sync-operations.test.ts` is ~830 lines of Supabase mock chains; the new `.from('item_signals')` / trigger-eval calls will disturb existing mocks — budget rework, plus new filter/hook tests. Not a rounding error.
+- **Trigger latency = sync interval** (acceptable).
+- **DO serial:** a big engaged batch enqueues several ~5-min sessions serially; acceptable for now (default-off toggle guards the first enable), noted for 2.5. Consider a "skip if DO queue depth > N" cap at enable time.
+- **Coupling:** the experimental Relay trigger now lives in the core sync path; the non-fatal handling contains it, but keep an eye on it (an ADR records the single-owner + coupling constraints).
 
-## Open questions (for `/review-spec`)
+## Open questions (trimmed — most resolved)
 
-1. **🤷 veto vs highlight** — does an explicit latest not-interesting override a highlight? (Proposed: yes, veto.)
-2. **2.3/2.5 boundary** — is the hook on-by-default or behind an operator toggle this phase? (Proposed: toggle, default-off, so 2.3 is provably-working-but-opt-in; 2.5 flips it on + scale-hardens.)
-3. **Rating-bias framing** — is including "marked passages" in the prompt safe, or does any engagement framing bias the agent? (Proposed: include highlights as neutral context; keep ratings out.)
-4. **Highlight cursor storage** — reuse the archive-sync cursor mechanism vs a dedicated store?
-5. **Initial backfill** — auto-paginate the ~1041 existing highlights on the first sync after deploy, or a one-off script? (Proposed: auto, bounded by rate limit.)
-6. **Highlights on never-synced parents** — store anyway (proposed) vs skip.
+1. **Enable-toggle location (Open, was Q2):** per-user setting vs env flag vs admin UI, and who flips it. Proposed: an admin-flippable flag, default-off. *(Needs a small decision before 2.3b ships.)*
+2. **Concurrent sync + engagement mutation** (note deleted the instant after the filter reads it): accept the race (last-writer-wins, self-heals next sync) — stated, not mitigated.
+3. **`RELAY_OWNER_USER_ID` source:** env/secret vs the existing `is_admin` user. Proposed: explicit configured value.
+
+*(Resolved by the reshape/review: 🤷 veto = veto wins; highlight-text store = dropped; note source = archive `notes`; idempotency = self-healing standing scan with baseline; summary guard = leave-NULL-retry.)*
 
 ## Testing
 
-- `fetchHighlightChildren` — pagination + `updatedAfter` param assembly (mocked).
-- Highlight **upsert idempotency** (re-sync same highlight → update, not duplicate).
-- Filter logic — each strong signal independently; 🤷 veto; no-signal skip; click-through-only skip.
-- **Trigger idempotency** — a re-detected archive does not double-enqueue (`relay_triggered_at` guard).
-- **Ordering: highlight-then-archive in one cycle triggers** — an item highlighted and archived since the last sync enqueues (highlights synced before trigger-eval; the highlight-only case).
-- **Ordering: no first-deploy flood** — a sync that backfills historical highlights but has no new archive transitions enqueues nothing (trigger-eval consumes the archive delta, not an archived-untriggered scan).
-- Stimulus assembly — includes highlights/note/tags/commentary; **excludes ratings** (blindness/bias test, analogous to the 2.2a Channel-2 blindness test).
-- Sync-step failure is non-fatal to the rest of sync.
+- Stimulus assembly (2.3a) — includes note/tags/commentary; **excludes ratings** (blindness/bias test).
+- Filter (2.3b) — each strong signal independently (latest 💡; Ansible note; Reader `reader_note`; `highlights_count>=1`); 🤷 veto; no-signal skip; click-through-only skip.
+- **Owner-scoping** — a non-owner user's qualifying archive does **not** enqueue.
+- **Self-healing idempotency** — success stamps and does not re-fire; enqueue-failure leaves NULL and retries next sync; no-engagement skip stamps; **summary-not-ready leaves NULL and fires once the summary lands**; the migration baseline means a first post-deploy sync fires nothing on history.
+- `reader_id → item_id` resolve is correct; the legacy `rating` column is ignored.
+- Trigger-eval failure is non-fatal to the rest of sync.
 
 ## Rollout
 
-- Migration (`reader_highlights` + `relay_triggered_at` + cursor).
-- Deploy; first sync auto-runs the highlight backfill (rate-limited).
-- Enable the hook (toggle per Open Q2); watch the first qualifying archive flow through to a pending piece in the gate.
+- Migration (3 columns + baseline stamp of existing archived rows).
+- Ship **2.3a** first (stimulus enrichment on the manual trigger) — observe better pieces, no trigger risk.
+- Ship **2.3b** with the toggle **default-off**; flip it on and watch the first qualifying archive flow through to a pending piece in the gate.
