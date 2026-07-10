@@ -216,6 +216,8 @@ export default async function AdminPage() {
     ]),
   );
   // Which stimulus (reader_ids) each written piece came from — from the decision that finalized it.
+  // A re-decided piece (approve→reject→approve) has several decision rows; last-write-wins is safe
+  // here because the stimulus_ref is the same across them (the underlying item doesn't change).
   const stimulusRefByPieceId = new Map<string, string[]>(
     decisionRows
       .filter((d) => d.piece_id)

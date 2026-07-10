@@ -1,5 +1,12 @@
 // ABOUT: Reconstruct the stimulus a pending/decided Relay piece was written from + Readwise Reader
 // ABOUT: deep-links, for the admin review screen. RECONSTRUCTION (current logic), not stored text.
+//
+// Why reconstruct rather than store the exact stimulus: the finalize flow records only stimulus_ref
+// (the reader_ids), not the rendered text, so faithful capture would need write-path plumbing (a
+// stimulus_text column set at write time). For a review-screen display that's not worth it — the
+// operator reviews a piece soon after it's written, when the item is unchanged, so reconstruction
+// is faithful in practice. The one gap is an assembler change between write and review (e.g. pre-2.3a
+// pieces predate Tags/Note), which the UI labels "reconstructed" rather than pretending it's as-sent.
 
 import { formatStimulus, type StimulusRow } from './session-run';
 
