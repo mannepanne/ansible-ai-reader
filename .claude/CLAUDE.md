@@ -120,8 +120,8 @@ This template ships with three review skills gated by a single project-level fla
 
 **Skills:**
 - `/review-pr` — triages each PR (~30s) then runs a light/standard/team review (1–5 min). Default choice for most PRs.
-- `/review-pr-team` — forces a full multi-perspective team review (2–7 min). For critical changes when you want to skip triage.
-- `/review-spec` — reviews a feature specification before you write any code (2–7 min). Catches wrong assumptions early.
+- `/review-pr-team` — forces a full four-perspective review (2–4 min). For critical changes when you want to skip triage.
+- `/review-spec` — reviews a feature specification before you write any code (2–4 min). Catches wrong assumptions early.
 
 **Config flag:** `prReviewMode` in [`.claude/project-config.json`](./project-config.json). Three values: `enabled`, `disabled`, `prompt-on-first-use` (the template default). A gitignored `.claude/project-config.local.json` may override the committed value on a per-clone basis.
 
@@ -216,8 +216,8 @@ I value clean git history, but not at the expense of losing work or slowing down
 
 **Pull request reviews:**
 - Use `/review-pr` as the default — a smart dispatcher that triages each PR and routes to light, standard, or team review (1–5 min end-to-end; longer when auto-escalated to team tier). Announces its decision in plain language first, so you can override if the triage looks wrong.
-- Use `/review-pr-team` to skip triage and force a full multi-perspective team review (2–7 min) for critical changes.
-- See project-specific pr-review-workflow.md in REFERENCE/ for complete guide
+- Use `/review-pr-team` to skip triage and force a full four-perspective review (2–4 min) for critical changes.
+- See project-specific pr-review-workflow.md in REFERENCE/development/ for complete guide
 
 **Branch strategy:**
 - Keep main clean and deployable; CI/CD auto-deploys from it

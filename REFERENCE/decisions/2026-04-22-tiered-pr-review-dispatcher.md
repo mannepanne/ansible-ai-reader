@@ -71,7 +71,7 @@ The alternative (merging triage into `/review-pr-team` or adding a header parame
 `TIER:` / `RATIONALE:` / `FLAGGED_PATHS:` / `SIZE:` lines are parsed as strings. A classifier returning prose instead of the block would break dispatch. Mitigation: the fail-closed fallback in `SKILL.md` Step 1 — if parsing fails or `TIER` is out-of-vocabulary, default to `team` and announce it.
 
 **Light tier is narrow by design — it will miss things.**
-Architecture critique, performance analysis, deep security review, and full test-coverage checks are all explicitly skipped at light tier. The safety of this rests on accurate triage. If triage misclassifies a risky PR as LOW, the light tier will not catch what the right tier would. This is an accepted risk, documented in `REFERENCE/pr-review-workflow.md` under "What the light tier explicitly does NOT catch."
+Architecture critique, performance analysis, deep security review, and full test-coverage checks are all explicitly skipped at light tier. The safety of this rests on accurate triage. If triage misclassifies a risky PR as LOW, the light tier will not catch what the right tier would. This is an accepted risk, documented in `REFERENCE/development/pr-review-workflow.md` under "What the light tier explicitly does NOT catch."
 
 **Regex-based secret detection has edges.**
 The triage rubric uses grep patterns for modern token shapes (`sk-…`, `gh[pousr]_…`, PEM blocks, JWT structure, AWS keys) plus keyword-anchored patterns. It cannot catch every secret format ever invented, and it will produce false-positives on docs that *describe* secrets (tier-up — harmless). Accepted: the rule's purpose is tier-escalation, not content redaction; false-positives are the safe failure mode.

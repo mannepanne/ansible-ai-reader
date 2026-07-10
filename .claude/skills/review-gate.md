@@ -63,8 +63,8 @@ The blockquote pitch itself:
 
 > This template ships with an automated PR review system:
 > - `/review-pr` triages each PR (~30s) then runs a light/standard/team review (1–5 min). Catches bugs, security issues, and doc gaps.
-> - `/review-pr-team` forces a full multi-perspective team review (2–7 min) for critical changes.
-> - `/review-spec` reviews a feature spec before you write code (2–7 min).
+> - `/review-pr-team` forces a full multi-perspective team review (2–4 min) for critical changes.
+> - `/review-spec` reviews a feature spec before you write code (2–4 min).
 >
 > These cost tokens. For throwaway experiments they're overkill;  
 > for meaningful or long-lasting projects they pay back the first time  
