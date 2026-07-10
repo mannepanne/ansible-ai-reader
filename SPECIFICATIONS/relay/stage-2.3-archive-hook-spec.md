@@ -102,11 +102,13 @@ So highlight *count* is a trigger signal; the text is not sourced. (Revisit only
 
 ## Open questions (trimmed — most resolved)
 
-1. **Enable-toggle location (Open, was Q2):** per-user setting vs env flag vs admin UI, and who flips it. Proposed: an admin-flippable flag, default-off. *(Needs a small decision before 2.3b ships.)*
-2. **Concurrent sync + engagement mutation** (note deleted the instant after the filter reads it): accept the race (last-writer-wins, self-heals next sync) — stated, not mitigated.
-3. **`RELAY_OWNER_USER_ID` source:** env/secret vs the existing `is_admin` user. Proposed: explicit configured value.
+1. **Concurrent sync + engagement mutation** (note deleted the instant after the filter reads it): accept the race (last-writer-wins, self-heals next sync) — stated, not mitigated.
 
 *(Resolved by the reshape/review: 🤷 veto = veto wins; highlight-text store = dropped; note source = archive `notes`; idempotency = self-healing standing scan with baseline; summary guard = leave-NULL-retry.)*
+
+*(Resolved by Magnus 2026-07-10, before 2.3b build):*
+- **Enable-toggle = an admin-flippable flag, default-off** — a setting in the admin Relay tab, toggled without a deploy. (Not an env var — chosen for live flip-ability once 2.3b lands.)
+- **Owner identity = an explicit `RELAY_OWNER_USER_ID` configured value** (env/secret), NOT derived from `is_admin` — keeps the single-owner assumption explicit and decoupled from the admin role. Record the single-owner assumption as an ADR.
 
 ## Testing
 
