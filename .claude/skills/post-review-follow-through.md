@@ -1,6 +1,6 @@
 # Post-review follow-through
 
-Referenced by `/review-pr` (Step 4) and `/review-pr-team` (Step 3) after a PR review comment has been posted.
+Referenced by `/review-pr` (Step 4) and `/review-pr-team` (Step 4) after a PR review comment has been posted.
 
 ---
 
