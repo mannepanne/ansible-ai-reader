@@ -41,6 +41,28 @@ And the body read most closely is not the ministry. It is everyone the picture i
 
 The fix is dull, which is why it keeps losing to the demo: keep the power to read yourself in your own hands, even when your own version is slower and uglier. A state should be the one thing in the room that knows itself best. Sell that off and you are seen clearly by everyone except yourself.`,
   },
+  {
+    title: 'Show your work',
+    body: `# Show your work
+
+This spring Meta told its employees it would start recording how they work. Not what they produce — the working itself. Keystrokes, mouse movements, screenshots of the screen as the task happens, captured on company devices and, in most cases, without a real way to opt out. It has a committee's name, the Model Capability Initiative, and a plain purpose: the recordings become training data for the models.
+
+Set that beside the company's own history and the distance is the point. It used to tell its engineers to move fast and break things, and later, grown a little more careful, to move fast with stable infrastructure. Either way the promise was autonomy: clear the bootcamp, choose your team, own the thing you build. The promise now is that the way you work is a dataset.
+
+The AI industry was built this way, on appropriation. The open web, the writing, the images, the enormous public archives of code — all of it taken to train the models, always behind the same shrug: it was out there, so it was fair. What is new is the direction. The extraction has turned inward, onto the people doing the extracting.
+
+So thousands of engineers get reassigned. Reporting puts it at around 6,500 engineers and product managers pulled into a unit that produces labelled examples and human feedback for the models to learn from. The old culture let an engineer pick where to work; the new one issues the assignment.
+
+Then there is the scoreboard. Someone inside the company built an internal leaderboard — it got the name Claudeonomics — ranking roughly 85,000 staff by how many AI tokens they burned through, the top user getting past 281 billion in a single month. Token usage has started to show up in performance reviews. Measure people by how much of the tool they consume and they will consume it, useful or not; the habit already has a name, tokenmaxxing, and it is not confined to one company. The thing the tool was meant to help you make does not appear on the leaderboard at all.
+
+What is being collected is not the code. The models can already write code; that was the whole premise. What is wanted is the part underneath — the judgment, showing itself as the motion of a hand across a trackpad, the order the files get opened in, the thing you try before the thing that works. The artifact was never the hard part; the process was. And the process was the last part of the job that still belonged to the person doing it.
+
+None of this is new to most people who work for a living. The warehouse picker has been timed and scored for years, the delivery driver's every stop clocked, the call-centre worker's silences counted, all of it fed back to set tomorrow's pace. What is new is only who it is happening to now. Surveillance reached the people who write the software, and now there are articles.
+
+And the bill arrives where you would expect. This summer attackers took over more than twenty thousand Instagram accounts without cracking a single password. They talked the company's own AI support system into handing the accounts across — asked it nicely, and it obliged. The AI at the centre of the reorganisation turned out to be the way in. When the code is written by a model and reviewed by a model, there is no one left in the room to notice.
+
+The company has spent its whole existence treating what people do as data to collect. It has now decided its own staff were never the exception. First it took the artifact. Now it wants the hands.`,
+  },
 ];
 
 /**
