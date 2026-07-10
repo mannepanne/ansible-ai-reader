@@ -16,6 +16,11 @@ export interface StimulusRow {
   title: string | null;
   short_summary: string | null;
   commentariat_summary: string | null;
+  // Enrichment (Stage 2.3a): topical tags and Magnus's own note on the item. Both are content
+  // signals (§D) — they sharpen the desk without revealing the human gate. Ratings are NOT here by
+  // design: a verdict on the desk's output would bias the agent toward feeling commissioned.
+  tags: string[] | null;
+  document_note: string | null;
 }
 
 export interface SessionRunResult {
@@ -25,15 +30,21 @@ export interface SessionRunResult {
 }
 
 /**
- * Format a reader_items row into the stimulus text the agent sees (summary + counter-case). A bare
- * title is not a stimulus — throws so a session is never spent on an item with no summary to react to.
+ * Format a reader_items row into the stimulus text the agent sees: summary, plus topical tags, the
+ * operator's note, and the counter-case (Stage 2.3a enrichment). The summary is the irreducible
+ * stimulus — enforced explicitly (not via a part count) so no enrichment field can let a
+ * summary-less item slip through and spend a session on nothing to react to (stage-2.3 spec §A/§C).
  */
 export function formatStimulus(row: StimulusRow): string {
+  if (!row.short_summary?.trim()) throw new Error('stimulus: reader_item has no summary text');
+
   const parts: string[] = [];
   if (row.title) parts.push(`Title: ${row.title}`);
-  if (row.short_summary?.trim()) parts.push(`Summary:\n${row.short_summary.trim()}`);
+  parts.push(`Summary:\n${row.short_summary.trim()}`);
+  const tags = (row.tags ?? []).map((t) => t.trim()).filter(Boolean);
+  if (tags.length) parts.push(`Tags: ${tags.join(', ')}`);
+  if (row.document_note?.trim()) parts.push(`Note:\n${row.document_note.trim()}`);
   if (row.commentariat_summary?.trim()) parts.push(`Counter-case:\n${row.commentariat_summary.trim()}`);
-  if (parts.length <= 1) throw new Error('stimulus: reader_item has no summary text');
   return parts.join('\n\n');
 }
 

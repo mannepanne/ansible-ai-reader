@@ -3,12 +3,23 @@
 import { describe, it, expect, vi } from 'vitest';
 import { formatStimulus, runSession } from './session-run';
 
+// A fully-engaged item: every enrichment field present. Used across the enrichment + blindness tests.
+const engagedRow = {
+  title: 'Seeing like a vendor',
+  short_summary: 'The submarine surfaces in the metadata.',
+  commentariat_summary: 'But procurement is boring.',
+  tags: ['sovereignty', 'surveillance', 'defence'],
+  document_note: 'The exit was sold off with the entrance.',
+};
+
 describe('formatStimulus', () => {
   it('assembles title + summary + counter-case', () => {
     const out = formatStimulus({
       title: 'Seeing like a vendor',
       short_summary: 'The submarine surfaces in the metadata.',
       commentariat_summary: 'But procurement is boring.',
+      tags: null,
+      document_note: null,
     });
     expect(out).toContain('Title: Seeing like a vendor');
     expect(out).toContain('Summary:\nThe submarine surfaces in the metadata.');
@@ -16,15 +27,44 @@ describe('formatStimulus', () => {
   });
 
   it('works with just a summary (no counter-case)', () => {
-    const out = formatStimulus({ title: 'T', short_summary: 'A point.', commentariat_summary: null });
+    const out = formatStimulus({ title: 'T', short_summary: 'A point.', commentariat_summary: null, tags: null, document_note: null });
     expect(out).toContain('Title: T');
     expect(out).toContain('Summary:\nA point.');
     expect(out).not.toContain('Counter-case');
   });
 
-  it('throws when there is no summary text (title alone is not a stimulus)', () => {
-    expect(() => formatStimulus({ title: 'T', short_summary: null, commentariat_summary: null })).toThrow(/summary/);
-    expect(() => formatStimulus({ title: 'T', short_summary: '   ', commentariat_summary: null })).toThrow(/summary/);
+  it('enriches the stimulus with tags and the note (2.3a)', () => {
+    const out = formatStimulus(engagedRow);
+    expect(out).toContain('Tags: sovereignty, surveillance, defence');
+    expect(out).toContain('Note:\nThe exit was sold off with the entrance.');
+    // ordering: tags sit above the note, both between summary and counter-case
+    expect(out.indexOf('Summary:')).toBeLessThan(out.indexOf('Tags:'));
+    expect(out.indexOf('Tags:')).toBeLessThan(out.indexOf('Note:'));
+    expect(out.indexOf('Note:')).toBeLessThan(out.indexOf('Counter-case:'));
+  });
+
+  it('omits tags/note when absent or empty', () => {
+    const out = formatStimulus({ ...engagedRow, tags: [], document_note: '   ' });
+    expect(out).not.toContain('Tags:');
+    expect(out).not.toContain('Note:');
+    // blank tag entries are dropped, not rendered as an empty list
+    const partial = formatStimulus({ ...engagedRow, tags: ['ai', '  ', ''] });
+    expect(partial).toContain('Tags: ai');
+    expect(partial).not.toContain('Tags: ai, ,');
+  });
+
+  it('never leaks a rating into the stimulus (§D gate-blindness / bias)', () => {
+    // formatStimulus takes no rating input by construction; assert the assembled text of a
+    // fully-engaged item carries no rating verdict the agent could read as a commission.
+    const out = formatStimulus(engagedRow);
+    expect(out).not.toMatch(/interesting|rated|💡|🤷/i);
+  });
+
+  it('throws when there is no summary text, even with tags/note present (summary-guard)', () => {
+    expect(() => formatStimulus({ title: 'T', short_summary: null, commentariat_summary: null, tags: null, document_note: null })).toThrow(/summary/);
+    expect(() => formatStimulus({ title: 'T', short_summary: '   ', commentariat_summary: null, tags: null, document_note: null })).toThrow(/summary/);
+    // enrichment parts must not let a summary-less item satisfy the guard and spend a session
+    expect(() => formatStimulus({ title: 'T', short_summary: null, commentariat_summary: 'c', tags: ['a'], document_note: 'n' })).toThrow(/summary/);
   });
 });
 

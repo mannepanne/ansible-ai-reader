@@ -22,7 +22,7 @@ A typical pass: run a session → if it wrote, `relay:pieces` to read the piece 
 
 ## What each does
 
-- **`relay:session <reader_id>`** — assembles the voice, ensures the Managed-Agent resources exist (environment/vault/agent, cached in the gitignored `.relay-agent-ids.json`), fetches the stimulus from `reader_items` (`short_summary` + `commentariat_summary`), runs one session, prints the **reasoning trace**, and finalizes the backend-observed decision. The raw transcript is saved to the gitignored `relay-sessions/<session_id>.json`. Pre-flights the bridge and fails fast with guidance if it's unreachable.
+- **`relay:session <reader_id>`** — assembles the voice, ensures the Managed-Agent resources exist (environment/vault/agent, cached in the gitignored `.relay-agent-ids.json`), fetches the stimulus from `reader_items` (`short_summary` + `tags` + the operator note + `commentariat_summary`, via the shared `formatStimulus`), runs one session, prints the **reasoning trace**, and finalizes the backend-observed decision. The raw transcript is saved to the gitignored `relay-sessions/<session_id>.json`. Pre-flights the bridge and fails fast with guidance if it's unreachable.
 - **`relay:pieces [--all]`** — read-only. Prints each `pending_review` piece in full (body, summary, concepts, recall count) so you can read before approving, plus the recent decision log. `--all` includes approved/rejected pieces.
 - **`relay:approve <piece_id>`** — embeds the body (the one sealed embed fn) and atomically sets `state=approved` + `slug` + `embedding`. The piece is now recallable as *self*. Re-drivable (a second approve errors cleanly).
 - **`relay:reject <piece_id>`** — sets `state=rejected`; never embedded, never recalled.
