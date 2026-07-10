@@ -73,6 +73,12 @@ rating" mean what the operator expects, and removes the only place the filter's 
   admin toggle renders disabled with a note, and trigger-eval always no-ops.
 - The enable-toggle is safe to ship on by default in code because the *column* defaults to `false`; nothing
   fires until the owner flips it.
+- **Enabling means "react from here forward," not "process the backlog."** While the gate is OFF nothing is
+  stamped, so without this the first ON-sync would flood the gate with every engaged archive accumulated
+  since the migration (serial ~5-min sessions). So the OFF→ON transition baseline-stamps all currently
+  archived, not-yet-evaluated owner rows as seen — the same anti-flood baseline the migration applies once at
+  deploy, re-applied at the *real* start moment each time the gate is turned on. Only archives after the flip
+  fire. (Chosen over processing the backlog, 2026-07-10; the operator can still manually Run a specific item.)
 - If Relay ever becomes multi-tenant, this ADR is the first thing to supersede.
 
 ---

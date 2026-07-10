@@ -42,6 +42,15 @@ export async function PATCH(request: Request) {
   }
 
   const db = createServiceRoleClient();
+
+  // Read the prior state so we can detect the OFF→ON transition (for the backlog baseline below).
+  const { data: prev } = await db
+    .from('users')
+    .select('relay_engagement_gate_enabled')
+    .eq('id', ownerId)
+    .maybeSingle();
+  const wasEnabled = !!prev?.relay_engagement_gate_enabled;
+
   const { error } = await db
     .from('users')
     .update({ relay_engagement_gate_enabled: body.enabled })
@@ -49,5 +58,26 @@ export async function PATCH(request: Request) {
   if (error) {
     return NextResponse.json({ error: 'Failed to update gate', detail: error.message }, { status: 500 });
   }
+
+  // On OFF→ON, baseline-stamp all currently-archived, not-yet-evaluated owner items as "seen" so
+  // enabling means "react to archives from here forward" — not a burst of every engaged archive
+  // accumulated while the gate was off. The migration does this once at deploy; this does it at the
+  // real start moment, every time the operator turns the gate on. New archives after this stay NULL
+  // and fire normally. Guarded on `!wasEnabled` so a redundant ON→ON PATCH never stamps live pending
+  // items (which must keep their NULL marker so they still fire).
+  if (body.enabled && !wasEnabled) {
+    const { error: stampError } = await db
+      .from('reader_items')
+      .update({ relay_triggered_at: new Date().toISOString() })
+      .eq('user_id', ownerId)
+      .eq('archived', true)
+      .is('relay_triggered_at', null);
+    if (stampError) {
+      // Non-fatal: the flag is already flipped. Worst case is the backlog fires next sync (the
+      // pre-baseline behaviour) — log it, but still report the toggle succeeded.
+      console.error('[Relay gate] enabled, but backlog baseline-stamp failed:', stampError);
+    }
+  }
+
   return NextResponse.json({ enabled: body.enabled });
 }

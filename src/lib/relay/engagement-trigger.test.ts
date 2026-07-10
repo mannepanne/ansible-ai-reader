@@ -90,7 +90,13 @@ function makeSupabase({
   gateEnabled = true,
   rows = [] as Row[],
   scanError = null as null | { message: string },
-}: { gateEnabled?: boolean | null; rows?: Row[]; scanError?: null | { message: string } } = {}) {
+  stampError = null as null | { message: string },
+}: {
+  gateEnabled?: boolean | null;
+  rows?: Row[];
+  scanError?: null | { message: string };
+  stampError?: null | { message: string };
+} = {}) {
   const stamps: Array<{ id: string; ts: string }> = [];
   let usersQueried = false;
   let scanned = false;
@@ -126,7 +132,7 @@ function makeSupabase({
           update: (patch: { relay_triggered_at: string }) => ({
             eq: async (_col: string, id: string) => {
               stamps.push({ id, ts: patch.relay_triggered_at });
-              return { error: null };
+              return { error: stampError };
             },
           }),
         };
@@ -264,6 +270,14 @@ describe('evaluateRelayTriggers — outcomes', () => {
     const { supabase } = makeSupabase({ rows: [], scanError: { message: 'db exploded' } });
     const { orchestrator } = makeOrchestrator();
     await expect(evaluateRelayTriggers(deps({ supabase, orchestrator }))).rejects.toThrow('db exploded');
+  });
+
+  it('does not throw when a stamp update errors (the standing scan self-heals next sync)', async () => {
+    const { supabase } = makeSupabase({ rows: [row({ rating: 4 })], stampError: { message: 'stamp failed' } });
+    const { orchestrator } = makeOrchestrator();
+    // Enqueue succeeds; the stamp fails but is swallowed (console.error), so the phase completes.
+    const res = await evaluateRelayTriggers(deps({ supabase, orchestrator }));
+    expect(res).toMatchObject({ enqueued: 1 });
   });
 
   it('handles a mixed batch: enqueues qualifiers, skips the rest, defers summary-less', async () => {

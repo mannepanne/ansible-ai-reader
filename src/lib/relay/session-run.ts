@@ -53,7 +53,9 @@ export function formatStimulus(row: StimulusRow, mode: StimulusMode = 'full'): s
     const tags = (row.tags ?? []).map((t) => t.trim()).filter(Boolean);
     if (tags.length) parts.push(`Tags: ${tags.join(', ')}`);
     // Both note sources are Magnus's own thought; merge them under one Note block (no duplicate label).
-    const notes = [row.document_note, row.reader_note].map((n) => n?.trim()).filter(Boolean);
+    // Dedup identical text: document_note is pushed Ansible→Reader, so it round-trips back as reader_note
+    // — without the Set the narrator would see the same sentence twice.
+    const notes = [...new Set([row.document_note, row.reader_note].map((n) => n?.trim()).filter(Boolean))];
     if (notes.length) parts.push(`Note:\n${notes.join('\n')}`);
   }
   if (row.commentariat_summary?.trim()) parts.push(`Counter-case:\n${row.commentariat_summary.trim()}`);

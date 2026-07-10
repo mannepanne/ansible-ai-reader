@@ -3,6 +3,11 @@
 --
 -- Apply via the Supabase SQL editor (not `db push`), consistent with the other relay_* migrations.
 --
+-- ⚠️ RUN EXACTLY ONCE, at or before the deploy that ships 2.3b. The DDL is re-run-safe (ADD COLUMN IF
+-- NOT EXISTS), but the baseline UPDATE below is NOT: once the feature is live, `archived = true` also
+-- matches genuinely-pending rows (awaiting a summary, or mid-retry), so a second run would stamp those
+-- NOW() and they would never fire — a silently missed trigger. Do not re-run after go-live.
+--
 -- reader_items.relay_triggered_at:  work-queue marker for the self-healing trigger-eval phase. NULL ⟹
 --                                   an archived item not yet evaluated for a Relay reaction. The standing
 --                                   scan `WHERE archived = true AND relay_triggered_at IS NULL` IS the

@@ -152,6 +152,10 @@ export async function evaluateRelayTriggers(
 
     if (!row.short_summary?.trim()) {
       // Qualifies, but the async summary job hasn't landed yet. Leave NULL → retry next sync.
+      // Steady state: an item whose summary NEVER lands stays unstamped and is re-scanned every sync
+      // indefinitely. That's acceptable — bounded by the partial index (cheap), and it is never a missed
+      // trigger, only a perpetually-deferred one. (Engagement is read once, here, at trigger-eval time:
+      // once an item is stamped, later rating/note changes are not re-read.)
       deferred++;
       continue;
     }

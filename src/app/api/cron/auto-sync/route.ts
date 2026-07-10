@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     const supabase = createClient(supabaseUrl, supabaseSecretKey);
 
     // 4. Get Cloudflare context (queue binding)
-    let cloudflareEnv: { PROCESSING_QUEUE?: any } | undefined;
+    let cloudflareEnv: { PROCESSING_QUEUE?: any; RELAY_ORCHESTRATOR?: any } | undefined;
     try {
       cloudflareEnv = getCloudflareContext().env;
     } catch (error) {

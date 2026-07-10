@@ -18,6 +18,7 @@ CREATE TABLE users (
   sync_interval INTEGER DEFAULT 0, -- Hours between auto-syncs (0 = disabled)
   summary_prompt TEXT, -- Custom AI summary prompt (10-2000 chars)
   last_auto_sync_at TIMESTAMP WITH TIME ZONE,
+  relay_engagement_gate_enabled BOOLEAN NOT NULL DEFAULT FALSE, -- Relay 2.3b auto-trigger (owner's row only)
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -29,6 +30,7 @@ CREATE TABLE users (
 - `sync_interval` - Hours between automated syncs (0-24, 0 = disabled)
 - `summary_prompt` - Custom prompt for AI summaries (optional, 10-2000 chars)
 - `last_auto_sync_at` - Timestamp of last automated sync (updated by cron)
+- `relay_engagement_gate_enabled` - Relay Stage 2.3b engagement-gated auto-trigger toggle, default off. Meaningful only on the Relay owner's row (`RELAY_OWNER_USER_ID`); flipped from the admin Relay tab.
 
 **RLS Policy:**
 ```sql
@@ -56,6 +58,9 @@ CREATE TABLE reader_items (
   content_truncated BOOLEAN DEFAULT FALSE, -- True if content > 30k chars
   archived BOOLEAN DEFAULT FALSE,
   archived_at TIMESTAMP WITH TIME ZONE,
+  highlights_count INTEGER NOT NULL DEFAULT 0, -- Relay 2.3b: retained from archive response (filter input)
+  reader_note TEXT, -- Relay 2.3b: Reader-authored note retained from archive response (filter + stimulus)
+  relay_triggered_at TIMESTAMP WITH TIME ZONE, -- Relay 2.3b work-queue marker; NULL = archived-not-yet-evaluated
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
@@ -68,6 +73,9 @@ CREATE TABLE reader_items (
 CREATE INDEX idx_reader_items_user_id ON reader_items(user_id);
 CREATE INDEX idx_reader_items_user_archived ON reader_items(user_id, archived);
 CREATE INDEX idx_reader_items_reader_id ON reader_items(reader_id);
+-- Relay 2.3b: partial index keeping the trigger-eval standing scan cheap (indexes only pending rows)
+CREATE INDEX reader_items_relay_pending_idx ON reader_items(user_id)
+  WHERE archived = true AND relay_triggered_at IS NULL;
 ```
 
 **RLS Policy:**
@@ -272,6 +280,7 @@ supabase db push
 - `20260707_add_agent_session_runs.sql` - Relay orchestrator run ledger (`agent_session_runs`; RLS enabled, zero policies)
 - `20260709_add_relay_decision_sources.sql` - Stage 2.1 fact-grounding: `relay_decisions.sources` (jsonb) — research provenance captured on every decision, writes AND declines. Pairs with `relay_pieces.verification_status` (`unverified` \| `sourced`; `verified` reserved for the deferred re-verification pass) and `relay_pieces.links` (`[{type:'recall'|'source', ref, title?}]`)
 - `20260709_add_relay_piece_review_capture.sql` - Stage 2.2a voice/editorial loop: `relay_pieces.review_note` (text) — the reviewer's "why" captured at decision time — and `relay_pieces.original_body` (text, **write-once**) — the piece as Relay first wrote it, set the first time a human edits the body on approval (the edit delta = `original_body` vs `body`). Both are Channel-2 taste signal for Magnus/curation only; **never** read on the writing-session path (recall / `relay_recall` / system-prompt assembly) — gate-blindness (`stage-1-technical-spec.md` §7/A4).
+- `20260710_add_relay_engagement_columns.sql` - Stage 2.3b engagement-gated archive-hook: `reader_items.relay_triggered_at` (work-queue marker), `highlights_count` + `reader_note` (retained from the archive response, filter inputs), a partial index for the trigger-eval standing scan, and `users.relay_engagement_gate_enabled` (default-off toggle). Baselines existing archived rows on the same predicate the scan uses (`archived = true`). **Run exactly once** — the baseline UPDATE is not re-run-safe (see the file header + the [single-owner ADR](../decisions/2026-07-10-relay-single-owner-engagement-gate.md)).
 
 > **Note:** the `relay_*` migrations are applied via the Supabase dashboard SQL editor, not `supabase db push` — the CLI migration history is out of sync (the initial schema was created directly).
 

@@ -56,6 +56,12 @@ describe('formatStimulus', () => {
     expect(out.match(/Note:/g)?.length).toBe(1); // single label, not two
   });
 
+  it('dedups an identical note that round-tripped Ansible→Reader (2.3b)', () => {
+    const out = formatStimulus({ ...engagedRow, document_note: 'Same thought.', reader_note: 'Same thought.' });
+    expect(out).toContain('Note:\nSame thought.');
+    expect((out.match(/Same thought\./g) ?? []).length).toBe(1); // shown once, not twice
+  });
+
   it('drops the Reader note in lean mode', () => {
     const out = formatStimulus({ ...engagedRow, reader_note: 'Reader thought.' }, 'lean');
     expect(out).not.toContain('Reader thought.');

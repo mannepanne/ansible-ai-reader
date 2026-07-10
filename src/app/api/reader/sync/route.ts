@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get Cloudflare context (queue binding)
-    let cloudflareEnv: { PROCESSING_QUEUE?: any } | undefined;
+    let cloudflareEnv: { PROCESSING_QUEUE?: any; RELAY_ORCHESTRATOR?: any } | undefined;
     try {
       cloudflareEnv = getCloudflareContext().env;
     } catch (error) {
