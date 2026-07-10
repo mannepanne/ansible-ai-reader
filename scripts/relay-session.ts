@@ -12,6 +12,7 @@ import * as path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import { assembleSystemPrompt, PERSONA_FILES } from '../src/lib/relay/persona';
 import { selectExemplar, renderExemplarSection } from '../src/lib/relay/exemplars';
+import { formatStimulus } from '../src/lib/relay/session-run';
 import { readSession, renderTrace, type MaEvent } from '../src/lib/relay/session-readout';
 import { loadDevVars, bridgeBase } from './relay-env';
 
@@ -139,17 +140,14 @@ async function fetchStimulus(readerId: string): Promise<string> {
   });
   const { data, error } = await supabase
     .from('reader_items')
-    .select('reader_id, title, short_summary, commentariat_summary')
+    .select('reader_id, title, short_summary, commentariat_summary, tags, document_note')
     .eq('reader_id', readerId)
     .maybeSingle();
   if (error) throw new Error(`stimulus: ${error.message}`);
   if (!data) throw new Error(`stimulus: no reader_item with reader_id ${readerId}`);
-  const parts: string[] = [];
-  if (data.title) parts.push(`Title: ${data.title}`);
-  if (data.short_summary?.trim()) parts.push(`Summary:\n${data.short_summary.trim()}`);
-  if (data.commentariat_summary?.trim()) parts.push(`Counter-case:\n${data.commentariat_summary.trim()}`);
-  if (parts.length <= 1) throw new Error(`stimulus: reader_item ${readerId} has no summary text`);
-  return parts.join('\n\n');
+  // Share the assembler with the DO path (formatStimulus) so both triggers enrich identically —
+  // no second copy of the summary-guard or the tags/note ordering to drift out of sync.
+  return formatStimulus(data);
 }
 
 // Fail fast if the bridge's decision-finalize route is not deployed, BEFORE we spend a session we

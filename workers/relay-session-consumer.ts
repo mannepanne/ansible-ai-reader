@@ -2,7 +2,7 @@
 // ABOUT: Mind rented (Anthropic MA API), memory owned — finalizes the verdict through the bridge
 
 import { createClient } from '@supabase/supabase-js';
-import { runSession, formatStimulus, type MaClient, type RunResourceIds } from '../src/lib/relay/session-run';
+import { runSession, formatStimulus, type MaClient, type RunResourceIds, type StimulusRow } from '../src/lib/relay/session-run';
 import { readSession } from '../src/lib/relay/session-readout';
 import type { MessageBatch } from '@cloudflare/workers-types';
 
@@ -70,13 +70,13 @@ async function runOne(readerId: string, env: Env, supabase: any): Promise<void> 
 
   const { data: row, error } = await supabase
     .from('reader_items')
-    .select('title, short_summary, commentariat_summary')
+    .select('title, short_summary, commentariat_summary, tags, document_note')
     .eq('reader_id', readerId)
     .maybeSingle();
   if (error) throw new Error(`stimulus fetch: ${error.message}`);
   if (!row) throw new Error(`no reader_item with reader_id ${readerId}`);
 
-  const stimulus = formatStimulus(row as { title: string | null; short_summary: string | null; commentariat_summary: string | null });
+  const stimulus = formatStimulus(row as StimulusRow);
   const ids: RunResourceIds = { agentId: env.RELAY_AGENT_ID, environmentId: env.RELAY_ENV_ID, vaultId: env.RELAY_VAULT_ID };
   const ma = makeMaClient(env.ANTHROPIC_API_KEY);
 
