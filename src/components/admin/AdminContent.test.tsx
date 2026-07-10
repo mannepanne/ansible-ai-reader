@@ -84,6 +84,8 @@ const mockRelayStats: RelayStats = {
       sourceLinks: [],
       reviewNote: null,
       originalBody: null,
+      stimulus: null,
+      readerLinks: [],
       createdAt: '2026-06-28T10:53:36Z',
     },
   ],

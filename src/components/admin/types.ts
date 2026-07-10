@@ -1,6 +1,8 @@
 // ABOUT: Shared type definitions for the admin analytics dashboard
 // ABOUT: Used by the admin server page and client components
 
+import type { ReaderLink } from '@/lib/relay/review-stimulus';
+
 export interface LandingStats {
   totalVisits: number;
   uniqueVisitors: number;
@@ -67,6 +69,10 @@ export interface RelayPieceRow {
   // the body was edited on approval, the piece as Relay first wrote it (write-once — the edit delta).
   reviewNote: string | null;
   originalBody: string | null;
+  // Reconstructed (current formatStimulus logic) view of what this piece was written from, plus Reader
+  // deep-links to the source article(s). Reconstruction, not stored text — see review-stimulus.ts.
+  stimulus: string | null;
+  readerLinks: ReaderLink[];
   createdAt: string;
 }
 

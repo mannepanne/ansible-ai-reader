@@ -4,6 +4,8 @@
 import { redirect } from 'next/navigation';
 import { createClient, createServiceRoleClient } from '@/utils/supabase/server';
 import AdminContent from '@/components/admin/AdminContent';
+import { buildPieceStimulusView } from '@/lib/relay/review-stimulus';
+import type { StimulusRow } from '@/lib/relay/session-run';
 import type { LandingStats, DemoStats, RelayStats, RelayPieceRow, PieceLink, DecisionSource } from '@/components/admin/types';
 
 export default async function AdminPage() {
@@ -185,16 +187,41 @@ export default async function AdminPage() {
   const stimulusIds = [...new Set(decisionRows.flatMap((d) => d.stimulus_ref ?? []))];
   const wrotePieceIds = [...new Set(decisionRows.map((d) => d.piece_id).filter((x): x is string => !!x))];
 
+  // Select the full formatStimulus field-set (not just titles) so the review screen can RECONSTRUCT
+  // the stimulus behind each piece — see mapPiece / review-stimulus.ts.
+  type StimulusItemRow = StimulusRow & { reader_id: string };
   const [titlesResult, pieceSummaryResult] = await Promise.all([
     stimulusIds.length
-      ? db.from('reader_items').select('reader_id, title').in('reader_id', stimulusIds)
-      : Promise.resolve({ data: [] as { reader_id: string; title: string }[] }),
+      ? db
+          .from('reader_items')
+          .select('reader_id, title, short_summary, commentariat_summary, tags, document_note')
+          .in('reader_id', stimulusIds)
+      : Promise.resolve({ data: [] as StimulusItemRow[] }),
     wrotePieceIds.length
       ? db.from('relay_pieces').select('id, summary').in('id', wrotePieceIds)
       : Promise.resolve({ data: [] as { id: string; summary: string | null }[] }),
   ]);
-  const titleByReaderId = new Map(
-    ((titlesResult.data ?? []) as { reader_id: string; title: string }[]).map((r) => [r.reader_id, r.title]),
+  const stimulusItemRows = (titlesResult.data ?? []) as StimulusItemRow[];
+  const titleByReaderId = new Map(stimulusItemRows.map((r) => [r.reader_id, r.title ?? '']));
+  const itemsByReaderId = new Map<string, StimulusRow>(
+    stimulusItemRows.map((r) => [
+      r.reader_id,
+      {
+        title: r.title,
+        short_summary: r.short_summary,
+        commentariat_summary: r.commentariat_summary,
+        tags: r.tags,
+        document_note: r.document_note,
+      },
+    ]),
+  );
+  // Which stimulus (reader_ids) each written piece came from — from the decision that finalized it.
+  // A re-decided piece (approve→reject→approve) has several decision rows; last-write-wins is safe
+  // here because the stimulus_ref is the same across them (the underlying item doesn't change).
+  const stimulusRefByPieceId = new Map<string, string[]>(
+    decisionRows
+      .filter((d) => d.piece_id)
+      .map((d) => [d.piece_id as string, d.stimulus_ref ?? []]),
   );
   const summaryByPieceId = new Map(
     ((pieceSummaryResult.data ?? []) as { id: string; summary: string | null }[]).map((p) => [p.id, p.summary]),
@@ -227,6 +254,10 @@ export default async function AdminPage() {
     created_at: string;
   }): RelayPieceRow => {
     const links = normalizeLinks(p.links ?? []);
+    const { stimulus, readerLinks } = buildPieceStimulusView(
+      stimulusRefByPieceId.get(p.id) ?? [],
+      itemsByReaderId,
+    );
     return {
       id: p.id,
       body: p.body,
@@ -237,6 +268,8 @@ export default async function AdminPage() {
       sourceLinks: links.filter((l) => l.type === 'source'),
       reviewNote: p.review_note ?? null,
       originalBody: p.original_body ?? null,
+      stimulus,
+      readerLinks,
       createdAt: p.created_at,
     };
   };
