@@ -1,7 +1,4 @@
 {
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
-  },
   "permissions": {
     "_comment": "These allowlist defaults assume a single trusted contributor on personal projects (or a small team of mutually-known, trusted contributors). The bias is silent execution for safe and frequent operations, with prompts reserved for genuinely destructive ones. See REFERENCE/decisions/2026-04-25-pr-review-threat-model.md for the threat model, what's in/out of scope, and the tightening checklist for derivative projects whose contributor model differs (open-source with strangers, multi-team enterprise, regulated environments). If you clone this template and your use case is out of scope, follow that checklist before running reviews.",
     "_comment_scratch_writes": "Write to <project>/SCRATCH/* is silenced by the PreToolUse hook at .claude/hooks/approve-scratch-write.sh, NOT by a Write(/SCRATCH/*) allow-list entry — the Claude Code matcher does not honour Write entries in fresh sessions across five documented sightings. See REFERENCE/decisions/2026-04-26-scratch-write-pretooluse-hook.md for the decision and REFERENCE/scratch-write-hook.md for operations. Read entries below DO honour the matcher and remain — only Write is broken upstream.",

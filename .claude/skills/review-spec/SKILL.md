@@ -1,43 +1,29 @@
 ---
 name: review-spec
-description: Spec review using agent teams — requirements auditor, technical skeptic, and devil's advocate challenge a feature specification before implementation begins. Use this skill whenever a new feature spec or significant design decision needs review before writing code. Agents debate and challenge each other's findings to surface blind spots and gaps.
+description: Spec review using three independent reviewers — requirements auditor, technical skeptic, and devil's advocate — who each challenge a feature specification before implementation begins. Their findings are synthesised into a single assessment. Use this skill whenever a new feature spec or significant design decision needs review before writing code.
 disable-model-invocation: false
 user-invocable: true
 argument-hint:
   - spec-file-path-or-name
 ---
 
-# Spec Review with Agent Teams
+# Spec Review
 
-This skill reviews a feature specification before implementation begins, using three specialized reviewers who independently analyze the spec, then **discuss findings, debate assumptions, and challenge each other** to reach a collaborative assessment.
+This skill reviews a feature specification before implementation begins, through three specialist lenses. Each reviewer analyses the spec independently, with no knowledge of what the others found. You — the orchestrator — receive all three reports and synthesise them into one assessment.
 
-## The Three Reviewers
+## The three reviewers
 
 - **Requirements Auditor** — completeness: edge cases, error states, undefined behaviour, missing flows
 - **Technical Skeptic** — feasibility: DB implications, blast radius, hidden complexity, integration risks
 - **Devil's Advocate** — strategy: is this the right solution? Simpler alternatives? Wrong assumptions?
 
-## How This Works
+## How this works
 
-**Phase 1: Independent Review** — all three reviewers analyze the spec simultaneously from their own perspective
+**Phase 1: Independent review (parallel)** — all three analyse the spec simultaneously and do not communicate with each other.
 
-**Phase 2: Collaborative Discussion** — reviewers share findings, challenge each other's conclusions, and debate severity
+**Phase 2: Synthesis (you)** — you hold all three reports at once, reconcile them, and produce a single recommendation.
 
-**Phase 3: Synthesis** — produce a unified assessment with a clear recommendation
-
----
-
-## Prerequisites
-
-Agent teams require the feature flag to be enabled in `.claude/settings.json`:
-
-```json
-{
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
-  }
-}
-```
+**Why the reviewers don't talk to each other.** They used to. The discussion phase reliably ran long for little gain, and the cross-checking it produced is something you can do directly from the reports. See [`REFERENCE/decisions/2026-07-09-fan-out-review-synthesis.md`](../../../REFERENCE/decisions/2026-07-09-fan-out-review-synthesis.md).
 
 ---
 
@@ -49,7 +35,7 @@ When this skill is invoked with a spec file path or name (e.g., `/review-spec SP
 
 Run the gate defined in [`.claude/skills/review-gate.md`](../review-gate.md) → "Gate logic". When rendering the disabled message, substitute this skill's name: `review-spec`. If the gate tells you to stop, stop. If it tells you to proceed, continue to Step 1.
 
-### Step 1: Locate the Spec
+### Step 1: Locate the spec
 
 Resolve the spec file:
 - If `$ARGUMENTS` is a full path, use it directly
@@ -60,100 +46,50 @@ Use `Glob`, not `find`, so the resolution stays silent — `find` against arbitr
 
 ---
 
-### Step 2: Create Agent Team
+### Step 2: Spawn the three reviewers in parallel
 
-**CRITICAL:** Create an **agent team**, not sequential subagents. The reviewers need to discuss findings with each other.
+**Issue all three `Agent` calls in a single message** so they run concurrently. Do not spawn them one at a time and do not wait for one before starting the next.
 
-Create an agent team for reviewing the spec at `$ARGUMENTS` with the following instruction:
+**Do not spawn these with `isolation: "worktree"`** — unlike the PR-review skills, which do. Spec reviewers read a spec file that lives in the operator's working tree, on the branch the operator is on; a worktree would isolate them from the very file under review, and possibly from an unstaged spec that isn't committed anywhere yet. There is no PR branch here and therefore no `gh pr checkout` temptation. The [read-only contract](../../agents/CLAUDE.md#read-only-contract) covers these agents on its own. Do not "harmonise" this with the PR skills — the asymmetry is the design.
 
-**Team Creation Prompt:**
+Each reviewer's checklist, context-gathering protocol, and output format live in its agent definition. Do not restate them in the task prompt — a prompt that duplicates the agent definition will drift from it.
 
-"Create an agent team to conduct a comprehensive, collaborative review of this feature spec: `$ARGUMENTS`
+| Subagent | Task prompt |
+|---|---|
+| `requirements-auditor` | `Requirements-focused review of the spec at <resolved path>. Follow your agent definition. Return your findings.` |
+| `technical-skeptic` | `Technical feasibility review of the spec at <resolved path>. Follow your agent definition. Return your findings.` |
+| `devils-advocate` | `Strategic challenge review of the spec at <resolved path>. Follow your agent definition. Return your findings.` |
 
-**Team Structure:**
+Pass the **resolved path** from Step 1, not the raw `$ARGUMENTS` — the reviewers should not have to repeat the glob resolution.
 
-Spawn **3 teammates** using these named subagents:
+Tell the user this is running and roughly how long it takes (~2–4 minutes). Then wait for all three to return.
 
-**1. Requirements Auditor** (Subagent: `requirements-auditor`, Teammate name: `requirements-auditor`)
-Your task: conduct a requirements-focused review of the spec at `$ARGUMENTS`. Follow your review checklist and output format.
-
-**2. Technical Skeptic** (Subagent: `technical-skeptic`, Teammate name: `technical-skeptic`)
-Your task: conduct a technical feasibility review of the spec at `$ARGUMENTS`. Follow your review checklist and output format.
-
-**3. Devil's Advocate** (Subagent: `devils-advocate`, Teammate name: `devils-advocate`)
-Your task: conduct a strategic challenge review of the spec at `$ARGUMENTS`. Follow your review checklist and output format.
+**If a reviewer fails or returns nothing:** synthesise from the reports you have and state plainly which perspective is missing. Do not silently review with two, and do not re-spawn it.
 
 ---
 
-**Team Mission — Two Phases:**
+### Step 3: Synthesise the reports
 
-**PHASE 1: Independent Review**
+This step is the review — do it properly rather than concatenating three documents.
 
-Each teammate:
-1. Follow your agent definition instructions to gather context and conduct your review
-2. Document findings as specified in your agent definition
-3. Stay focused on your specialized perspective
+**3a. Deduplicate.** Group findings that name the same spec section or the same underlying concern. Three reviewers circling one ambiguity is one finding, not three.
 
-**PHASE 2: Collaborative Discussion**
+**3b. Reconcile.** The three lenses interact in predictable ways. Look for these pairings explicitly:
 
-After all three reviewers complete their independent analysis:
+- **Devil's Advocate proposes a simpler alternative → does the Technical Skeptic's report say it's actually simpler?** An alternative that's strategically appealing but technically harder is not an improvement. If the Skeptic costed it, use that. If nobody costed it, say so — an uncosted alternative is a question, not a recommendation.
+- **Requirements Auditor finds a gap → does the Technical Skeptic say filling it is expensive?** A cheap gap is a spec edit. An expensive gap is a scope decision the human makes.
+- **Devil's Advocate challenges an assumption the Requirements Auditor flagged as unstated.** Two reviewers landing on the same assumption from different directions is the strongest signal in the whole review. Promote it.
+- **If the reports do not settle a disagreement, record both positions and let the human decide.** Do not go back to the agents for another round. An unresolved tension between "this is the wrong approach" and "this approach is perfectly buildable" is genuine information — both can be true.
 
-1. **Share findings** via broadcast:
-   - Each reviewer shares their complete findings with the team
-   - Highlight your most significant concerns
+**3c. Do not invent findings.** Every item traces to at least one reviewer's report. If you spot something none of them did, mark it clearly as your own observation rather than attributing it to a reviewer.
 
-2. **Challenge and debate**:
-   - Question each other's severity assessments
-   - Challenge assumptions — if the Devil's Advocate thinks the whole approach is wrong, the Technical Skeptic should respond to whether a simpler alternative is actually feasible
-   - If the Requirements Auditor found a gap and the Technical Skeptic says filling it is very complex, debate whether that complexity is acceptable
-   - Ask: 'Did you consider...?' or 'What about...?'
-   - If you disagree with another reviewer's conclusion, explain why with specifics
-
-3. **Propose collaborative recommendations**:
-   - For blocking issues, work together to identify the clearest path forward
-   - Requirements Auditor: does the spec need to be rewritten or just extended?
-   - Technical Skeptic: if the approach changes, what becomes feasible?
-   - Devil's Advocate: if the scope reduces, does the core value survive?
-
-4. **Reach consensus**:
-   - Agree on the overall recommendation: APPROVED / APPROVED WITH CONDITIONS / NEEDS REVISION
-   - Document where the team agrees and where you still disagree
-   - Disagreements are valuable — document them clearly
-
-**Discussion Guidelines:**
-- Use `broadcast` to share findings with the whole team
-- Use `message` to directly question or challenge a specific reviewer
-- Be rigorous but constructive
-- When you disagree, explain your reasoning with specifics
-- Update your findings based on discussion insights
-
-After the collaborative discussion, each teammate should have refined their findings based on team input.
-
-Start the review process now."
-
----
-
-### Step 3: Monitor Team Progress
-
-While the team works:
-
-1. **Watch for the discussion phase** — ensure teammates are actually messaging each other, not just completing reviews in isolation
-2. **Encourage debate** if the discussion is too polite — tell them: "Challenge each other's conclusions more directly"
-3. **Intervene if stuck** — if reviewers can't reach consensus on a critical issue, ask them to document both positions clearly
-
-**If teammates aren't discussing:** Send a message to all three: "Please share your findings with each other via broadcast and debate the severity and recommendations."
-
----
-
-### Step 4: Synthesize Findings
-
-After all teammates complete the discussion phase, gather their final refined findings and produce a unified review:
+**3d. Produce the assessment:**
 
 ```markdown
 ## Spec Review: [Spec Title]
 
-> Reviewed by: Requirements Auditor, Technical Skeptic, Devil's Advocate
-> Three independent reviewers analyzed the spec, discussed findings, and reached collaborative consensus.
+> Reviewed independently by: Requirements Auditor, Technical Skeptic, Devil's Advocate.
+> Findings deduplicated and reconciled into the assessment below.
 
 ---
 
@@ -161,7 +97,7 @@ After all teammates complete the discussion phase, gather their final refined fi
 
 **[APPROVED / APPROVED WITH CONDITIONS / NEEDS REVISION]**
 
-[2-3 sentence summary of the team's overall assessment]
+[2-3 sentence summary of the overall assessment]
 
 ---
 
@@ -191,7 +127,7 @@ After all teammates complete the discussion phase, gather their final refined fi
 
 ### ✅ Well-Specified Areas
 
-[Parts of the spec the team found clear, complete, and well-reasoned]
+[Parts of the spec found clear, complete, and well-reasoned]
 
 ---
 
@@ -199,14 +135,22 @@ After all teammates complete the discussion phase, gather their final refined fi
 
 [Improvements, scoping changes, or alternative approaches worth considering]
 
+For each alternative, say whether its feasibility was assessed:
+- **Alternative:** [description] — *proposed by Devil's Advocate; Technical Skeptic costed it as [simpler / harder / not assessed]*
+
 ---
 
-### 🤝 Team Discussion Highlights
+### ⚖️ Where the Perspectives Diverged
 
-[Key moments from the collaborative discussion]
-- Where reviewers challenged each other and changed their assessment
-- Tradeoffs debated
-- Points of genuine disagreement (documented clearly)
+[Findings where reviewers reached different conclusions — the most decision-relevant part of the review]
+
+**Format:**
+**[Topic]** — Requirements Auditor said X; Devil's Advocate said Y.
+- **Reconciled to:** [your call, with the evidence from the reports that settles it]
+
+*or*
+
+- **Unresolved:** [why neither report settles it, and what would]
 
 ---
 
@@ -216,10 +160,9 @@ After all teammates complete the discussion phase, gather their final refined fi
 **Technical Skeptic:** [X blocking risks, Y technical concerns, Z hidden complexity items]
 **Devil's Advocate:** [X fundamental challenges, Y questionable assumptions, Z alternatives proposed]
 
-**Consensus Status:**
-- Issues with unanimous agreement: X
-- Issues with 2/3 agreement: Y
-- Issues with split opinions: Z
+**Findings corroborated by 2+ reviewers:** X
+**Divergences reconciled during synthesis:** Y
+**Divergences left unresolved (flagged above):** Z
 
 **Recommendation:** [APPROVED / APPROVED WITH CONDITIONS / NEEDS REVISION]
 ```
@@ -228,17 +171,7 @@ Present this synthesis directly in the conversation — do **not** post to a PR 
 
 ---
 
-### Step 5: Clean Up Team
-
-After presenting the review:
-
-1. Ask each teammate to shut down
-2. Wait for confirmation from each
-3. Clean up team resources
-
----
-
-## Example Usage
+## Example usage
 
 ```
 /review-spec SPECIFICATIONS/08-bulk-archive.md
@@ -246,11 +179,11 @@ After presenting the review:
 /review-spec interest-signals
 ```
 
-Expected time: 2-7 minutes depending on spec size and discussion depth.
+Expected time: 2–4 minutes depending on spec size.
 
 ---
 
-## Recommendation Guide
+## Recommendation guide
 
 **APPROVED** — Spec is complete, feasible, and solving the right problem. Proceed with implementation.
 
@@ -263,6 +196,6 @@ Expected time: 2-7 minutes depending on spec size and discussion depth.
 ## Tips
 
 - **Run before starting any non-trivial feature** — the earlier issues are caught, the cheaper they are to fix
-- **Let the debate happen** — the discussion phase is where the real value comes from
+- **Read the divergences section first** — where the three lenses disagree is where your judgement is actually needed
 - **APPROVED WITH CONDITIONS is the most common outcome** — specs almost always have something worth clarifying
 - **Use findings to improve the spec** — after review, update the spec to address the issues before archiving it
