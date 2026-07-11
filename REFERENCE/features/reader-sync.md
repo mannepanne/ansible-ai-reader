@@ -328,6 +328,24 @@ try {
 - 404 when item deleted in Reader
 - Handle gracefully (mark as deleted, don't fail sync)
 
+### Response Validation (resilient per-item)
+
+List responses (unread and recently-archived) are validated in two layers so one
+malformed item cannot abort an entire sync:
+
+1. **Envelope** — the outer shape (`results` array + optional `nextPageCursor`) is
+   validated strictly. A wrong envelope throws `Invalid response format from Reader API`.
+2. **Items** — each item is validated individually with Zod `safeParse`. Items that
+   fail (e.g. a `javascript:` URL, a missing `id`) are **skipped and logged**
+   (`[Reader API] Skipping malformed <label> item`), and the rest of the batch syncs.
+
+**Empty titles are valid, not errors.** Reader legitimately returns items with no
+title (PDFs, tweets, raw-URL saves). Rather than rejecting them, `ReaderItemSchema`
+resolves a display title via a fallback chain: sanitized title → `Untitled: <first
+5 words of body>…` (when the list response includes content) → `Untitled: <domain>`.
+This prevents a single untitled item from failing the whole (including automated cron)
+sync — the original cause of a silent auto-sync outage.
+
 ### Database Errors
 
 **Unique Constraint Violation:**

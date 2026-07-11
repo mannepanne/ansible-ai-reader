@@ -39,24 +39,60 @@ function sanitizeText(text: string): string {
 }
 
 /**
- * Reader API item schema with runtime validation
+ * Resolve a display title for a Reader item. Reader legitimately returns items
+ * with empty titles (PDFs, tweets, raw URL saves), so rather than rejecting them
+ * we derive a recognizable fallback: a short snippet of the body when the list
+ * response happens to include content, otherwise the source domain.
  */
-export const ReaderItemSchema = z.object({
-  id: z.string().min(1),
-  url: SafeUrlSchema,
-  title: z.string().min(1).max(1000).transform(sanitizeText),
-  author: z
-    .string()
-    .max(500)
-    .nullable()
-    .optional()
-    .transform((val) => (val ? sanitizeText(val) : undefined)),
-  source: z.string().max(200).nullable().optional(),
-  word_count: z.number().int().nonnegative().nullable().optional(),
-  content: z.string().nullable().optional(),
-  created_at: z.string(), // Accept any string format - we'll use it as-is
-  content_type: z.string().nullable().optional(),
-});
+function resolveTitle(item: {
+  title?: string | null;
+  content?: string | null;
+  url: string;
+}): string {
+  const sanitized = item.title ? sanitizeText(item.title) : '';
+  if (sanitized) return sanitized;
+
+  const body = item.content ? stripHtml(item.content) : '';
+  if (body) {
+    const words = body.split(/\s+/).filter(Boolean);
+    const snippet = words.slice(0, 5).join(' ');
+    if (snippet) {
+      return `Untitled: ${snippet}${words.length > 5 ? '…' : ''}`;
+    }
+  }
+
+  // url has already passed SafeUrlSchema (which constructs a URL), so this is
+  // always a valid http/https URL with a non-empty hostname.
+  const host = new URL(item.url).hostname.replace(/^www\./, '');
+  return `Untitled: ${host}`;
+}
+
+/**
+ * Reader API item schema with runtime validation. The title is resolved via a
+ * fallback chain (see resolveTitle) so untitled items stay recognizable instead
+ * of failing validation.
+ */
+export const ReaderItemSchema = z
+  .object({
+    id: z.string().min(1),
+    url: SafeUrlSchema,
+    title: z.string().max(1000).nullable().optional(),
+    author: z
+      .string()
+      .max(500)
+      .nullable()
+      .optional()
+      .transform((val) => (val ? sanitizeText(val) : undefined)),
+    source: z.string().max(200).nullable().optional(),
+    word_count: z.number().int().nonnegative().nullable().optional(),
+    content: z.string().nullable().optional(),
+    created_at: z.string(), // Accept any string format - we'll use it as-is
+    content_type: z.string().nullable().optional(),
+  })
+  .transform((item) => ({
+    ...item,
+    title: resolveTitle(item),
+  }));
 
 /**
  * Reader API list response schema
@@ -91,6 +127,53 @@ export const ArchivedReaderListResponseSchema = z.object({
 
 export type ArchivedReaderItem = z.infer<typeof ArchivedReaderItemSchema>;
 export type ArchivedReaderListResponse = z.infer<typeof ArchivedReaderListResponseSchema>;
+
+/**
+ * Envelope shape shared by the list endpoints. Only the outer structure is
+ * validated strictly here; individual items are validated separately so one
+ * malformed item can be skipped rather than aborting the whole batch.
+ */
+const ListEnvelopeSchema = z.object({
+  results: z.array(z.unknown()),
+  nextPageCursor: z.string().nullable().optional(),
+});
+
+/**
+ * Validate a list response resiliently. A wrong envelope shape throws a ZodError
+ * (surfaced as "Invalid response format" by the callers), but individual items
+ * that fail validation are skipped + logged so a single bad item from Reader can
+ * never fail an entire sync.
+ */
+function parseListResponse<T>(
+  data: unknown,
+  itemSchema: z.ZodTypeAny,
+  label: string
+): { results: T[]; nextPageCursor?: string | null } {
+  const envelope = ListEnvelopeSchema.parse(data);
+  const results: T[] = [];
+  let skipped = 0;
+
+  for (const raw of envelope.results) {
+    const parsed = itemSchema.safeParse(raw);
+    if (parsed.success) {
+      results.push(parsed.data as T);
+    } else {
+      skipped++;
+      console.warn(
+        `[Reader API] Skipping malformed ${label} item:`,
+        parsed.error.message
+      );
+    }
+  }
+
+  if (skipped > 0) {
+    console.warn(
+      `[Reader API] Skipped ${skipped} malformed ${label} item(s) of ${envelope.results.length}`
+    );
+  }
+
+  return { results, nextPageCursor: envelope.nextPageCursor };
+}
 
 /**
  * Reader API error types
@@ -250,8 +333,12 @@ export async function fetchUnreadItems(
 
       const data = await response.json();
 
-      // Runtime validation with Zod
-      const validated = ReaderListResponseSchema.parse(data);
+      // Envelope validated strictly; individual items validated resiliently.
+      const validated = parseListResponse<ReaderItem>(
+        data,
+        ReaderItemSchema,
+        'unread'
+      );
 
       console.log(
         `[Reader API] Fetched ${validated.results.length} items` +
@@ -526,7 +613,11 @@ export async function fetchRecentlyArchivedItems(
       }
 
       const data = await response.json();
-      const validated = ArchivedReaderListResponseSchema.parse(data);
+      const validated = parseListResponse<ArchivedReaderItem>(
+        data,
+        ArchivedReaderItemSchema,
+        'archived'
+      );
 
       console.log(
         `[Reader API] Fetched ${validated.results.length} archived items` +
