@@ -49,6 +49,16 @@ describe('Perplexity API Client', () => {
   });
 
   describe('parseSummaryResponse', () => {
+    let errorSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      errorSpy.mockRestore();
+    });
+
     it('parses valid summary and tags', () => {
       const response = `## Summary
 - Key concept 1
@@ -118,6 +128,76 @@ ${manyTags}`;
       const result = parseSummaryResponse(response);
 
       expect(result.tags.length).toBeLessThanOrEqual(10);
+    });
+
+    // Production bug: the prompt lets the model "structure the summary however
+    // best fits", so it frequently omits the "## Summary" header while keeping
+    // the rigidly-instructed "## Tags" header. The summary must still be captured
+    // as everything before the ## Tags delimiter.
+    it('captures the summary when the ## Summary header is omitted', () => {
+      const response = `- Key finding one
+- Key finding two
+
+## Tags
+ai, economics`;
+
+      const result = parseSummaryResponse(response);
+
+      expect(result.summary).toContain('Key finding one');
+      expect(result.summary).toContain('Key finding two');
+      expect(result.summary).not.toContain('## Tags');
+      expect(result.tags).toEqual(['ai', 'economics']);
+    });
+
+    it('captures a prose (non-bulleted) summary with no header', () => {
+      const response = `This article argues that token pricing hinges on supply.
+
+## Tags
+tokens, pricing`;
+
+      const result = parseSummaryResponse(response);
+
+      expect(result.summary).toContain('token pricing hinges on supply');
+      expect(result.tags).toEqual(['tokens', 'pricing']);
+    });
+
+    it('tolerates CRLF line endings and heading/spacing variants', () => {
+      const response =
+        '###  Summary \r\n- Point A\r\n- Point B\r\n\r\n##  Tags\r\nx, y';
+
+      const result = parseSummaryResponse(response);
+
+      expect(result.summary).toContain('Point A');
+      expect(result.summary).not.toContain('Summary');
+      expect(result.tags).toEqual(['x', 'y']);
+    });
+
+    it('does not let tag-section prose leak into the tags list', () => {
+      const response = `## Summary
+- A point
+
+## Tags
+ai, ml
+
+Some trailing note the model added.`;
+
+      const result = parseSummaryResponse(response);
+
+      expect(result.tags).toEqual(['ai', 'ml']);
+    });
+
+    it('logs the raw response at error level when tags parse but the summary is null', () => {
+      const response = `## Tags
+ai, testing`;
+
+      const result = parseSummaryResponse(response);
+
+      expect(result.summary).toBeNull();
+      expect(result.tags).toEqual(['ai', 'testing']);
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('tags but no parseable summary'),
+        expect.any(String)
+      );
     });
   });
 

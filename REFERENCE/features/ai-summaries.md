@@ -122,23 +122,35 @@ const truncated = content.substring(0, keepStart)
 
 ### Parsing Markdown Response
 
-The parser (`parseSummaryResponse` in `src/lib/perplexity-api.ts`) looks for `## Summary` and `## Tags` headings:
+The parser (`parseSummaryResponse` in `src/lib/perplexity-api.ts`) anchors on the
+**`## Tags` header as the stable delimiter** — not on `## Summary`:
 
-```typescript
-// Extract summary: everything between "## Summary" and "## Tags" (or end)
-const summaryMatch = text.match(/## Summary\n([\s\S]*?)(?=\n## Tags|$)/);
-
-// Extract tags: comma-separated list on line after "## Tags"
-const tagsMatch = text.match(/## Tags\n(.*)/);
-const tags = tagsString.split(',').map(tag => tag.trim()).filter(Boolean);
-```
+- **Summary** = everything *before* the `## Tags` header, with an optional leading
+  `## Summary` header stripped. The `## Summary` header is deliberately **not**
+  required: the prompt tells the model to "structure the summary however best fits",
+  so it frequently omits or varies that header. Anchoring on `## Summary` (as an
+  earlier version did) dropped those summaries to `null` even though the prose was
+  present — the "tags show, summary missing" bug.
+- **Tags** = the first non-empty line after the `## Tags` header, split on commas
+  (trailing prose can't leak into the tag list).
+- Heading level (`#`–`######`), surrounding spaces, and CRLF line endings are all
+  tolerated.
 
 **Fallbacks:**
-- If `## Summary` missing: `summary` is `null`
-- If `## Tags` missing: `tags` is `[]`
-- Validated with Zod — partial result returned on validation failure (not a crash)
+- Headerless summary before `## Tags`: captured as the summary (not null).
+- If there's no `## Tags` section at all: fall back to strict `## Summary`
+  extraction, so a genuinely unstructured/garbage response still yields `null`.
+- If `## Tags` missing: `tags` is `[]`.
+- **Tags parsed but summary still `null`:** logs the raw response at error level
+  (`[Perplexity] Response had tags but no parseable summary`) so the actual model
+  output is visible — otherwise this state is silent.
+- Validated with Zod — partial result returned on validation failure (not a crash).
 
-**Custom prompts and format:** The prompt instructs Perplexity to "structure the summary however best fits the content and any additional instructions above" — so users can request different internal formats (prose, bullet points, sections) via their custom prompt, as long as the `## Summary` and `## Tags` anchors remain.
+**Custom prompts and format:** The prompt instructs Perplexity to "structure the
+summary however best fits the content and any additional instructions above" — so
+users can request different internal formats (prose, bullet points, sections) via
+their custom prompt. Only the `## Tags` anchor needs to survive; the summary is
+whatever precedes it.
 
 ## Queue Processing
 
