@@ -1,5 +1,5 @@
 // ABOUT: Relay session-run core — create a Managed-Agent session on a stimulus and poll to completion
-// ABOUT: The testable orchestration; workers/relay-session-consumer.ts is the thin I/O glue around it
+// ABOUT: The testable session core; the live orchestrator DO drives it via src/lib/relay/orchestrator.ts
 
 import type { MaEvent } from './session-readout';
 

@@ -1,7 +1,7 @@
 # Workers
 REFERENCE > Architecture > Workers
 
-Detailed documentation of the Cloudflare Workers architecture: three core workers, plus a fourth for the Relay subsystem.
+Detailed documentation of the Cloudflare Workers architecture: three core workers, plus two for the Relay subsystem (bridge + orchestrator).
 
 ## Why Separate Workers?
 
@@ -13,7 +13,7 @@ We deploy **three core Cloudflare Workers** because of OpenNext limitations:
 
 **Solution:** Deploy specialized workers for different concerns.
 
-A **fourth worker — the Relay Bridge** (`wrangler-relay-bridge.toml`) — is split out for a *different* reason: it is the owned-memory gateway and sole writer of the `relay_*` tables for the Relay subsystem, deliberately isolated as a "swappable seam" (see the end of this doc and `SPECIFICATIONS/relay/stage-1-technical-spec.md`). It is not driven by OpenNext limitations.
+**Two more workers — the Relay Bridge** (`wrangler-relay-bridge.toml`) and **Relay Orchestrator** (`wrangler-relay-orchestrator.toml`) — are split out for a *different* reason: they form the Relay subsystem, whose "swappable seam" design deliberately separates the owned-memory gateway (bridge, sole writer of the `relay_*` tables) from the rented "mind" that drives Managed-Agent sessions (orchestrator). This is architectural intent, not an OpenNext limitation (see the Relay sections below, [use-of-managed-agents.md](./use-of-managed-agents.md), and `SPECIFICATIONS/relay/stage-1-technical-spec.md`).
 
 ## Worker 1: Main App (`wrangler.toml`)
 
@@ -232,58 +232,70 @@ npm run deploy:relay-bridge
 
 See `SPECIFICATIONS/relay/stage-1-technical-spec.md` for the full design.
 
-## Worker 5: Relay Session Consumer (`wrangler-relay-session.toml`)
+## Worker 5: Relay Orchestrator (`wrangler-relay-orchestrator.toml`)
 
 ### Purpose
-Runs Relay sessions triggered from the admin tab. The **"Run a session"** control enqueues a
-`reader_id` on `ansible-relay-queue` (the main app is a pure producer via the `RELAY_QUEUE` binding);
-this consumer runs one Managed-Agent session per message — create session → send stimulus → poll to
-`idle` → finalize the verdict through the **bridge** `/decision`. It holds the "mind" (Anthropic MA
-API) so the user-facing app never does. Resource creation is not done here; it uses the existing
+Runs Relay sessions — the "mind" side of the subsystem. A single-threaded **`RelayOrchestrator`
+Durable Object** runs one Managed-Agent session at a time: create session → send stimulus → poll to
+`idle` → finalize the verdict through the **bridge** `/decision`. It is the *only* worker holding the
+Anthropic API credential, so the user-facing app never touches the agent brain — the app is a pure
+producer that enqueues a `reader_id`. Resource creation is not done here; it reuses the existing
 environment/vault/agent IDs (`[vars]`).
 
-### Configuration
-```
-name = "ansible-relay-session-consumer"
-main = "workers/relay-session-consumer.ts"
+> **This supersedes the earlier queue consumer** (`wrangler-relay-session.toml`, `workers/relay-session-consumer.ts`),
+> which is **retired**. The consumer's testable core moved to `src/lib/relay/` (`session-run.ts`,
+> `orchestrator.ts`) and is shared by the DO; the consumer worker and its wrangler config are no longer
+> deployed. See ADR [2026-07-07-relay-orchestrator-durable-object.md](../decisions/2026-07-07-relay-orchestrator-durable-object.md).
 
-[[queues.consumers]]
-queue = "ansible-relay-queue"
-max_batch_size = 1
-max_concurrency = 1     # SERIAL — required for correct T0 verdict attribution (see ADR)
-max_retries = 0         # no retry — would spawn a duplicate agent session
-dead_letter_queue = "ansible-relay-dlq"
+### Why a Durable Object?
+A Managed-Agent session takes **~5 minutes** (variable), but Cloudflare hard-cancels a queue-consumer
+invocation at ~4 minutes — so the invocation died mid-session and orphaned the piece (written ~1.5 min
+*after* the consumer let go), with a retry spawning a *duplicate* session. A DO with **alarm-driven
+polling** waits out the session across durable alarms instead of holding an invocation, and its
+single-threaded nature makes sessions **serial by construction** — which is what the T0 time-window
+verdict attribution requires (the bridge is structurally blind to which run a `write_pending` belongs to).
+
+### Configuration
+```toml
+name = "ansible-relay-orchestrator"
+main = "workers/relay-orchestrator.ts"
+
+[[durable_objects.bindings]]
+name = "RELAY_ORCHESTRATOR"
+class_name = "RelayOrchestrator"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RelayOrchestrator"]
+
+[vars]
+RELAY_AGENT_ID  = "…"   # create-once Managed-Agent resource IDs
+RELAY_ENV_ID    = "…"
+RELAY_VAULT_ID  = "…"
+RELAY_BRIDGE_URL = "https://ansible-relay-bridge.<subdomain>.workers.dev"
 ```
 
 ### Responsibilities
-- Fetch the stimulus (`reader_items`), run the session, poll to completion.
-- On `idle`: finalize the verdict via the bridge (`stimulus_ref`, `started_at` stamped **in the
-  consumer** right before create-session, `reason`, `degraded`).
-- On non-completion/failure: a `sync_log` breadcrumb (`relay_session_failed`), no verdict, ack (no retry).
-
-### Robustness — the "Canceled" invocation
-Some long invocations get hard-**Canceled** by the platform at their *end* (an invocation-duration /
-isolate-lifecycle limit, not CPU — it lands right after a successful finalize). The **piece is never
-lost** (the agent writes it mid-session via `write_pending`); only the decision row can be. Mitigations:
-- **Phase logging** with elapsed ms (`[relay reader=… +Nms] run start / session created / poll exit /
-  finalizing / finalized / acked`) so `wrangler tail` shows exactly where a cancel lands.
-- **Wall-clock poll deadline** (`RELAY_POLL_BUDGET_MS`, default 210 s) — the poll loop exits *under* the
-  cancel point, turning a silent kill into a diagnosable breadcrumb + clean ack.
-- `[limits] cpu_ms = 300000` — a hedge only (cause is not CPU).
-- **Likely real fix (not yet built):** short invocations via a re-enqueue poll; **make cancels harmless**
-  by stamping `stimulus_ref` onto the piece so orphaned pieces are reconcilable. Pending log confirmation.
+- Accept an enqueued `reader_id` (from the app's DO binding); run at most one session in flight.
+- Stamp `started_at` (`create − 30s`, the T0 attribution margin) right before creating the session.
+- Fetch the stimulus (`reader_items`), run the session, poll across alarms to completion.
+- On `idle`: finalize the verdict via the bridge (`stimulus_ref`, `started_at`, `reason`, `degraded`, `sources`).
+- Record run state in the `agent_session_runs` ledger — written **directly** by the DO (mind-specific
+  orchestration, *not* owned memory), deliberately named out of the `relay_*` bucket.
 
 ### Secrets & config
-Secrets: `ANTHROPIC_API_KEY`, `RELAY_CONTROL_TOKEN`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SECRET_KEY`.
-Vars (in the toml): `RELAY_AGENT_ID`, `RELAY_ENV_ID`, `RELAY_VAULT_ID`, `RELAY_BRIDGE_URL`. Optional:
-`RELAY_POLL_INTERVAL_MS`. **Prod-only:** the `RELAY_QUEUE` binding is absent under local `next dev`.
+Secrets (set manually — `deploy.yml` does not upload them): `ANTHROPIC_API_KEY`, `RELAY_CONTROL_TOKEN`,
+`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SECRET_KEY`. Optional: `RELAY_POLL_INTERVAL_MS` (default 15s).
+Deploy coupling: the app's DO binding (`script_name`) means the **orchestrator must deploy before the app**.
 
 ### Deployment
 ```bash
-npm run deploy:relay-session   # requires: npx wrangler queues create ansible-relay-queue (+ ansible-relay-dlq)
+npm run deploy:relay-orchestrator
 ```
 
-See ADR `REFERENCE/decisions/2026-07-01-relay-session-trigger.md` for why serial + no-retry are correctness settings.
+See ADR `REFERENCE/decisions/2026-07-07-relay-orchestrator-durable-object.md` for why a DO (serial +
+alarm-driven) beats the queue/cron alternatives, and how the ledger sits outside the bridge seam. For how
+the agent itself is provisioned and driven, see [use-of-managed-agents.md](./use-of-managed-agents.md).
 
 ## Inter-Worker Communication
 
@@ -367,13 +379,16 @@ npx wrangler tail ansible-ai-reader-cron
 ### CI/CD (Main Worker Only)
 GitHub Actions auto-deploys main worker on push to `main` branch.
 
-**Manual Deployment (All Workers):**
+**Deployment (All Workers):**
 ```bash
-# Deploy all 4 workers
-npm run deploy                                       # Main worker
+# CI (GitHub Actions on push to main) deploys these three:
+npm run deploy                                       # Main worker (app)
+npm run deploy:relay-orchestrator                    # Relay orchestrator (deploy BEFORE the app — DO binding)
+npm run deploy:relay-bridge                          # Relay bridge
+
+# Manual (less frequent, explicit control):
 npx wrangler deploy --config wrangler-consumer.toml  # Consumer
 npx wrangler deploy --config wrangler-cron.toml      # Cron
-npm run deploy:relay-bridge                          # Relay bridge
 ```
 
 **Why manual for consumer & cron?**

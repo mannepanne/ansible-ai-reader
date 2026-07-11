@@ -355,7 +355,7 @@ Configure alerts in Cloudflare Dashboard:
 **Weekly checks:**
 - Review Perplexity token usage and costs
 - Check database size growth
-- Verify all 4 workers are healthy (main app, consumer, cron, relay bridge)
+- Verify all 5 workers are healthy (main app, consumer, cron, relay bridge, relay orchestrator)
 
 **Monthly checks:**
 - Audit secrets and API keys

@@ -12,10 +12,11 @@ System design, technical architecture, and infrastructure documentation.
 ## Architecture Documentation
 
 ### System Overview
-- **[overview.md](./overview.md)** - High-level system architecture, tech stack, worker design (3 core + relay bridge)
+- **[overview.md](./overview.md)** - High-level system architecture, tech stack, worker design (3 core + 2 Relay: bridge + orchestrator)
+- **[use-of-managed-agents.md](./use-of-managed-agents.md)** - How the Relay narrator's rented "mind" (Anthropic Managed Agents) connects to owned memory across the bridge seam
 
 ### Infrastructure
-- **[workers.md](./workers.md)** - Main app worker, queue consumer, cron worker, relay bridge worker
+- **[workers.md](./workers.md)** - Main app worker, queue consumer, cron worker, Relay bridge, Relay orchestrator (Durable Object)
 - **[database-schema.md](./database-schema.md)** - Tables, relationships, indexes, RLS policies
 
 ### Core Systems
