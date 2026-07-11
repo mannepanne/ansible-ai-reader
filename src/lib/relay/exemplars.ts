@@ -91,7 +91,7 @@ export function renderExemplarSection(ex: Exemplar): string {
     .join('\n');
   return `## The texture to aim for
 
-Here is a piece at the density you should be writing at — plain sentences doing the work, one flourish held to the end, no announced turns, no greengrocer, no commentary on its own cleverness. This is the band to land in.
+Here is a piece at the density you should be writing at — plain sentences doing the work, one flourish held to the end, no announced turns, no greengrocer, no commentary on its own cleverness, and a title that names the piece in one concrete line rather than labelling its topic. This is the band to land in.
 
 ${quoted}`;
 }
