@@ -29,6 +29,25 @@ A typical pass: run a session → if it wrote, `relay:pieces` to read the piece 
 - **`relay:approve <piece_id>`** — embeds the body (the one sealed embed fn) and atomically sets `state=approved` + `slug` + `embedding`. The piece is now recallable as *self*. Re-drivable (a second approve errors cleanly).
 - **`relay:reject <piece_id>`** — sets `state=rejected`; never embedded, never recalled.
 
+## Activating a voice change (editing the persona docs)
+
+The voice lives in `relay-agent/*.md` (trunk/grain/rings/cadence/coda) and the curated exemplars in `src/lib/relay/exemplars.ts`. **Editing those files changes nothing the live agent does** — the system prompt is assembled and pushed to the Managed-Agent resource only when `relay:session` runs. To activate an edit:
+
+```bash
+npm run relay:session <reader_id>   # reassembles the voice and pushes it to the pinned agent
+```
+
+`ensureResources` (`scripts/relay-session.ts`) **always** updates the agent on a run — the tools array round-trips non-identically, so the Managed-Agents version bumps on every run even when the prompt is unchanged — so a run is guaranteed to push whatever the docs currently say. The new version is cached in the gitignored `.relay-agent-ids.json`.
+
+**Production picks the change up automatically — no redeploy, no config edit.** `createSession` (`src/lib/relay/session-run.ts`) binds a session to the agent by **ID, not version**, and `wrangler-relay-orchestrator.toml` pins only the agent *ID* (stable across version bumps). So the orchestrator's next scheduled session runs against the latest agent version — the one the `relay:session` push just created. There is nothing to edit in wrangler and no deploy to trigger.
+
+Two consequences worth knowing:
+
+- **This is a local action.** The agent ID lives in the gitignored `.relay-agent-ids.json`, so the push must run from a machine with `.dev.vars` credentials — CI does not (and today cannot) do it, because it has no agent ID and would create an orphan agent.
+- **A push currently also runs a full session** — there is no push-only mode, so activating a voice edit costs one narrator inference run and may write a piece into the gate. Run it against a `reader_id` you are content to have narrated, or discard the resulting piece.
+
+Caveat: the auto-pickup relies on the Managed-Agents API resolving "session against an agent ID with no version" to the *latest* version — which the code assumes (it never pins a session version). If you need certainty rather than inference, verify empirically: the CLI prints the new `vN`, and the next production post should reflect the change.
+
 ## Secrets (`.dev.vars`)
 
 These CLIs read from `.dev.vars` (gitignored):
