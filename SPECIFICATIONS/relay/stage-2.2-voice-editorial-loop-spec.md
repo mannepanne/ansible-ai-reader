@@ -30,6 +30,11 @@ Channel 2 is a **monotonic prompt-growth** mechanism sitting inside a project wh
 - **Varied exemplars (Channel 1) are the PRIMARY anti-tic lever** (spike-proven). Distilled anti-tells are a **capped, prunable secondary supplement.**
 - **Channel 2 retires and replaces, it does not only accumulate.** The "tells to cut" list has a soft cap; a hand-distillation pass may *remove* a stale tell as readily as add one. Curation over growth.
 
+#### Pending, conditional: "dull title" as a Channel 2 reject dimension
+Titles were the observed weak spot — dull and under-specified. The first fix (PR #137) is deliberately the *lighter* set of levers, ordered by ascending force: a craft-doc budget rule ("the title is craft too"), a title-sharpening step in the operating-coda editorial reread, and exemplar framing that points at the title. This is the "material + process, not Channel 2 machinery" bet — consistent with the accretion constraint above (don't grow the anti-tell list before the lighter levers are shown to fall short).
+
+**The conditional follow-up:** *if* titles stay dull after PR #137 — judged by monitoring live posts, not a regeneration — then a "dull title" ✗/✓ anti-tell is earned and gets hand-distilled into `craft-and-cadence.md` (the §G loop), with an "under-specified title" reject/edit note becoming a first-class capture dimension. Until that evidence exists, this stays deferred; wiring the correction loop before the lighter levers have failed would manufacture the exact prompt-growth pathology the accretion constraint guards against.
+
 ## What already exists (hooks we build on)
 
 - ✅ Rejected pieces are **retained** in `relay_pieces` (`state='rejected'`), not deleted — substrate is there, only the *reason* is missing.
