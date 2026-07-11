@@ -24,27 +24,26 @@ A typical pass: run a session → if it wrote, `relay:pieces` to read the piece 
 
 ## What each does
 
-- **`relay:session <reader_id>`** — assembles the voice, ensures the Managed-Agent resources exist (environment/vault/agent, cached in the gitignored `.relay-agent-ids.json`), fetches the stimulus from `reader_items` (`short_summary` + `tags` + the operator note + `commentariat_summary`, via the shared `formatStimulus`), runs one session, prints the **reasoning trace**, and finalizes the backend-observed decision. The raw transcript is saved to the gitignored `relay-sessions/<session_id>.json`. Pre-flights the bridge and fails fast with guidance if it's unreachable.
+- **`relay:session <reader_id>`** — assembles the voice, ensures the Managed-Agent resources exist (environment/vault/agent, cached in the gitignored `.relay-agent-ids.json`), fetches the stimulus from `reader_items` (`short_summary` + `tags` + the operator note + `commentariat_summary`, via the shared `formatStimulus`), runs one session, prints the **reasoning trace**, and finalizes the backend-observed decision. The raw transcript is saved to the gitignored `relay-sessions/<session_id>.json`. Pre-flights the bridge and fails fast with guidance if it's unreachable. Flags: **`--push-only`** (assemble + push the voice, then exit — no stimulus, no session; see [Activating a voice change](#activating-a-voice-change-editing-the-persona-docs)); `--lean` / `--exemplar <n>` for the enrichment A/B.
 - **`relay:pieces [--all]`** — read-only. Prints each `pending_review` piece in full (body, summary, concepts, recall count) so you can read before approving, plus the recent decision log. `--all` includes approved/rejected pieces.
 - **`relay:approve <piece_id>`** — embeds the body (the one sealed embed fn) and atomically sets `state=approved` + `slug` + `embedding`. The piece is now recallable as *self*. Re-drivable (a second approve errors cleanly).
 - **`relay:reject <piece_id>`** — sets `state=rejected`; never embedded, never recalled.
 
 ## Activating a voice change (editing the persona docs)
 
-The voice lives in `relay-agent/*.md` (trunk/grain/rings/cadence/coda) and the curated exemplars in `src/lib/relay/exemplars.ts`. **Editing those files changes nothing the live agent does** — the system prompt is assembled and pushed to the Managed-Agent resource only when `relay:session` runs. To activate an edit:
+The voice lives in `relay-agent/*.md` (trunk/grain/rings/cadence/coda) and the curated exemplars in `src/lib/relay/exemplars.ts`. **Editing those files changes nothing the live agent does** — the system prompt is assembled and pushed to the Managed-Agent resource only when `relay:session` runs. To activate an edit without spending a narrator run, use `--push-only`:
 
 ```bash
-npm run relay:session <reader_id>   # reassembles the voice and pushes it to the pinned agent
+npx tsx scripts/relay-session.ts --push-only   # assemble + push the voice to the agent, then exit
 ```
 
-`ensureResources` (`scripts/relay-session.ts`) **always** updates the agent on a run — the tools array round-trips non-identically, so the Managed-Agents version bumps on every run even when the prompt is unchanged — so a run is guaranteed to push whatever the docs currently say. The new version is cached in the gitignored `.relay-agent-ids.json`.
+`--push-only` skips the stimulus fetch, the session, and the bridge preflight — it only reassembles the voice and pushes it. A normal `npm run relay:session <reader_id>` also activates the edit (it pushes before running), but as a side effect of a full narrator run; use it when you *want* a session, `--push-only` when you only want to update the voice.
 
-**Production picks the change up automatically — no redeploy, no config edit.** `createSession` (`src/lib/relay/session-run.ts`) binds a session to the agent by **ID, not version**, and `wrangler-relay-orchestrator.toml` pins only the agent *ID* (stable across version bumps). So the orchestrator's next scheduled session runs against the latest agent version — the one the `relay:session` push just created. There is nothing to edit in wrangler and no deploy to trigger.
+`ensureResources` (`scripts/relay-session.ts`) **always** updates the agent on a run — the tools array round-trips non-identically, so the Managed-Agents version bumps on every run even when the prompt is unchanged — so a push is guaranteed to land whatever the docs currently say. The new version is cached in the gitignored `.relay-agent-ids.json`.
 
-Two consequences worth knowing:
+**Production picks the change up automatically — no redeploy, no config edit.** `createSession` (`src/lib/relay/session-run.ts`) binds a session to the agent by **ID, not version**, and `wrangler-relay-orchestrator.toml` pins only the agent *ID* (stable across version bumps). So the orchestrator's next scheduled session runs against the latest agent version — the one the push just created. There is nothing to edit in wrangler and no deploy to trigger.
 
-- **This is a local action.** The agent ID lives in the gitignored `.relay-agent-ids.json`, so the push must run from a machine with `.dev.vars` credentials — CI does not (and today cannot) do it, because it has no agent ID and would create an orphan agent.
-- **A push currently also runs a full session** — there is no push-only mode, so activating a voice edit costs one narrator inference run and may write a piece into the gate. Run it against a `reader_id` you are content to have narrated, or discard the resulting piece.
+**This is a local action.** The agent ID lives in the gitignored `.relay-agent-ids.json`, so the push must run from a machine with `.dev.vars` credentials — CI does not (and today cannot) do it, because it has no agent ID and would create an orphan agent.
 
 Caveat: the auto-pickup relies on the Managed-Agents API resolving "session against an agent ID with no version" to the *latest* version — which the code assumes (it never pins a session version). If you need certainty rather than inference, verify empirically: the CLI prints the new `vN`, and the next production post should reflect the change.
 
