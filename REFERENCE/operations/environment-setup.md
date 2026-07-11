@@ -224,6 +224,24 @@ npx wrangler secret put CRON_SECRET --config wrangler-cron.toml
 
 **⚠️ Security:** Keep this secret secure. If compromised, attackers could trigger expensive sync operations for all users.
 
+### Relay Variables
+
+#### RELAY_OWNER_USER_ID
+The single-owner user UUID that the Relay Stage 2.3b engagement-gated archive-hook is scoped to.
+
+**Where to find:** the `users` table `id` for the owner account (e.g. `select id from users where email = '<owner>';`).
+
+**Purpose:** `performSyncForUser` runs for every auto-sync user, but Relay is single-owner (singleton Durable Object, no `user_id` on relay tables). The trigger-eval phase no-ops for every user except this one — so a non-owner's private engagement never feeds the narrator (correctness + GDPR). Unset ⟹ the auto-trigger never fires and the admin toggle renders disabled.
+
+**Required for:** Main app only (that's where sync runs — the external cron worker just calls the main app via `CRON_SECRET`).
+
+```bash
+npx wrangler secret put RELAY_OWNER_USER_ID
+# Enter: the owner's user UUID
+```
+
+See the [single-owner ADR](../decisions/2026-07-10-relay-single-owner-engagement-gate.md). Note the other `RELAY_*` values (`RELAY_AGENT_ID`, `RELAY_ENV_ID`, etc.) are non-secret `[vars]` on `wrangler-relay-orchestrator.toml`, not main-app secrets.
+
 ### Verifying Secrets
 
 ```bash
@@ -435,6 +453,7 @@ Before deploying to production:
 8. `CLOUDFLARE_TURNSTILE_SECRET_KEY`
 9. `RESEND_FROM_EMAIL`
 10. `CONTACT_EMAIL`
+11. `RELAY_OWNER_USER_ID` (Relay 2.3b engagement-gated archive-hook owner)
 
 ### Consumer Worker (`wrangler-consumer.toml`)
 1. `NEXT_PUBLIC_SUPABASE_URL`
