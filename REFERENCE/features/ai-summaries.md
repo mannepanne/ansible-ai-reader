@@ -203,22 +203,30 @@ await supabase.from('processing_jobs').update({ status: 'completed' }).eq('id', 
 - **429 rate limiting**: transient → retry. Note: the consumer's content fetch is
   a *raw* fetch, not behind the rate-limited `readerQueue`, so it's the path most
   exposed to Reader 429s under sync load — it must retry, never treat 429 as fatal.
-- **404 / 410 (item gone)**: `ContentUnavailableError` → permanent + auto-archive (see below)
-- **Other 4xx (401/403)**: permanent, mark failed (auth/permission, not a content problem — not auto-archived)
+- **404 / 410 or empty results (item gone)**: `ContentUnavailableError` → permanent
+  + auto-archive immediately (`reader_deleted: true`).
+- **No `html_content` / content < 100 chars**: `RecoverableContentError` (a
+  *transient* subclass) → retried, because Reader may still be parsing a
+  freshly-saved item. Auto-archived (`reader_deleted: false`) only if still empty
+  after retries are exhausted — this avoids prematurely hiding an item Reader was
+  merely slow to parse.
+- **Other 4xx (401/403)**: permanent, mark failed (auth/permission, not a content problem — not auto-archived).
 
-**Permanent-failure outcomes:**
-- **Content that can never be summarized** — item deleted in Reader (404/410 or
-  empty results), no `html_content`, or content < 100 chars — throws
-  `ContentUnavailableError`. The job is marked failed **and the item is
-  auto-archived** (`archived_at` set, `reader_deleted` true when deleted, false when
-  merely empty), so it drops out of the unread list instead of lingering as an
-  un-summarizable ghost. Mirrors the manual archive route's field writes.
+**Failure outcomes:**
+- **Content that can never be summarized** — auto-archived so it drops out of the
+  unread list instead of lingering as an un-summarizable ghost. `reader_deleted` is
+  `true` for gone items (404/410/empty results, archived immediately) and `false`
+  for empty-but-present items (archived only after retries exhaust). Mirrors the
+  manual archive route's field writes (local DB only; the Reader-side archive is
+  unnecessary — the item is either gone or has no readable content). A local
+  `archived_at` guard in `sync-operations` stops the next sync from re-enqueuing a
+  doomed job for an auto-archived item that still sits in Reader's unread list.
 - **Null/empty summary from a parseable response** — throws a plain
   `PermanentError` ("Perplexity returned no usable summary"). The job fails
   **visibly** (surfaces under "Retry Failed") but the item is **not** archived:
-  Perplexity is stochastic (`temperature: 0.2`), so a manual retry may succeed.
-  This replaces the old silent behaviour of storing `short_summary: null` and
-  marking the job successful — the "tags show, no summary" symptom.
+  Perplexity is stochastic (`temperature: 0.2`), so a manual retry may succeed. A
+  null/empty summary is treated as a failure rather than stored — storing it would
+  surface a tagged card reading "No summary available".
 
 ## Database Schema
 

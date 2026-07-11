@@ -403,7 +403,7 @@ describe('Queue Consumer', () => {
     expect(mockRetry).not.toHaveBeenCalled();
   });
 
-  it('handles missing content from Reader API', async () => {
+  it('retries when Reader content is temporarily missing (does not archive)', async () => {
     const mockAck = vi.fn();
     const mockRetry = vi.fn();
     const mockUpdateJob = vi.fn().mockReturnValue({
@@ -469,38 +469,150 @@ describe('Queue Consumer', () => {
 
     await consumer.queue(mockBatch as any, mockEnv);
 
-    // Permanent error - should ack, not retry
-    expect(mockAck).toHaveBeenCalled();
-    expect(mockRetry).not.toHaveBeenCalled();
+    // Recoverable: Reader may still be parsing → retry, do NOT fail or archive yet.
+    expect(mockRetry).toHaveBeenCalled();
     expect(mockGenerateSummary).not.toHaveBeenCalled();
+    expect(mockArchiveItem).not.toHaveBeenCalled();
+    expect(mockUpdateJob).not.toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'failed' })
+    );
+  });
 
-    // Verify job was marked as failed
+  it('auto-archives a no-content item once retries are exhausted', async () => {
+    const mockAck = vi.fn();
+    const mockRetry = vi.fn();
+    const mockUpdateJob = vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    });
+    const mockInsertLog = vi.fn().mockResolvedValue({ error: null });
+    const mockArchiveItem = vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    });
+
+    // No html_content, and this is the final attempt (attempts === max_attempts).
+    (global.fetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [
+          { id: 'reader-123', title: 'Test', html_content: '', url: 'https://example.com' },
+        ],
+      }),
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'processing_jobs') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { attempts: 3, max_attempts: 3 },
+                error: null,
+              }),
+            }),
+          }),
+          update: mockUpdateJob,
+        };
+      }
+      if (table === 'reader_items') {
+        return { update: mockArchiveItem };
+      }
+      if (table === 'sync_log') {
+        return { insert: mockInsertLog };
+      }
+    });
+
+    const mockBatch = {
+      messages: [
+        {
+          body: {
+            jobId: 'job-1',
+            userId: 'user-1',
+            readerItemId: 'item-1',
+            readerId: 'reader-123',
+            jobType: 'summary_generation' as const,
+          },
+          ack: mockAck,
+          retry: mockRetry,
+        },
+      ],
+    };
+
+    await consumer.queue(mockBatch as any, mockEnv);
+
+    // Exhausted → failed AND auto-archived (reader_deleted false: item still exists).
+    expect(mockRetry).not.toHaveBeenCalled();
     expect(mockUpdateJob).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: 'failed',
-        error_message: 'Item has no content in Readwise Reader',
-      })
+      expect.objectContaining({ status: 'failed' })
     );
-
-    // Verify failure was logged as permanent
-    expect(mockInsertLog).toHaveBeenCalledWith(
-      expect.objectContaining({
-        user_id: 'user-1',
-        sync_type: 'summary_generation_failed',
-        items_failed: 1,
-        errors: expect.objectContaining({
-          permanent: true,
-        }),
-      })
-    );
-
-    // No content → auto-archived (reader_deleted false: item exists, just no content)
     expect(mockArchiveItem).toHaveBeenCalledWith(
-      expect.objectContaining({
-        archived: true,
-        reader_deleted: false,
-      })
+      expect.objectContaining({ archived: true, reader_deleted: false })
     );
+  });
+
+  it('auto-archives a too-short article once retries are exhausted', async () => {
+    const mockAck = vi.fn();
+    const mockRetry = vi.fn();
+    const mockUpdateJob = vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    });
+    const mockArchiveItem = vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    });
+
+    // Content present but < 100 chars after stripping, on the final attempt.
+    (global.fetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [
+          { id: 'reader-123', title: 'Test', html_content: '<p>too short</p>', url: 'https://example.com' },
+        ],
+      }),
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'processing_jobs') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { attempts: 3, max_attempts: 3 },
+                error: null,
+              }),
+            }),
+          }),
+          update: mockUpdateJob,
+        };
+      }
+      if (table === 'reader_items') {
+        return { update: mockArchiveItem };
+      }
+      if (table === 'sync_log') {
+        return { insert: vi.fn().mockResolvedValue({ error: null }) };
+      }
+    });
+
+    const mockBatch = {
+      messages: [
+        {
+          body: {
+            jobId: 'job-1',
+            userId: 'user-1',
+            readerItemId: 'item-1',
+            readerId: 'reader-123',
+            jobType: 'summary_generation' as const,
+          },
+          ack: mockAck,
+          retry: mockRetry,
+        },
+      ],
+    };
+
+    await consumer.queue(mockBatch as any, mockEnv);
+
+    expect(mockArchiveItem).toHaveBeenCalledWith(
+      expect.objectContaining({ archived: true, reader_deleted: false })
+    );
+    expect(mockGenerateSummary).not.toHaveBeenCalled();
   });
 
   it('handles item not found in Reader API (permanent error)', async () => {

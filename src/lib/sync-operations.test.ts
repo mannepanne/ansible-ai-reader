@@ -360,6 +360,71 @@ describe('performSyncForUser', () => {
     expect(mockQueue.send).toHaveBeenCalledTimes(1);
   });
 
+  it('skips items already archived locally (no re-enqueue of doomed jobs)', async () => {
+    const mockInsert = vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({ data: { id: 'job-1' }, error: null }),
+      }),
+    });
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    });
+
+    const mockUpsert = vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn()
+          // First item was auto-archived locally (no summary, but archived_at set) → skip
+          .mockResolvedValueOnce({
+            data: {
+              id: 'item-1',
+              reader_id: 'reader-1',
+              short_summary: null,
+              archived_at: '2026-03-24T09:00:00Z',
+            },
+            error: null,
+          })
+          // Second item is fresh → create job
+          .mockResolvedValueOnce({
+            data: { id: 'item-2', reader_id: 'reader-2', short_summary: null },
+            error: null,
+          }),
+      }),
+    });
+
+    (mockSupabase.from as any).mockImplementation((table: string) => {
+      if (table === 'sync_log') {
+        return { insert: mockInsert, update: mockUpdate, select: mockSyncLogSelect };
+      }
+      if (table === 'reader_items') {
+        return { upsert: mockUpsert };
+      }
+      if (table === 'processing_jobs') {
+        return { insert: mockInsert };
+      }
+      return {};
+    });
+
+    (fetchUnreadItems as any).mockResolvedValue({
+      results: [
+        { id: 'reader-1', title: 'Archived', url: 'https://example.com/1', created_at: '2026-03-24T10:00:00Z' },
+        { id: 'reader-2', title: 'Fresh', url: 'https://example.com/2', created_at: '2026-03-24T11:00:00Z' },
+      ],
+      nextPageCursor: null,
+    });
+
+    const result = await performSyncForUser(mockSupabase, {
+      userId: 'user-123',
+      triggeredBy: 'manual',
+      readerApiToken: 'test-token',
+      cloudflareEnv: { PROCESSING_QUEUE: mockQueue },
+    });
+
+    // Archived item skipped → only the fresh item gets a job.
+    expect(result.totalFetched).toBe(2);
+    expect(result.totalItems).toBe(1);
+    expect(mockQueue.send).toHaveBeenCalledTimes(1);
+  });
+
   it('enqueues jobs to Cloudflare Queue', async () => {
     const mockInsert = vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({

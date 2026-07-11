@@ -328,8 +328,13 @@ async function fetchContent(url: string): Promise<Content> {
   const response = await fetch(url);
 
   if (!response.ok) {
-    // 4xx errors are permanent (bad request, not found, unauthorized)
+    // NOT all 4xx are permanent — 429 (rate limit) is transient. Classify each
+    // status explicitly rather than bucketing the whole 4xx range.
+    if (response.status === 429) {
+      throw new TransientError('Rate limited (HTTP 429), will retry');
+    }
     if (response.status >= 400 && response.status < 500) {
+      // Other 4xx (404/401/400/…): the request itself won't succeed on retry.
       throw new PermanentError(`Content not found (HTTP ${response.status})`);
     }
     // 5xx errors are transient (server issues, try again)
@@ -338,6 +343,25 @@ async function fetchContent(url: string): Promise<Content> {
 
   return await response.json();
 }
+```
+
+> **⚠️ Bucketing all 4xx as permanent is a real footgun.** A rate-limit spike
+> (429) under load would then permanently fail good work — and if the permanent
+> branch has any side effect (e.g. auto-archiving the item), those items silently
+> disappear. Always special-case 429.
+
+**Beyond the binary — outcome-carrying subclasses.** The summary consumer
+(`workers/consumer.ts`) extends this pattern with two subclasses that encode *what
+to do*, not just *whether to retry*:
+
+- `ContentUnavailableError extends PermanentError` — item is gone (404/410/empty
+  results). Don't retry; auto-archive it (`reader_deleted: true`).
+- `RecoverableContentError extends TransientError` — item is present but has no
+  body yet (Reader may still be parsing). Retry; auto-archive (`reader_deleted:
+  false`) only if it is *still* empty after retries are exhausted.
+
+Because they subclass `PermanentError`/`TransientError`, the existing retry logic
+handles them unchanged; the `instanceof` check only adds the archive side effect.
 
 // Handle errors in consumer
 try {

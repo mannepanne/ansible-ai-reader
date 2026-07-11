@@ -1,7 +1,7 @@
 // ABOUT: Cloudflare Queue consumer dispatching summary_generation and tags_generation jobs
 // ABOUT: Summary path fetches Reader content + Perplexity; tags path reuses existing summary
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { generateSummary, generateTags } from '../src/lib/perplexity-api';
 import { fetchUnreadItems } from '../src/lib/reader-api';
 import { stripHtml } from '../src/lib/html-utils';
@@ -49,6 +49,51 @@ class TransientError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'TransientError';
+  }
+}
+
+// Content that is currently absent but MIGHT still arrive — Reader can return a
+// freshly-saved item before it finishes fetching/parsing its body. Retried like
+// any transient error; only if it is STILL empty after retries are exhausted is
+// the item auto-archived (it has no usable content and never got any). This avoids
+// prematurely hiding an item that Reader was merely slow to parse.
+class RecoverableContentError extends TransientError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RecoverableContentError';
+  }
+}
+
+/**
+ * Auto-archive an item that can never be summarized so it drops out of the unread
+ * list instead of lingering as a ghost. Mirrors the manual archive route's field
+ * writes (local DB only — the Reader-side archive is either unnecessary, because
+ * the item is already gone, or irrelevant, because it has no readable content).
+ */
+async function autoArchiveUnsummarizable(
+  supabase: SupabaseClient,
+  readerItemId: string,
+  readerDeleted: boolean,
+  reason: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('reader_items')
+    .update({
+      archived: true,
+      archived_at: new Date().toISOString(),
+      reader_deleted: readerDeleted,
+    })
+    .eq('id', readerItemId);
+
+  if (error) {
+    console.error(
+      `[Queue Consumer] Failed to auto-archive item ${readerItemId}:`,
+      error
+    );
+  } else {
+    console.log(
+      `[Queue Consumer] Auto-archived unsummarizable item ${readerItemId} (reader_deleted=${readerDeleted}, reason="${reason}")`
+    );
   }
 }
 
@@ -118,7 +163,9 @@ async function fetchReaderContent(
 
     if (!item.html_content) {
       console.error('[Consumer] Item has no content:', readerId);
-      throw new ContentUnavailableError('Item has no content in Readwise Reader');
+      // Recoverable: Reader may still be parsing. Retry; auto-archive only if it
+      // stays empty after retries are exhausted.
+      throw new RecoverableContentError('Item has no content in Readwise Reader');
     }
 
     // Strip HTML tags to get plain text for Perplexity
@@ -290,7 +337,9 @@ async function processJob(
       );
 
       if (!articleContent.content || articleContent.content.length < 100) {
-        throw new ContentUnavailableError(
+        // Recoverable: Reader may still be parsing. Retry; auto-archive only if it
+        // stays too short after retries are exhausted.
+        throw new RecoverableContentError(
           'Article content is empty or too short (< 100 characters)'
         );
       }
@@ -406,29 +455,15 @@ async function processJob(
         },
       });
 
-      // If the content can never be summarized (deleted / no content), auto-archive
-      // the item so it doesn't linger as an un-summarizable ghost in the unread list.
-      // Mirrors the manual archive route's field shape.
+      // Content that is genuinely gone (deleted / 404): auto-archive immediately so
+      // it doesn't linger as an un-summarizable ghost in the unread list.
       if (error instanceof ContentUnavailableError && readerItemId) {
-        const { error: archiveError } = await supabase
-          .from('reader_items')
-          .update({
-            archived: true,
-            archived_at: new Date().toISOString(),
-            reader_deleted: error.readerDeleted,
-          })
-          .eq('id', readerItemId);
-
-        if (archiveError) {
-          console.error(
-            `[Queue Consumer] Failed to auto-archive item ${readerItemId}:`,
-            archiveError
-          );
-        } else {
-          console.log(
-            `[Queue Consumer] Auto-archived unsummarizable item ${readerItemId} (reader_deleted=${error.readerDeleted})`
-          );
-        }
+        await autoArchiveUnsummarizable(
+          supabase,
+          readerItemId,
+          error.readerDeleted,
+          errorMessage
+        );
       }
 
       message.ack(); // Don't retry
@@ -464,6 +499,18 @@ async function processJob(
           timestamp: new Date().toISOString(),
         },
       });
+
+      // Content that stayed empty across all retries is not a transient blip — it
+      // has no readable content and never will via this path. Auto-archive it
+      // (reader_deleted=false: the item still exists in Reader, just has no body).
+      if (error instanceof RecoverableContentError && readerItemId) {
+        await autoArchiveUnsummarizable(
+          supabase,
+          readerItemId,
+          false,
+          errorMessage
+        );
+      }
 
       message.ack(); // Don't retry anymore
     } else {

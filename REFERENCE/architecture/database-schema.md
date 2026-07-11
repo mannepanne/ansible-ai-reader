@@ -53,11 +53,12 @@ CREATE TABLE reader_items (
   title TEXT NOT NULL,
   author TEXT,
   word_count INTEGER,
-  summary TEXT, -- AI-generated summary from Perplexity
+  short_summary TEXT, -- AI-generated summary from Perplexity
   tags TEXT[], -- AI-generated tags (3-10)
   content_truncated BOOLEAN DEFAULT FALSE, -- True if content > 30k chars
   archived BOOLEAN DEFAULT FALSE,
   archived_at TIMESTAMP WITH TIME ZONE,
+  reader_deleted BOOLEAN NOT NULL DEFAULT FALSE, -- Item gone from Reader (deleted); set by manual archive + consumer auto-archive
   highlights_count INTEGER NOT NULL DEFAULT 0, -- Relay 2.3b: retained from archive response (filter input)
   reader_note TEXT, -- Relay 2.3b: Reader-authored note retained from archive response (filter + stimulus)
   relay_triggered_at TIMESTAMP WITH TIME ZONE, -- Relay 2.3b work-queue marker; NULL = archived-not-yet-evaluated
@@ -272,6 +273,7 @@ supabase db push
 **Key Migrations:**
 - `20260309000001_initial_schema.sql` - Initial tables (users, reader_items, processing_jobs)
 - `20260312_add_sync_log_id.sql` - Add sync_log_id to processing_jobs for sync tracking
+- `20260321_add_reader_deleted.sql` - Add reader_deleted flag to reader_items (item gone from Reader)
 - `20260324_add_auto_sync_settings.sql` - Add sync_interval, last_auto_sync_at to users
 - `20260401_add_regenerate_batch_id.sql` - Add regenerate_batch_id to processing_jobs for tag regeneration tracking
 - `20260411_add_item_signals.sql` - Add item_signals engagement event log table
