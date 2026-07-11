@@ -195,17 +195,54 @@ export function smartTruncate(
  * @returns Parsed summary and tags with validation
  */
 export function parseSummaryResponse(text: string): ParsedSummary {
-  // Extract summary section (everything between "## Summary" and "## Tags" or end)
-  const summaryMatch = text.match(/## Summary\n([\s\S]*?)(?=\n## Tags|$)/);
-  const summary = summaryMatch ? summaryMatch[1].trim() : null;
+  const normalized = text.replace(/\r\n/g, '\n');
 
-  // Extract tags section (comma-separated list after "## Tags")
-  const tagsMatch = text.match(/## Tags\n(.*)/);
-  const tagsString = tagsMatch ? tagsMatch[1].trim() : '';
-  const tags = tagsString
-    .split(',')
-    .map((tag) => tag.trim())
-    .filter(Boolean);
+  // The "## Tags" header is the stable delimiter (the prompt instructs it
+  // rigidly), so anchor on it. The "## Summary" header is NOT stable — the
+  // prompt lets the model structure the summary freely, so it's frequently
+  // omitted. Tolerate heading level (#..######) and surrounding spacing.
+  const tagsHeaderMatch = normalized.match(/(?:^|\n)#{1,6}[ \t]*Tags\b[^\n]*\n?/i);
+
+  let summary: string | null;
+  let tags: string[];
+
+  if (tagsHeaderMatch && tagsHeaderMatch.index !== undefined) {
+    // Everything before the Tags header is the summary. Strip an optional
+    // leading "## Summary" header if present, then keep the rest verbatim —
+    // this captures headerless summaries instead of dropping them to null.
+    const summarySection = normalized.slice(0, tagsHeaderMatch.index);
+    summary =
+      summarySection.replace(/^[ \t]*#{1,6}[ \t]*Summary\b[^\n]*\n?/i, '').trim() ||
+      null;
+
+    // Tags are the first non-empty line after the header (matches the original
+    // single-line behaviour so trailing prose can't leak into the tag list).
+    const afterTags = normalized.slice(
+      tagsHeaderMatch.index + tagsHeaderMatch[0].length
+    );
+    const tagsLine = afterTags.split('\n').find((line) => line.trim() !== '') ?? '';
+    tags = tagsLine
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+      .slice(0, 10);
+  } else {
+    // No Tags section at all — fall back to strict "## Summary" extraction so a
+    // genuinely unstructured/garbage response still yields a null summary.
+    const summaryMatch = normalized.match(/#{1,6}[ \t]*Summary\b[^\n]*\n([\s\S]*)/i);
+    summary = summaryMatch ? summaryMatch[1].trim() || null : null;
+    tags = [];
+  }
+
+  // A response that produced tags but no parseable summary is the "tags show,
+  // summary missing" production symptom. Log the raw response at error level so
+  // the actual model output is visible for diagnosis (it is not otherwise logged).
+  if (summary === null && tags.length > 0) {
+    console.error(
+      '[Perplexity] Response had tags but no parseable summary — raw response follows:',
+      normalized
+    );
+  }
 
   // Validate with Zod
   const result = ParsedSummarySchema.safeParse({ summary, tags });
@@ -213,10 +250,7 @@ export function parseSummaryResponse(text: string): ParsedSummary {
   if (!result.success) {
     console.error('[Perplexity] Validation error:', result.error.message);
     // Return partial result on validation failure
-    return {
-      summary,
-      tags: tags.length > 0 ? tags.slice(0, 10) : [], // Limit to 10 tags
-    };
+    return { summary, tags };
   }
 
   return result.data;
