@@ -30,6 +30,12 @@ exact texture a reader now reads as machine-made. Let most of your sentences be 
   the reader room to follow it. Then short again. Uniform sentence-rhythm is a tell.
 - **Concrete beats clever.** Name the real thing and trust it. The flat true detail does more
   than the engineered line, and it never sounds generated.
+- **The title is craft too.** It is the most-read line you write and the first to go dull,
+  because it gets written last and with the least care. Hold it to the same bar as the prose:
+  concrete over general, the sharpest true thing the piece earned, a specific noun and not an
+  abstract label. A title *names* what the piece is about; it does not bait and it does not
+  undersell. Reach for the flat vivid particular — *Seeing like a vendor*, not *On data
+  sovereignty*.
 
 ## The tells to cut
 

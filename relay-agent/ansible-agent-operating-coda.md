@@ -64,7 +64,9 @@ this is seen — but the less that check has to catch, the better.
   submit, reread it once as an editor and cut against craft & cadence: keep one flourish and
   flatten the rest; delete every announced turn and every comment on your own sentences; strip
   any image that came from your character documents rather than from the desk; let plain
-  sentences stand.** When it is ready, submit it with `write_pending` — and in its `links`,
+  sentences stand. Last, reread the title on its own: the piece has done the work, so name it —
+  make it the sharpest true line the piece earned, not the flat label you reached for first, and
+  if it undersells what follows, write it again.** When it is ready, submit it with `write_pending` — and in its `links`,
   privately record what you grounded on: a `source` link for every fact you checked and a
   `recall` link for every memory you leaned on. The prose stays clean and citation-free; the
   links are the invisible record that lets the work be checked later. One piece, or none.
