@@ -31,15 +31,17 @@ Ansible AI Reader is an AI-powered depth-of-engagement triage system for Readwis
 - **Readwise Reader API** - Article sync and content fetching
 - **Perplexity API** (sonar-pro) - AI summary generation
 - **Resend** - Email delivery for magic links
+- **Anthropic Managed Agents** (Claude Opus) - The "mind" of the Relay narrator subsystem (a rented agent harness)
+- **Workers AI** (bge-m3) - 1024-dim embeddings for Relay recall, sealed inside the Relay bridge
 
 ### Development
 - **TypeScript** - Type safety
-- **Vitest** - Testing framework (~293 tests)
+- **Vitest** - Testing framework (run `npm test` for the live count; 95%+ coverage target)
 - **GitHub Actions** - CI/CD pipeline
 
 ## Worker Architecture
 
-We deploy **three core Cloudflare Workers** (plus a fourth for the Relay subsystem, below):
+We deploy **five Cloudflare Workers**: three for the core Ansible app, plus two for the **Relay** subsystem (an autonomous-narrator experiment layered on Ansible). The two groups are split for *different reasons* — the core split is forced by an OpenNext limitation; the Relay split is deliberate architecture (see below).
 
 ### 1. Main App Worker (`wrangler.toml`)
 - Next.js application
@@ -61,11 +63,26 @@ We deploy **three core Cloudflare Workers** (plus a fourth for the Relay subsyst
 **Why these 3 split out?** OpenNext (Cloudflare adapter for Next.js) only generates HTTP request handlers, not scheduled event handlers. The cron functionality must be in a separate worker, and queue consumption is isolated for the same handler-shape reason.
 
 ### 4. Relay Bridge Worker (`wrangler-relay-bridge.toml`)
-- The owned-memory gateway for the **Relay** subsystem (an autonomous-narrator experiment layered on Ansible)
-- The **only** thing that touches the `relay_*` tables (service-role; bypasses RLS)
-- Exposes a back-fill route and a small MCP tool surface (`recall` / `fetch` / `write_pending` / `ingest_reference` / `research`) behind a shared-secret bearer
-- Separate from the main app for a **different reason than the cron/consumer split**: it is the deliberate "swappable seam" — all of Relay's durable state lives behind it so the agent harness (Managed Agents now, Cloudflare Agents SDK later) can be swapped by rewriting only a thin adapter
-- See `SPECIFICATIONS/relay/stage-1-technical-spec.md`
+- The **owned-memory gateway** for Relay, and the **only** thing that touches the `relay_*` tables (service-role; bypasses RLS)
+- Exposes a back-fill route, a human-gate control plane (`/decision`, `/approve`, `/reject`), and a small **MCP tool surface** (`recall` / `fetch` / `write_pending` / `ingest_reference` / `research`) — the agent's only route in
+- Also seals the embedding model (Workers AI `bge-m3`) inside itself, so recall and approval embed through one path and vectors never drift
+- Separate from the main app for a **different reason than the cron/consumer split**: it is the deliberate "swappable seam" (see below)
+
+### 5. Relay Orchestrator Worker (`wrangler-relay-orchestrator.toml`)
+- A single-threaded **Durable Object** (`RelayOrchestrator`) that holds the "mind": it runs one Managed-Agent session at a time and finalizes the verdict *through* the bridge
+- Alarm-driven polling — it waits out a ~5-minute agent session across durable alarms rather than holding a Worker invocation (which Cloudflare hard-cancels at ~4 min)
+- **Superseded** the earlier queue-consumer approach (`wrangler-relay-session.toml`, now retired) for exactly that wall-clock reason — see ADR [2026-07-07-relay-orchestrator-durable-object.md](../decisions/2026-07-07-relay-orchestrator-durable-object.md)
+- It is the *only* worker holding the Anthropic API credential, so the user-facing app never touches the agent brain — it's a pure queue producer that just enqueues a `reader_id`
+
+### The Managed Agents Connection (Relay)
+
+Relay's guiding principle is **"mind rented, memory owned"**:
+
+- The **mind** is an Anthropic-hosted **Managed Agent** (Claude Opus) — a rented harness the orchestrator drives via the Managed Agents API. It reaches back into Ansible only through the bridge's MCP tools.
+- The **memory** is the `relay_*` tables, owned by us and living behind the bridge. It outlives any particular agent harness.
+- The **bridge is the swappable seam**: because *all* durable Relay state flows through it, the mind can be swapped later (Managed Agents → Cloudflare Agents SDK) by rewriting only the thin orchestrator, leaving the memory untouched.
+
+For the full mechanics — how the agent is provisioned, how the voice is assembled, the MCP handshake, and the human-gate flow — see **[use-of-managed-agents.md](./use-of-managed-agents.md)**. For the subsystem spec, see `SPECIFICATIONS/relay/stage-1-technical-spec.md`.
 
 ## System Diagram
 
@@ -178,6 +195,50 @@ graph TB
     style Resend fill:#f1f8e9
 ```
 
+## Relay Subsystem Diagram
+
+The main diagram above is the core Ansible app. Relay layers on top of it — kept separate here because it has its own trust boundary (mind rented, memory owned):
+
+```mermaid
+graph TB
+    subgraph "Rented Mind (Anthropic)"
+        MA[Managed Agent<br/>Claude Opus + assembled voice]
+    end
+
+    subgraph "Orchestration (mind-specific)"
+        Admin[Admin: Run a session]
+        Orchestrator[Relay Orchestrator<br/>Durable Object<br/>serial + alarm polling]
+    end
+
+    subgraph "Owned Memory Seam"
+        Bridge[Relay Bridge Worker<br/>MCP tools + human gate<br/>sole relay_* writer<br/>seals bge-m3 embeddings]
+    end
+
+    subgraph "Durable State"
+        RelayPieces[(relay_pieces<br/>the narrator's own work)]
+        RelayRefs[(relay_references<br/>the world reporting in)]
+        RelayDecisions[(relay_decisions<br/>every run's verdict)]
+    end
+
+    Human[Human gate<br/>relay:approve / relay:reject]
+
+    Admin -->|enqueue reader_id| Orchestrator
+    Orchestrator -->|create session + stimulus| MA
+    MA -.->|MCP: recall / fetch / write_pending<br/>research / ingest_reference| Bridge
+    Orchestrator -->|finalize verdict via /decision| Bridge
+    Bridge --> RelayPieces
+    Bridge --> RelayRefs
+    Bridge --> RelayDecisions
+    Human -->|/approve embeds + promotes| Bridge
+
+    style MA fill:#fff9c4
+    style Orchestrator fill:#ffe0b2
+    style Bridge fill:#e3f2fd
+    style Human fill:#f3e5f5
+```
+
+**Reading the boundary:** the agent (top) can only touch memory (bottom) through the bridge's MCP tools, and it is deliberately **blind to the human gate** — no tool tells it whether a piece was approved, rejected, or deployed. The orchestrator, not the agent, holds the Anthropic credential and finalizes each verdict through a *separate* control-plane token.
+
 ## Key Design Decisions
 
 ### Why Cloudflare Workers (not Pages)?
@@ -202,16 +263,18 @@ graph TB
 - Cron needs scheduled() function
 - Queue consumer is long-running (30s timeout)
 - Separation of concerns: API, processing, scheduling
-- Relay bridge: a deliberate "swappable seam" owning the `relay_*` tables (architectural intent, not an OpenNext limitation)
+- **Relay bridge & orchestrator**: a deliberate split (architectural intent, not an OpenNext limitation) — the bridge is the "swappable seam" owning the `relay_*` tables, and the orchestrator is a Durable Object because a rented agent session outlives a single Worker invocation. See [use-of-managed-agents.md](./use-of-managed-agents.md)
 
 ## Deployment
 - **Domain**: ansible.hultberg.org
 - **CI/CD**: GitHub Actions auto-deploys on push to main
 - **Secrets**: Managed via `wrangler secret put`
-- **Observability**: Enabled on all 4 workers
+- **Observability**: Enabled on all 5 workers
+- **CI scope**: GitHub Actions auto-deploys the main app, the Relay bridge, and the Relay orchestrator; the queue consumer and cron worker deploy manually (less frequent, explicit control)
 
 ## Related Documentation
 - [Workers](./workers.md) - Detailed worker implementation
+- [Use of Managed Agents](./use-of-managed-agents.md) - How the Relay narrator's rented "mind" connects to owned memory
 - [Database Schema](./database-schema.md) - Tables and relationships
 - [Authentication](./authentication.md) - Auth flow and security
 - [API Design](./api-design.md) - REST conventions

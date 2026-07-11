@@ -7,7 +7,7 @@ How to deploy the Ansible AI Reader application to Cloudflare Workers.
 - Deploying to production
 - Setting up CI/CD
 - Troubleshooting deployment issues
-- Understanding the worker architecture (3 core + relay bridge)
+- Understanding the worker architecture (3 core + 2 Relay: bridge + orchestrator)
 
 ## Related Documentation
 - [Architecture - Workers](../architecture/workers.md) - Worker architecture (3 core + relay bridge)
@@ -420,7 +420,7 @@ After deployment:
 - [ ] Sync from Readwise succeeds
 - [ ] Summary generation works
 - [ ] Automated sync settings available in UI
-- [ ] No errors in Cloudflare Workers logs (all 4 workers)
+- [ ] No errors in Cloudflare Workers logs (all 5 workers)
 - [ ] Custom domain works (if configured)
 - [ ] Cron triggers are firing hourly
 
@@ -474,7 +474,7 @@ npx wrangler rollback [deployment-id] --config wrangler-cron.toml
 
 ## Related Documentation
 
-- [Architecture - Workers](../architecture/workers.md) - Understanding the worker architecture (3 core + relay bridge)
+- [Architecture - Workers](../architecture/workers.md) - Understanding the worker architecture (3 core + 2 Relay: bridge + orchestrator)
 - [Environment Setup](./environment-setup.md) - Configuring API keys and secrets
 - [Monitoring](./monitoring.md) - Production logs and debugging
 - [Troubleshooting](./troubleshooting.md) - Common deployment issues
