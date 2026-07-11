@@ -10,6 +10,8 @@ import {
   fetchArticleContent,
   ReaderAPIError,
   ReaderItemSchema,
+  ArchivedReaderItemSchema,
+  parseListResponse,
   getQueueStatus,
 } from './reader-api';
 
@@ -468,6 +470,92 @@ describe('Reader API Client', () => {
         content: '<p></p>',
       });
       expect(parsed.title).toBe('Untitled: example.com');
+    });
+  });
+
+  // parseListResponse is a pure function, so its resilience contract is tested
+  // directly (no fetch mock, no readerQueue slot — see the note above beforeEach).
+  describe('parseListResponse (resilient list parsing)', () => {
+    it('skips a malformed archived item and keeps the valid ones', () => {
+      const out = parseListResponse<{ id: string }>(
+        {
+          results: [
+            { id: '', updated_at: '2026-04-01T00:00:00Z' }, // empty id → invalid
+            { id: 'archived-ok', updated_at: '2026-04-01T00:00:00Z' },
+          ],
+          nextPageCursor: null,
+        },
+        ArchivedReaderItemSchema,
+        'archived'
+      );
+
+      expect(out.results).toHaveLength(1);
+      expect(out.results[0].id).toBe('archived-ok');
+    });
+
+    it('logs an error when every item in a non-empty batch fails validation', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const out = parseListResponse(
+        { results: [{ id: '' }, { id: '' }] },
+        ArchivedReaderItemSchema,
+        'archived'
+      );
+
+      expect(out.results).toHaveLength(0);
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('possible Reader API schema change')
+      );
+
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+
+    it('does not log the schema-change error on a partial skip', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      parseListResponse(
+        {
+          results: [
+            { id: '', updated_at: 'x' }, // invalid
+            { id: 'ok', updated_at: '2026-04-01T00:00:00Z' }, // valid
+          ],
+        },
+        ArchivedReaderItemSchema,
+        'archived'
+      );
+
+      expect(errorSpy).not.toHaveBeenCalled();
+
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+
+    it('does not log the schema-change error for a legitimately empty batch', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const out = parseListResponse(
+        { results: [] },
+        ArchivedReaderItemSchema,
+        'archived'
+      );
+
+      expect(out.results).toHaveLength(0);
+      expect(errorSpy).not.toHaveBeenCalled();
+
+      errorSpy.mockRestore();
+    });
+
+    it('throws when the envelope shape is invalid', () => {
+      expect(() =>
+        parseListResponse(
+          { unexpected: 'shape' },
+          ArchivedReaderItemSchema,
+          'archived'
+        )
+      ).toThrow();
     });
   });
 

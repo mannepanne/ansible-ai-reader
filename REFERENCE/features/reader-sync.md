@@ -343,8 +343,14 @@ malformed item cannot abort an entire sync:
 title (PDFs, tweets, raw-URL saves). Rather than rejecting them, `ReaderItemSchema`
 resolves a display title via a fallback chain: sanitized title → `Untitled: <first
 5 words of body>…` (when the list response includes content) → `Untitled: <domain>`.
-This prevents a single untitled item from failing the whole (including automated cron)
-sync — the original cause of a silent auto-sync outage.
+This keeps a single untitled item from failing the whole (including automated cron)
+sync, which strict `title.min(1)` validation on the full batch would otherwise cause.
+
+When a **non-empty** batch produces **zero** valid items, `parseListResponse` logs
+`[Reader API] All N <label> item(s) failed validation — possible Reader API schema
+change` at error level. This does not throw (that would re-break the sync), but it
+makes an upstream schema change visible in log alerts instead of silently syncing
+nothing.
 
 ### Database Errors
 
@@ -416,6 +422,14 @@ const progress = (jobs_completed / jobs_created) * 100;
 - Check Reader access token is valid
 - Verify Reader API is accessible
 - Check Cloudflare logs for errors
+
+### Reader item log signatures
+- `[Reader API] Skipping malformed <label> item` — one item failed validation and
+  was skipped; the rest of the batch synced normally. **Expected**, not a failure.
+- `[Reader API] All N <label> item(s) failed validation — possible Reader API
+  schema change` — a whole non-empty page produced zero valid items. Investigate:
+  Readwise likely changed a field shape, and the schema in `reader-api.ts` needs
+  updating.
 
 ### Duplicate Items
 - Unique constraint should prevent this

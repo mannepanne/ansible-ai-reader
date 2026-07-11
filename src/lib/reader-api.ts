@@ -95,7 +95,8 @@ export const ReaderItemSchema = z
   }));
 
 /**
- * Reader API list response schema
+ * Reader API list response schema. Type anchor only — runtime parsing goes
+ * through parseListResponse + ListEnvelopeSchema (resilient per-item), not this.
  */
 export const ReaderListResponseSchema = z.object({
   results: z.array(ReaderItemSchema),
@@ -120,6 +121,7 @@ export const ArchivedReaderItemSchema = z.object({
   notes: z.string().nullable().optional(),
 });
 
+// Type anchor only — runtime parsing goes through parseListResponse (resilient).
 export const ArchivedReaderListResponseSchema = z.object({
   results: z.array(ArchivedReaderItemSchema),
   nextPageCursor: z.string().nullable().optional(),
@@ -144,7 +146,7 @@ const ListEnvelopeSchema = z.object({
  * that fail validation are skipped + logged so a single bad item from Reader can
  * never fail an entire sync.
  */
-function parseListResponse<T>(
+export function parseListResponse<T>(
   data: unknown,
   itemSchema: z.ZodTypeAny,
   label: string
@@ -169,6 +171,16 @@ function parseListResponse<T>(
   if (skipped > 0) {
     console.warn(
       `[Reader API] Skipped ${skipped} malformed ${label} item(s) of ${envelope.results.length}`
+    );
+  }
+
+  // A non-empty batch that yields zero valid items usually means an upstream
+  // schema change (every item failing the same way), not one bad apple. Surface
+  // it at error level so it shows up in log alerts — but don't throw, which would
+  // reintroduce the whole-sync outage this resilient parsing exists to prevent.
+  if (envelope.results.length > 0 && results.length === 0) {
+    console.error(
+      `[Reader API] All ${envelope.results.length} ${label} item(s) failed validation — possible Reader API schema change`
     );
   }
 

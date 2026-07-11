@@ -142,6 +142,15 @@ const schema = z.object({
 });
 ```
 
+> **Strict vs. resilient array validation.** `z.array(ItemSchema).parse()` is
+> all-or-nothing: one bad element rejects the whole batch. That is correct for
+> *user input you control* (fail fast, surface the error). For *large batches from
+> a third-party API you don't control* (e.g. Readwise Reader list responses), a
+> single malformed item shouldn't abort the whole operation. There, validate the
+> envelope strictly but `safeParse` each item and skip-and-log the bad ones — see
+> `parseListResponse` in `src/lib/reader-api.ts` and
+> [reader-sync.md → Response Validation](../features/reader-sync.md#response-validation-resilient-per-item).
+
 ### 5. Enums and Literals
 
 ```typescript
