@@ -198,11 +198,27 @@ await supabase.from('processing_jobs').update({ status: 'completed' }).eq('id', 
 2. Second attempt fails → Retry automatically
 3. Third attempt fails → Move to Dead Letter Queue
 
-**Error Types:**
-- **Network errors**: Retry
-- **API errors (4xx)**: Don't retry, mark failed
-- **Rate limiting (429)**: Retry with backoff
-- **Parsing errors**: Don't retry, log error
+**Error Types (Reader content fetch):**
+- **Network / 5xx errors**: transient → retry
+- **429 rate limiting**: transient → retry. Note: the consumer's content fetch is
+  a *raw* fetch, not behind the rate-limited `readerQueue`, so it's the path most
+  exposed to Reader 429s under sync load — it must retry, never treat 429 as fatal.
+- **404 / 410 (item gone)**: `ContentUnavailableError` → permanent + auto-archive (see below)
+- **Other 4xx (401/403)**: permanent, mark failed (auth/permission, not a content problem — not auto-archived)
+
+**Permanent-failure outcomes:**
+- **Content that can never be summarized** — item deleted in Reader (404/410 or
+  empty results), no `html_content`, or content < 100 chars — throws
+  `ContentUnavailableError`. The job is marked failed **and the item is
+  auto-archived** (`archived_at` set, `reader_deleted` true when deleted, false when
+  merely empty), so it drops out of the unread list instead of lingering as an
+  un-summarizable ghost. Mirrors the manual archive route's field writes.
+- **Null/empty summary from a parseable response** — throws a plain
+  `PermanentError` ("Perplexity returned no usable summary"). The job fails
+  **visibly** (surfaces under "Retry Failed") but the item is **not** archived:
+  Perplexity is stochastic (`temperature: 0.2`), so a manual retry may succeed.
+  This replaces the old silent behaviour of storing `short_summary: null` and
+  marking the job successful — the "tags show, no summary" symptom.
 
 ## Database Schema
 

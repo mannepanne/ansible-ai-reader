@@ -430,6 +430,10 @@ const progress = (jobs_completed / jobs_created) * 100;
   schema change` — a whole non-empty page produced zero valid items. Investigate:
   Readwise likely changed a field shape, and the schema in `reader-api.ts` needs
   updating.
+- `[Queue Consumer] Auto-archived unsummarizable item <id>` — an item that can
+  never be summarized (deleted in Reader / no content) was auto-archived so it
+  won't clutter the unread list. **Expected**, not a failure. See
+  [ai-summaries.md → Error Handling](./ai-summaries.md#error-handling).
 
 ### Duplicate Items
 - Unique constraint should prevent this
