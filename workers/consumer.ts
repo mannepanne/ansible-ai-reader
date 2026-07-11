@@ -1,7 +1,7 @@
 // ABOUT: Cloudflare Queue consumer dispatching summary_generation and tags_generation jobs
 // ABOUT: Summary path fetches Reader content + Perplexity; tags path reuses existing summary
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { generateSummary, generateTags } from '../src/lib/perplexity-api';
 import { fetchUnreadItems } from '../src/lib/reader-api';
 import { stripHtml } from '../src/lib/html-utils';
@@ -32,10 +32,68 @@ class PermanentError extends Error {
   }
 }
 
+// A permanent failure where the item can NEVER be summarized (deleted in Reader,
+// or no usable content). Retrying is futile, so the item is auto-archived to keep
+// it out of the unread list instead of lingering as an un-summarizable ghost.
+// `readerDeleted` distinguishes "gone from Reader" from "exists but has no content".
+class ContentUnavailableError extends PermanentError {
+  readonly readerDeleted: boolean;
+  constructor(message: string, readerDeleted = false) {
+    super(message);
+    this.name = 'ContentUnavailableError';
+    this.readerDeleted = readerDeleted;
+  }
+}
+
 class TransientError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'TransientError';
+  }
+}
+
+// Content that is currently absent but MIGHT still arrive — Reader can return a
+// freshly-saved item before it finishes fetching/parsing its body. Retried like
+// any transient error; only if it is STILL empty after retries are exhausted is
+// the item auto-archived (it has no usable content and never got any). This avoids
+// prematurely hiding an item that Reader was merely slow to parse.
+class RecoverableContentError extends TransientError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RecoverableContentError';
+  }
+}
+
+/**
+ * Auto-archive an item that can never be summarized so it drops out of the unread
+ * list instead of lingering as a ghost. Mirrors the manual archive route's field
+ * writes (local DB only — the Reader-side archive is either unnecessary, because
+ * the item is already gone, or irrelevant, because it has no readable content).
+ */
+async function autoArchiveUnsummarizable(
+  supabase: SupabaseClient,
+  readerItemId: string,
+  readerDeleted: boolean,
+  reason: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('reader_items')
+    .update({
+      archived: true,
+      archived_at: new Date().toISOString(),
+      reader_deleted: readerDeleted,
+    })
+    .eq('id', readerItemId);
+
+  if (error) {
+    console.error(
+      `[Queue Consumer] Failed to auto-archive item ${readerItemId}:`,
+      error
+    );
+  } else {
+    console.log(
+      `[Queue Consumer] Auto-archived unsummarizable item ${readerItemId} (reader_deleted=${readerDeleted}, reason="${reason}")`
+    );
   }
 }
 
@@ -61,9 +119,23 @@ async function fetchReaderContent(
       console.error(
         `[Consumer] Failed to fetch from Reader API: ${response.status}`
       );
-      // 4xx errors are permanent (item doesn't exist, access denied, etc.)
+      // Item genuinely gone → content can never be fetched → auto-archive.
+      if (response.status === 404 || response.status === 410) {
+        throw new ContentUnavailableError(
+          `Item not found in Readwise Reader (HTTP ${response.status})`,
+          true
+        );
+      }
+      // Rate limited → transient, retry (this path is a raw fetch, NOT behind the
+      // rate-limited readerQueue, so 429s under sync load land here). Must NOT
+      // auto-archive: the item is fine, we were just throttled.
+      if (response.status === 429) {
+        throw new TransientError('Reader API rate limited (HTTP 429), will retry');
+      }
+      // Other 4xx (401/403/…) are permanent but not a content problem — surface as
+      // a visible failure the user can retry, never auto-archive a good item.
       if (response.status >= 400 && response.status < 500) {
-        throw new PermanentError(`Item not found in Readwise Reader (HTTP ${response.status})`);
+        throw new PermanentError(`Reader API error (HTTP ${response.status})`);
       }
       // 5xx errors are transient (Reader API issues, try again)
       throw new TransientError(`Reader API error (HTTP ${response.status}), will retry`);
@@ -81,14 +153,19 @@ async function fetchReaderContent(
 
     if (!data.results || data.results.length === 0) {
       console.error('[Consumer] Item not found:', readerId);
-      throw new PermanentError('Item not found in Readwise Reader (may have been deleted)');
+      throw new ContentUnavailableError(
+        'Item not found in Readwise Reader (may have been deleted)',
+        true
+      );
     }
 
     const item = data.results[0];
 
     if (!item.html_content) {
       console.error('[Consumer] Item has no content:', readerId);
-      throw new PermanentError('Item has no content in Readwise Reader');
+      // Recoverable: Reader may still be parsing. Retry; auto-archive only if it
+      // stays empty after retries are exhausted.
+      throw new RecoverableContentError('Item has no content in Readwise Reader');
     }
 
     // Strip HTML tags to get plain text for Perplexity
@@ -260,7 +337,9 @@ async function processJob(
       );
 
       if (!articleContent.content || articleContent.content.length < 100) {
-        throw new PermanentError(
+        // Recoverable: Reader may still be parsing. Retry; auto-archive only if it
+        // stays too short after retries are exhausted.
+        throw new RecoverableContentError(
           'Article content is empty or too short (< 100 characters)'
         );
       }
@@ -285,6 +364,15 @@ async function processJob(
         content: articleContent.content,
         url: articleContent.url,
       }, customPrompt);
+
+      // Guard against storing a null/empty summary as a "success" — that silently
+      // produces a tagged card with "No summary available". Fail the job instead so
+      // it surfaces for retry. NOT a ContentUnavailableError: Perplexity is
+      // stochastic, so a manual "Retry Failed" may well succeed — keep it visible,
+      // don't auto-archive.
+      if (!result.summary || result.summary.trim().length === 0) {
+        throw new PermanentError('Perplexity returned no usable summary');
+      }
 
       // 6. Store summary and tags in database
       const { error: updateError } = await supabase
@@ -367,6 +455,17 @@ async function processJob(
         },
       });
 
+      // Content that is genuinely gone (deleted / 404): auto-archive immediately so
+      // it doesn't linger as an un-summarizable ghost in the unread list.
+      if (error instanceof ContentUnavailableError && readerItemId) {
+        await autoArchiveUnsummarizable(
+          supabase,
+          readerItemId,
+          error.readerDeleted,
+          errorMessage
+        );
+      }
+
       message.ack(); // Don't retry
       return;
     }
@@ -400,6 +499,18 @@ async function processJob(
           timestamp: new Date().toISOString(),
         },
       });
+
+      // Content that stayed empty across all retries is not a transient blip — it
+      // has no readable content and never will via this path. Auto-archive it
+      // (reader_deleted=false: the item still exists in Reader, just has no body).
+      if (error instanceof RecoverableContentError && readerItemId) {
+        await autoArchiveUnsummarizable(
+          supabase,
+          readerItemId,
+          false,
+          errorMessage
+        );
+      }
 
       message.ack(); // Don't retry anymore
     } else {

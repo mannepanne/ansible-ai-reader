@@ -114,6 +114,16 @@ export async function performSyncForUser(
             continue;
           }
 
+          // Skip items archived locally (e.g. auto-archived because they have no
+          // content). They may still sit in Reader's unread list, so without this
+          // guard every sync would re-enqueue a doomed summary job for them.
+          if (readerItem.archived_at) {
+            console.log(
+              `[SyncOps] Skipping job for item ${item.id} - archived locally`
+            );
+            continue;
+          }
+
           // Create processing job
           const { data: job, error: jobError} = await supabase
             .from('processing_jobs')
