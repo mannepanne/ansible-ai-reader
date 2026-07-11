@@ -1,6 +1,6 @@
 // ABOUT: Relay session orchestrator — the manual Stage-1 trigger (mind rented, memory owned)
 // ABOUT: Assembles the voice, runs one Managed-Agent session on a stimulus, finalizes the decision
-// Run with: npx tsx scripts/relay-session.ts <reader_id>
+// Run with: npx tsx scripts/relay-session.ts <reader_id>  (or --push-only to update the voice, no session)
 //
 // This is the thin I/O glue: the testable logic lives in src/lib/relay/{persona,session-readout}.ts.
 // It creates (once, idempotently) the three Anthropic resources — environment, vault, agent — then
@@ -13,6 +13,7 @@ import { createClient } from '@supabase/supabase-js';
 import { assembleSystemPrompt, PERSONA_FILES } from '../src/lib/relay/persona';
 import { selectExemplar, renderExemplarSection } from '../src/lib/relay/exemplars';
 import { formatStimulus, type StimulusMode } from '../src/lib/relay/session-run';
+import { parseSessionArgs } from '../src/lib/relay/session-args';
 import { readSession, renderTrace, type MaEvent } from '../src/lib/relay/session-readout';
 import { loadDevVars, bridgeBase } from './relay-env';
 
@@ -175,25 +176,21 @@ async function preflightBridge() {
 }
 
 async function main() {
-  // Flags (for the enrichment A/B ablation): --lean writes from the pre-2.3a stimulus (no tags/note);
-  // --exemplar <n> pins the Channel-1 exemplar so a lean/full pair shares one voice anchor.
-  const argv = process.argv.slice(2);
-  const mode: StimulusMode = argv.includes('--lean') ? 'lean' : 'full';
-  const exIdx = argv.indexOf('--exemplar');
-  const exemplarOverride = exIdx >= 0 ? Number(argv[exIdx + 1]) : undefined;
-  const exemplarValue = exIdx >= 0 ? argv[exIdx + 1] : undefined;
-  const readerId = argv.find((a) => !a.startsWith('--') && a !== exemplarValue);
-  if (!readerId) {
-    console.error('Usage: npx tsx scripts/relay-session.ts <reader_id> [--lean] [--exemplar <index>]');
+  // Flags: --lean writes from the pre-2.3a stimulus (no tags/note) for the enrichment A/B; --exemplar
+  // <n> pins the Channel-1 exemplar so a lean/full pair shares one voice anchor; --push-only assembles
+  // and pushes the voice to the agent, then exits without running a session (activate a voice-doc edit
+  // without spending a narrator run). Parsing/validation lives in the pure parseSessionArgs.
+  const parsed = parseSessionArgs(process.argv.slice(2));
+  if (!parsed.ok) {
+    console.error(parsed.error);
     process.exit(1);
   }
-  if (exemplarOverride !== undefined && !Number.isFinite(exemplarOverride)) {
-    console.error(`--exemplar expects a number, got "${exemplarValue}"`);
-    process.exit(1);
-  }
+  const args = parsed.args;
+  const { mode, exemplarOverride } = args;
 
-  await preflightBridge();
-  console.log(`Assembling the voice + ensuring Anthropic resources... [mode=${mode}${exemplarOverride !== undefined ? `, exemplar=${exemplarOverride}` : ''}]`);
+  // push-only has no decision to finalize, so it skips the bridge preflight (which probes /decision).
+  if (!args.pushOnly) await preflightBridge();
+  console.log(`Assembling the voice + ensuring Anthropic resources... [${args.pushOnly ? 'push-only' : `mode=${mode}`}${exemplarOverride !== undefined ? `, exemplar=${exemplarOverride}` : ''}]`);
   // Index by the agent version as it stands BEFORE this run's update bump, so version N carries the
   // exemplar chosen at index N-1 (a harmless off-by-one — the mapping just needs to be deterministic).
   const priorIds = loadIds();
@@ -201,6 +198,13 @@ async function main() {
   const ids = await ensureResources(system);
   console.log(`  agent=${ids.agent_id} v${ids.agent_version} env=${ids.environment_id} vault=${ids.vault_id}`);
 
+  if (args.pushOnly) {
+    console.log('\n✅ voice pushed (push-only) — no session run. Production uses the new agent version on its next session (sessions bind by agent ID, not version).');
+    return;
+  }
+
+  // Narrows to the reader_id-bearing variant: the type guarantees readerId is set when not push-only.
+  const { readerId } = args;
   console.log(`\nFetching stimulus for reader_id ${readerId} (${mode})...`);
   const stimulus = await fetchStimulus(readerId, mode);
   console.log(`  stimulus: ${stimulus.slice(0, 120).replace(/\n/g, ' ')}...`);
