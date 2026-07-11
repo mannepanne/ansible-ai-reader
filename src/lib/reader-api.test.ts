@@ -9,6 +9,9 @@ import {
   updateNote,
   fetchArticleContent,
   ReaderAPIError,
+  ReaderItemSchema,
+  ArchivedReaderItemSchema,
+  parseListResponse,
   getQueueStatus,
 } from './reader-api';
 
@@ -16,6 +19,11 @@ import {
 const mockFetch = vi.fn();
 global.fetch = mockFetch as any;
 
+// NOTE: every API function routes through the module-level `readerQueue`
+// (intervalCap: 20 / minute). Under fake timers that budget is cumulative across
+// this whole file, so it caps at ~20 API-calling tests before later tests hang
+// (Test timed out in 5000ms). Test pure schema/logic directly against the schema
+// (see 'ReaderItemSchema title resolution') instead of routing through fetch.
 describe('Reader API Client', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -122,7 +130,7 @@ describe('Reader API Client', () => {
       expect(result.results[0].author).toBe('John Doe');
     });
 
-    it('rejects non-HTTP/HTTPS URLs', async () => {
+    it('skips items with non-HTTP/HTTPS URLs instead of failing the batch', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -138,9 +146,42 @@ describe('Reader API Client', () => {
         headers: new Map(),
       } as any);
 
-      await expect(fetchUnreadItems('test-token')).rejects.toThrow(
-        ReaderAPIError
-      );
+      // The dangerous item is dropped (never returned, so never stored) but the
+      // fetch itself succeeds — one bad item must not abort the whole sync.
+      const result = await fetchUnreadItems('test-token');
+      expect(result.results).toHaveLength(0);
+    });
+
+    it('skips only the bad item and returns the valid ones (selective skip)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          results: [
+            {
+              id: 'reader-good',
+              url: 'https://example.com/good',
+              title: 'Good Article',
+              created_at: '2026-03-12T13:00:00Z',
+            },
+            {
+              id: 'reader-dangerous',
+              url: 'javascript:alert("xss")',
+              title: 'Dangerous Article',
+              created_at: '2026-03-12T13:00:00Z',
+            },
+          ],
+        }),
+        headers: new Map(),
+      } as any);
+
+      const result = await fetchUnreadItems('test-token');
+
+      // Exactly the safe item survives; the dangerous URL is absent entirely.
+      expect(result.results).toHaveLength(1);
+      expect(result.results[0].id).toBe('reader-good');
+      expect(
+        result.results.some((item) => item.url.startsWith('javascript:'))
+      ).toBe(false);
     });
 
     it('returns 401 error for invalid token', async () => {
@@ -229,7 +270,7 @@ describe('Reader API Client', () => {
       expect(mockFetch).toHaveBeenCalledTimes(3);
     });
 
-    it('validates response format with Zod', async () => {
+    it('skips items that fail item-level validation', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -245,9 +286,49 @@ describe('Reader API Client', () => {
         headers: new Map(),
       } as any);
 
+      const result = await fetchUnreadItems('test-token');
+      expect(result.results).toHaveLength(0);
+    });
+
+    it('throws Invalid response format when the envelope shape is wrong', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ unexpected: 'shape' }),
+        headers: new Map(),
+      } as any);
+
       await expect(fetchUnreadItems('test-token')).rejects.toThrow(
         'Invalid response format'
       );
+    });
+
+    it('keeps an untitled item in the batch alongside titled items (bug repro)', async () => {
+      // Regression guard: a single empty-title item used to abort the entire
+      // sync via z.array(...).parse(). It must now survive with a fallback.
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          results: [
+            {
+              id: 'reader-titled',
+              url: 'https://example.com/titled',
+              title: 'A Normal Title',
+              created_at: '2026-03-12T14:00:00Z',
+            },
+            {
+              id: 'reader-empty-title',
+              url: 'https://example.com/empty',
+              title: '',
+              created_at: '2026-03-12T14:00:00Z',
+            },
+          ],
+        }),
+        headers: new Map(),
+      } as any);
+
+      const result = await fetchUnreadItems('test-token');
+      expect(result.results).toHaveLength(2);
+      expect(result.results[1].title).toBe('Untitled: example.com');
     });
 
     it('accepts null values for optional fields', async () => {
@@ -338,6 +419,143 @@ describe('Reader API Client', () => {
         expect.not.stringContaining('withHtmlContent'),
         expect.any(Object)
       );
+    });
+  });
+
+  // Title resolution is exercised directly against the schema (no network/queue)
+  // so these unit cases don't consume the shared readerQueue rate-limit budget.
+  describe('ReaderItemSchema title resolution', () => {
+    const base = {
+      id: 'reader-x',
+      url: 'https://example.com/article',
+      created_at: '2026-03-12T14:00:00Z',
+    };
+
+    it('keeps a real title, sanitized', () => {
+      const parsed = ReaderItemSchema.parse({ ...base, title: 'Real Title' });
+      expect(parsed.title).toBe('Real Title');
+    });
+
+    it('derives a content snippet with ellipsis when title is empty', () => {
+      const parsed = ReaderItemSchema.parse({
+        ...base,
+        title: '',
+        content: '<p>The quick brown fox jumps over the lazy dog</p>',
+      });
+      expect(parsed.title).toBe('Untitled: The quick brown fox jumps…');
+    });
+
+    it('omits the ellipsis when the body has five words or fewer', () => {
+      const parsed = ReaderItemSchema.parse({
+        ...base,
+        title: '',
+        content: 'Just three words',
+      });
+      expect(parsed.title).toBe('Untitled: Just three words');
+    });
+
+    it('falls back to the domain (www stripped) when title is null and no content', () => {
+      const parsed = ReaderItemSchema.parse({
+        ...base,
+        url: 'https://www.nytimes.com/some/path',
+        title: null,
+      });
+      expect(parsed.title).toBe('Untitled: nytimes.com');
+    });
+
+    it('falls back to the domain when content is only markup', () => {
+      const parsed = ReaderItemSchema.parse({
+        ...base,
+        title: '',
+        content: '<p></p>',
+      });
+      expect(parsed.title).toBe('Untitled: example.com');
+    });
+  });
+
+  // parseListResponse is a pure function, so its resilience contract is tested
+  // directly (no fetch mock, no readerQueue slot — see the note above beforeEach).
+  describe('parseListResponse (resilient list parsing)', () => {
+    it('skips a malformed archived item and keeps the valid ones', () => {
+      const out = parseListResponse<{ id: string }>(
+        {
+          results: [
+            { id: '', updated_at: '2026-04-01T00:00:00Z' }, // empty id → invalid
+            { id: 'archived-ok', updated_at: '2026-04-01T00:00:00Z' },
+          ],
+          nextPageCursor: null,
+        },
+        ArchivedReaderItemSchema,
+        'archived'
+      );
+
+      expect(out.results).toHaveLength(1);
+      expect(out.results[0].id).toBe('archived-ok');
+    });
+
+    it('logs an error when every item in a non-empty batch fails validation', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const out = parseListResponse(
+        { results: [{ id: '' }, { id: '' }] },
+        ArchivedReaderItemSchema,
+        'archived'
+      );
+
+      expect(out.results).toHaveLength(0);
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('possible Reader API schema change')
+      );
+
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+
+    it('does not log the schema-change error on a partial skip', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      parseListResponse(
+        {
+          results: [
+            { id: '', updated_at: 'x' }, // invalid
+            { id: 'ok', updated_at: '2026-04-01T00:00:00Z' }, // valid
+          ],
+        },
+        ArchivedReaderItemSchema,
+        'archived'
+      );
+
+      expect(errorSpy).not.toHaveBeenCalled();
+
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+
+    it('does not log the schema-change error for a legitimately empty batch', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const out = parseListResponse(
+        { results: [] },
+        ArchivedReaderItemSchema,
+        'archived'
+      );
+
+      expect(out.results).toHaveLength(0);
+      expect(errorSpy).not.toHaveBeenCalled();
+
+      errorSpy.mockRestore();
+    });
+
+    it('throws when the envelope shape is invalid', () => {
+      expect(() =>
+        parseListResponse(
+          { unexpected: 'shape' },
+          ArchivedReaderItemSchema,
+          'archived'
+        )
+      ).toThrow();
     });
   });
 

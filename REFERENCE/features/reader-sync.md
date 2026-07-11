@@ -328,6 +328,30 @@ try {
 - 404 when item deleted in Reader
 - Handle gracefully (mark as deleted, don't fail sync)
 
+### Response Validation (resilient per-item)
+
+List responses (unread and recently-archived) are validated in two layers so one
+malformed item cannot abort an entire sync:
+
+1. **Envelope** — the outer shape (`results` array + optional `nextPageCursor`) is
+   validated strictly. A wrong envelope throws `Invalid response format from Reader API`.
+2. **Items** — each item is validated individually with Zod `safeParse`. Items that
+   fail (e.g. a `javascript:` URL, a missing `id`) are **skipped and logged**
+   (`[Reader API] Skipping malformed <label> item`), and the rest of the batch syncs.
+
+**Empty titles are valid, not errors.** Reader legitimately returns items with no
+title (PDFs, tweets, raw-URL saves). Rather than rejecting them, `ReaderItemSchema`
+resolves a display title via a fallback chain: sanitized title → `Untitled: <first
+5 words of body>…` (when the list response includes content) → `Untitled: <domain>`.
+This keeps a single untitled item from failing the whole (including automated cron)
+sync, which strict `title.min(1)` validation on the full batch would otherwise cause.
+
+When a **non-empty** batch produces **zero** valid items, `parseListResponse` logs
+`[Reader API] All N <label> item(s) failed validation — possible Reader API schema
+change` at error level. This does not throw (that would re-break the sync), but it
+makes an upstream schema change visible in log alerts instead of silently syncing
+nothing.
+
 ### Database Errors
 
 **Unique Constraint Violation:**
@@ -398,6 +422,14 @@ const progress = (jobs_completed / jobs_created) * 100;
 - Check Reader access token is valid
 - Verify Reader API is accessible
 - Check Cloudflare logs for errors
+
+### Reader item log signatures
+- `[Reader API] Skipping malformed <label> item` — one item failed validation and
+  was skipped; the rest of the batch synced normally. **Expected**, not a failure.
+- `[Reader API] All N <label> item(s) failed validation — possible Reader API
+  schema change` — a whole non-empty page produced zero valid items. Investigate:
+  Readwise likely changed a field shape, and the schema in `reader-api.ts` needs
+  updating.
 
 ### Duplicate Items
 - Unique constraint should prevent this
