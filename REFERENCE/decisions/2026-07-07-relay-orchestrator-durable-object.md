@@ -2,6 +2,7 @@
 
 **Date:** 2026-07-07
 **Status:** Accepted
+**Supersedes:** [2026-07-01-relay-session-trigger.md](./2026-07-01-relay-session-trigger.md)
 
 ## Decision
 

@@ -1,7 +1,7 @@
 # Relay session trigger: queue consumer runs the session, app stays a pure producer
 
 **Date:** 2026-07-01
-**Status:** Accepted
+**Status:** Superseded by [2026-07-07-relay-orchestrator-durable-object.md](./2026-07-07-relay-orchestrator-durable-object.md) — the queue consumer described here has been removed; the trigger now runs in a `RelayOrchestrator` Durable Object. The app-is-pure-producer principle and the serial + T0 attribution reasoning carry over.
 
 ## Context
 
