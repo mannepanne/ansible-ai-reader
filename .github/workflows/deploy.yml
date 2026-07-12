@@ -109,6 +109,7 @@ jobs:
           READER_API_TOKEN: ${{ secrets.READER_API_TOKEN }}
           PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
 
-      # NOTE: the relay session *consumer* (wrangler-relay-session.toml) is RETIRED — superseded by the
-      # orchestrator Durable Object above. Its worker + ansible-relay-queue can be deleted manually once
-      # the DO is confirmed live; the deploy step is removed so it's no longer redeployed.
+      # NOTE: the earlier relay session *consumer* (wrangler-relay-session.toml + workers/relay-session-consumer.ts)
+      # was REMOVED — superseded by the orchestrator Durable Object above. The Cloudflare ansible-relay-queue /
+      # ansible-relay-dlq resources may still exist in the account; delete them manually with
+      # `npx wrangler queues delete` once the DO is confirmed the sole path (nothing in-repo references them).
