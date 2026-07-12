@@ -112,7 +112,7 @@ After setting up secrets:
 1. Make any small change to the codebase
 2. Commit and push to `main` branch
 3. Go to Actions tab in GitHub to watch the deployment
-4. All four workers will be automatically deployed on success (main app last, then the relay bridge — see `.github/workflows/deploy.yml`)
+4. All five workers are automatically deployed on success, in order: consumer → cron → relay orchestrator → main app → relay bridge (the orchestrator precedes the app for the DO binding; the bridge is last — see `.github/workflows/deploy.yml`)
 
 ---
 

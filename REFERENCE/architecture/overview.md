@@ -270,7 +270,7 @@ graph TB
 - **CI/CD**: GitHub Actions auto-deploys on push to main
 - **Secrets**: Managed via `wrangler secret put`
 - **Observability**: Enabled on all 5 workers
-- **CI scope**: GitHub Actions auto-deploys the main app, the Relay bridge, and the Relay orchestrator; the queue consumer and cron worker deploy manually (less frequent, explicit control)
+- **CI scope**: GitHub Actions auto-deploys **all workers** on every push to main, in one pipeline (consumer → cron → relay orchestrator → main app → relay bridge; the orchestrator precedes the app because of the DO binding, and the bridge is last so an experimental-worker failure can't gate the app)
 
 ## Related Documentation
 - [Workers](./workers.md) - Detailed worker implementation

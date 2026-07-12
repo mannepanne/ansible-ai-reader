@@ -376,25 +376,18 @@ npx wrangler tail ansible-ai-reader-cron
 
 ## Deployment Strategy
 
-### CI/CD (Main Worker Only)
-GitHub Actions auto-deploys main worker on push to `main` branch.
+### CI/CD (all workers)
+GitHub Actions (`.github/workflows/deploy.yml`) auto-deploys **every worker** on push to `main`, in one job, in a fixed order: **consumer → cron → relay orchestrator → main app → relay bridge**. The order is deliberate — the orchestrator deploys *before* the app because the app's `RELAY_ORCHESTRATOR` DO binding (`script_name`) requires that worker to exist, and the bridge deploys *last* so a failure in the experimental Relay subsystem can't gate the production app's redeploy.
 
-**Deployment (All Workers):**
+**Manual (out-of-band) deployment:**
 ```bash
-# CI (GitHub Actions on push to main) deploys these three:
 npm run deploy                                       # Main worker (app)
+npm run deploy:consumer                              # Consumer
+npx wrangler deploy --config wrangler-cron.toml      # Cron
 npm run deploy:relay-orchestrator                    # Relay orchestrator (deploy BEFORE the app — DO binding)
 npm run deploy:relay-bridge                          # Relay bridge
-
-# Manual (less frequent, explicit control):
-npx wrangler deploy --config wrangler-consumer.toml  # Consumer
-npx wrangler deploy --config wrangler-cron.toml      # Cron
 ```
-
-**Why manual for consumer & cron?**
-- Less frequent changes
-- Explicit deployment control
-- Avoid unnecessary deployments
+Use these only for a one-off deploy outside the normal merge-to-`main` flow. Worker **secrets** are set manually once (`wrangler secret put`) and persist across deploys — CI does not upload them.
 
 ## Troubleshooting
 
