@@ -33,7 +33,8 @@ export interface EngagementInput {
 export const GATE_SIGNALS = ['rated_interesting', 'note_ansible', 'note_reader', 'highlight'] as const;
 export type GateSignal = (typeof GATE_SIGNALS)[number];
 
-/** Human labels for the `reason` string (worker logs/debugging). Keyed by signal code. */
+/** Human labels for the `reason` string (worker logs/debugging). Keyed by signal code. The admin UI has
+ *  its own SIGNAL_LABEL map (RelayAgent.tsx); both derive from GATE_SIGNALS — keep all three in sync. */
 const SIGNAL_REASON_LABEL: Record<GateSignal, string> = {
   rated_interesting: 'rated interesting',
   note_ansible: 'note (Ansible)',

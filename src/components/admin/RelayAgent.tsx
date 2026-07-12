@@ -129,8 +129,11 @@ export default function RelayAgent({ stats }: { stats: RelayStats }) {
       <RunControl />
       <GateToggle gate={stats.engagementGate} />
 
-      {/* Widgets: decision verdicts (declined/wrote) then gate states (pending/rejected/approved) */}
+      {/* Widgets: gate outcomes (pass/not-reacted) → decision verdicts (declined/wrote) → piece-gate
+          states (pending/rejected/approved). Gate pass excludes baselined items (relay_gate_code NULL). */}
       <div style={{ display: 'flex', gap: '16px', marginBottom: '28px', flexWrap: 'wrap' }}>
+        <StatCard icon="🔔" label="Gate pass" value={stats.counts.gatePass} />
+        <StatCard icon="🙈" label="Not reacted" value={stats.counts.gateSkip} />
         <StatCard icon="🔇" label="Declined" value={stats.counts.declined} />
         <StatCard icon="✍️" label="Wrote" value={stats.counts.wrote} />
         <StatCard icon="📥" label="Pending" value={stats.counts.pendingReview} />
@@ -170,7 +173,15 @@ export default function RelayAgent({ stats }: { stats: RelayStats }) {
         </button>
       </div>
 
-      {view === 'log' && <LogPanel activity={stats.activity} gateEnabled={stats.engagementGate.enabled} />}
+      {view === 'log' && (
+        <LogPanel
+          activity={stats.activity}
+          gateEnabled={stats.engagementGate.enabled}
+          // The true total across both sources (each fetch is capped at 200) — so a truncated log reads
+          // "showing X of N" rather than silently implying nothing else was skipped.
+          total={stats.counts.wrote + stats.counts.declined + stats.counts.gateSkip}
+        />
+      )}
       {view === 'pending' && <PieceList pieces={stats.pending} actions={['approve', 'reject']} busyId={busyId} onReview={review} empty="No pieces awaiting review." />}
       {view === 'rejected' && <PieceList pieces={stats.rejected} actions={['approve']} busyId={busyId} onReview={review} empty="No rejected pieces." filterable />}
       {view === 'approved' && <PieceList pieces={stats.approved} actions={['reject']} busyId={busyId} onReview={review} empty="No approved pieces." filterable />}
@@ -542,8 +553,10 @@ function PieceCard({
   );
 }
 
-// The engagement signal codes, humanised for display. Mirrors GATE_SIGNALS in engagement-trigger.ts —
-// data stays as codes; the labels live here on the presentation side.
+// The engagement signal codes, humanised for the admin display. Mirrors GATE_SIGNALS in
+// engagement-trigger.ts (the code vocabulary) and SIGNAL_REASON_LABEL there (the worker-log labels) —
+// data stays as codes; labels live on each presentation side. KEEP IN SYNC: adding a code to
+// GATE_SIGNALS means adding it here too, else the `?? c` fallback renders the raw code.
 const SIGNAL_LABEL: Record<string, string> = {
   rated_interesting: 'rated interesting',
   note_ansible: 'note (Ansible)',
@@ -553,7 +566,7 @@ const SIGNAL_LABEL: Record<string, string> = {
 
 // The activity log (2.3c): session decisions (wrote/declined) + engagement-gate skips (not reacted),
 // merged newest-first upstream. Passes are represented by their downstream decision, so only skips show.
-function LogPanel({ activity, gateEnabled }: { activity: RelayActivityRow[]; gateEnabled: boolean }) {
+function LogPanel({ activity, gateEnabled, total }: { activity: RelayActivityRow[]; gateEnabled: boolean; total: number }) {
   const [page, setPage] = useState(0);
   // When the gate is off, the skip section is empty for a benign reason — say so, so an empty log isn't
   // misread as "the gate ran and skipped nothing".
@@ -601,7 +614,7 @@ function LogPanel({ activity, gateEnabled }: { activity: RelayActivityRow[]; gat
             ← Prev
           </button>
           <span style={{ fontSize: '0.8em', color: '#6c757d' }}>
-            Page {current + 1} of {pageCount} · {activity.length} activity entries
+            Page {current + 1} of {pageCount} · showing {activity.length} of {total} activity entries
           </span>
           <button disabled={current >= pageCount - 1} onClick={() => setPage(current + 1)} style={btn(current >= pageCount - 1)}>
             Next →

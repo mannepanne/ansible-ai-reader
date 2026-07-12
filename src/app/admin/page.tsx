@@ -95,6 +95,9 @@ export default async function AdminPage() {
       .limit(200),
     // Gate outcomes (2.3c). Passes and skips are counted directly off the item row; baselined items
     // (relay_gate_code NULL) are excluded from both by construction. Only skips are fetched for display.
+    // NOT user_id-scoped — safe only because relay_gate_code is written exclusively by evaluateRelayTriggers,
+    // which the 2.3b gate scopes to the single owner. If the gate ever becomes multi-user, re-scope these
+    // three queries by user_id, or they'd surface other users' titles/signals to any admin.
     db.from('reader_items').select('*', { count: 'exact', head: true }).eq('relay_gate_code', 'reacted'),
     db.from('reader_items').select('*', { count: 'exact', head: true }).in('relay_gate_code', ['no_signal', 'vetoed']),
     db

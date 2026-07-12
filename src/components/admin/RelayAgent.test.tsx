@@ -108,12 +108,14 @@ describe('RelayAgent', () => {
     expect(screen.queryByRole('button', { name: /^reject$/i })).toBeNull();
   });
 
-  it('renders the five widgets and the activity log on its sub-tab', async () => {
+  it('renders the widgets (incl. gate outcomes) and the activity log on its sub-tab', async () => {
     const user = userEvent.setup();
     render(<RelayAgent stats={stats} />);
 
     expect(screen.getByText('Declined')).toBeDefined();
     expect(screen.getByText('Wrote')).toBeDefined();
+    expect(screen.getByText('Gate pass')).toBeDefined(); // 2.3c gate-outcome widgets
+    expect(screen.getByText('Not reacted')).toBeDefined();
 
     expect(screen.queryByText(/No power asymmetry here/)).toBeNull();
     await user.click(screen.getByRole('tab', { name: /activity log/i }));
@@ -124,6 +126,8 @@ describe('RelayAgent', () => {
   it('paginates the activity log at ten per page', async () => {
     const many: RelayStats = {
       ...stats,
+      // 12 entries loaded but 20 total in the DB (counts) — models the 200-cap truncation the footer warns about.
+      counts: { ...stats.counts, wrote: 0, declined: 20, gateSkip: 0 },
       activity: Array.from({ length: 12 }, (_, i) => ({
         kind: 'decision' as const,
         id: `dec-${i}`,
@@ -144,6 +148,7 @@ describe('RelayAgent', () => {
 
     expect(screen.getByText(/Material 0/)).toBeDefined();
     expect(screen.getByText(/Page 1 of 2/)).toBeDefined();
+    expect(screen.getByText(/showing 12 of 20 activity entries/)).toBeDefined(); // cap footer: loaded vs true total
     expect(screen.queryByText(/Material 10/)).toBeNull(); // second page not shown yet
 
     await user.click(screen.getByRole('button', { name: /next/i }));
@@ -270,7 +275,8 @@ describe('RelayAgent', () => {
     render(<RelayAgent stats={withSkip} />);
     await user.click(screen.getByRole('tab', { name: /activity log/i }));
 
-    expect(screen.getByText(/not reacted/i)).toBeDefined();
+    // "not reacted" appears twice: the gate-outcome StatCard label AND this card's badge.
+    expect(screen.getAllByText(/not reacted/i).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(/A vetoed essay on trust/)).toBeDefined();
     expect(screen.getByText(/vetoed \(rated/)).toBeDefined(); // reason derived from the code
     expect(screen.getByText(/highlight/)).toBeDefined(); // the overridden signal is still shown

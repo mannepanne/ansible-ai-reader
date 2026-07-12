@@ -132,7 +132,7 @@ New file above.
 6. **Crash after a pass (known limitation)** — a gate-pass whose session crashes leaves `relay_gate_code:'reacted'` but no `relay_decisions` row, so it shows nowhere (passes aren't displayed; no decision exists). Acceptable; recoverable later via an orphan query (`relay_gate_code='reacted'` with no matching decision). Stated so it's not a surprise.
 7. **Merge tiebreak** — equal `created_at` across the two sources (independent clocks) resolves by `kind` then `id`; the tiebreak test must use a decision and a gate_skip with identical timestamps.
 8. **Volume cap** — up to 200 decisions + 200 skips merged in memory. Fine at this scale; surface the cap in the footer ("showing 200 of N") so it isn't misread as "nothing else was skipped".
-9. **Hard-deletion retention asymmetry (confirm)** — a skip reason lives on the `reader_items` row, so a hard-deleted item loses its skip entry, while its `relay_decisions` row (a bare `text[]`, no FK) survives. Confirm whether `reader_items` are ever hard-deleted; if not, moot. If they are, accept the asymmetry (the merged log would keep the decision, lose the skip, for a deleted item).
+9. **Hard-deletion retention asymmetry — resolved (moot).** A skip reason lives on the `reader_items` row; a `relay_decisions` row (bare `text[]`, no FK) would survive the item. Verified during `/review-spec`-team: there is **no hard-delete of `reader_items` in app code** — items are soft-archived via the `reader_deleted` flag; the `.delete()` calls in the codebase hit `processing_jobs` and demo tables only. So the asymmetry cannot arise today. Reopens only if a `reader_items` purge is added.
 
 ## Open questions
 
@@ -142,6 +142,10 @@ New file above.
 - Q3 (store display string vs derive) — **decided: derive from `code`** (data stays as codes, display strings live in the UI, matching the existing LogPanel).
 
 *Standing judgement call (not blocking):* this is observability on a default-off mechanism while the voice/taste loop is signal-starved. Building it now is a conscious choice over thickening that signal — Magnus has chosen to proceed.
+
+## Deploy order (prerequisite)
+
+**Apply `20260712_add_relay_gate_columns.sql` BEFORE enabling the engagement gate.** The *read* path degrades safely pre-migration (count queries `?? 0`, skip fetch `?? []` — the admin page just shows zeros). The *write* path does not: with the gate ON but the columns absent, the stamp `UPDATE` (now writing `relay_gate_code`/`relay_gate_signals`) would fail, leave the item unstamped, and re-enqueue it next sync — reintroducing the duplicate-session bug the reshape dissolved. The gate is default-off, so the safe order is: apply migration → deploy → flip the gate on. (Flagged by the product reviewer on PR #141.)
 
 ## Definition of Done
 
