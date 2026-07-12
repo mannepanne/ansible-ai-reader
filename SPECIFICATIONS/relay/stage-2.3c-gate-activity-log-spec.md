@@ -1,6 +1,6 @@
 # Relay — Stage 2.3c: the gate activity log (making the invisible skips visible)
 
-**Status:** REVISED after `/review-spec` (2026-07-12) — reshaped from a dedicated `relay_gate_events` table to two columns on `reader_items`. Ready to implement.
+**Status:** SHIPPED (2026-07-12). Reshaped from a dedicated `relay_gate_events` table to two columns on `reader_items` after `/review-spec`; implemented on `feature/relay-gate-activity-log`.
 **Slice of:** Phase 2.3 (the archive-hook engine). Extends 2.3b (the engagement-gated hook).
 **Depends on:** 2.3b shipped (`evaluateRelayTriggers`, `classifyEngagement`, the `relay_triggered_at` stamp).
 
