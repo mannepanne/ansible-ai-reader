@@ -6,7 +6,8 @@ import { createClient, createServiceRoleClient } from '@/utils/supabase/server';
 import AdminContent from '@/components/admin/AdminContent';
 import { buildPieceStimulusView } from '@/lib/relay/review-stimulus';
 import type { StimulusRow } from '@/lib/relay/session-run';
-import type { LandingStats, DemoStats, RelayStats, RelayPieceRow, PieceLink, DecisionSource } from '@/components/admin/types';
+import { mergeActivity } from '@/components/admin/activity-log';
+import type { LandingStats, DemoStats, RelayStats, RelayPieceRow, PieceLink, DecisionSource, RelayActivityRow } from '@/components/admin/types';
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -50,6 +51,9 @@ export default async function AdminPage() {
     relayWroteCountResult,
     relayDeclinedCountResult,
     relayDecisionsResult,
+    relayGatePassCountResult,
+    relayGateSkipCountResult,
+    relayGateSkipsResult,
   ] = await Promise.all([
     db.from('page_events').select('*', { count: 'exact', head: true }).eq('event_type', 'landing_page_view'),
     db.from('page_events').select('visitor_id').eq('event_type', 'landing_page_view'),
@@ -86,8 +90,18 @@ export default async function AdminPage() {
     db.from('relay_decisions').select('*', { count: 'exact', head: true }).eq('verdict', 'declined'),
     db
       .from('relay_decisions')
-      .select('verdict, piece_id, reason, degraded, stimulus_ref, sources, created_at')
+      .select('id, verdict, piece_id, reason, degraded, stimulus_ref, sources, created_at')
       .order('created_at', { ascending: false })
+      .limit(200),
+    // Gate outcomes (2.3c). Passes and skips are counted directly off the item row; baselined items
+    // (relay_gate_code NULL) are excluded from both by construction. Only skips are fetched for display.
+    db.from('reader_items').select('*', { count: 'exact', head: true }).eq('relay_gate_code', 'reacted'),
+    db.from('reader_items').select('*', { count: 'exact', head: true }).in('relay_gate_code', ['no_signal', 'vetoed']),
+    db
+      .from('reader_items')
+      .select('id, reader_id, title, relay_gate_code, relay_gate_signals, relay_triggered_at')
+      .in('relay_gate_code', ['no_signal', 'vetoed'])
+      .order('relay_triggered_at', { ascending: false })
       .limit(200),
   ]);
 
@@ -176,6 +190,7 @@ export default async function AdminPage() {
   // Enrich the decision log: look up what the material was (reader_items titles behind each
   // stimulus_ref) and, for 'wrote' verdicts, a summary of the piece that resulted.
   const decisionRows = (relayDecisionsResult.data ?? []) as Array<{
+    id: string;
     verdict: 'wrote' | 'declined';
     piece_id: string | null;
     reason: string | null;
@@ -289,7 +304,40 @@ export default async function AdminPage() {
     engagementGate = { enabled: !!ownerRow?.relay_engagement_gate_enabled, ownerConfigured: true };
   }
 
-  // Build relay stats — pieces by gate state (read-only operator view) + decision log + counts.
+  // The activity log (2.3c) = session decisions + gate skips, merged newest-first. Decisions carry full
+  // provenance; a gate skip carries the item's title (already on its row — no join) + why it was skipped.
+  const decisionActivity: RelayActivityRow[] = decisionRows.map((d) => ({
+    kind: 'decision',
+    id: d.id,
+    verdict: d.verdict,
+    pieceId: d.piece_id,
+    reason: d.reason,
+    degraded: d.degraded,
+    stimulusRef: d.stimulus_ref ?? [],
+    stimulusTitles: (d.stimulus_ref ?? []).map((rid) => titleByReaderId.get(rid) ?? rid),
+    pieceSummary: d.piece_id ? summaryByPieceId.get(d.piece_id) ?? null : null,
+    sources: d.sources ?? [],
+    createdAt: d.created_at,
+  }));
+  const gateSkipRows = (relayGateSkipsResult.data ?? []) as Array<{
+    id: string;
+    reader_id: string;
+    title: string | null;
+    relay_gate_code: 'no_signal' | 'vetoed';
+    relay_gate_signals: string[] | null;
+    relay_triggered_at: string;
+  }>;
+  const skipActivity: RelayActivityRow[] = gateSkipRows.map((s) => ({
+    kind: 'gate_skip',
+    id: s.id,
+    createdAt: s.relay_triggered_at,
+    code: s.relay_gate_code,
+    signals: s.relay_gate_signals ?? [],
+    stimulusRef: s.reader_id,
+    stimulusTitle: s.title,
+  }));
+
+  // Build relay stats — pieces by gate state (read-only operator view) + activity log + counts.
   const relayStats: RelayStats = {
     counts: {
       pendingReview: relayPendingCountResult.count ?? 0,
@@ -297,21 +345,13 @@ export default async function AdminPage() {
       rejected: relayRejectedCountResult.count ?? 0,
       wrote: relayWroteCountResult.count ?? 0,
       declined: relayDeclinedCountResult.count ?? 0,
+      gatePass: relayGatePassCountResult.count ?? 0,
+      gateSkip: relayGateSkipCountResult.count ?? 0,
     },
     pending: (relayPendingResult.data ?? []).map(mapPiece),
     approved: (relayApprovedPiecesResult.data ?? []).map(mapPiece),
     rejected: (relayRejectedPiecesResult.data ?? []).map(mapPiece),
-    decisions: decisionRows.map((d) => ({
-      verdict: d.verdict,
-      pieceId: d.piece_id,
-      reason: d.reason,
-      degraded: d.degraded,
-      stimulusRef: d.stimulus_ref ?? [],
-      stimulusTitles: (d.stimulus_ref ?? []).map((rid) => titleByReaderId.get(rid) ?? rid),
-      pieceSummary: d.piece_id ? summaryByPieceId.get(d.piece_id) ?? null : null,
-      sources: d.sources ?? [],
-      createdAt: d.created_at,
-    })),
+    activity: mergeActivity(decisionActivity, skipActivity),
     engagementGate,
   };
 

@@ -25,8 +25,30 @@ export interface EngagementInput {
   highlightsCount: number | null;
 }
 
+/**
+ * The engagement signals, as stable machine codes. Shared vocabulary between the classifier (which
+ * produces them) and the admin activity log (which humanises them) — a single source of truth so a
+ * rename can't silently desync stored data from its display. Order here is the stable display order.
+ */
+export const GATE_SIGNALS = ['rated_interesting', 'note_ansible', 'note_reader', 'highlight'] as const;
+export type GateSignal = (typeof GATE_SIGNALS)[number];
+
+/** Human labels for the `reason` string (worker logs/debugging). Keyed by signal code. */
+const SIGNAL_REASON_LABEL: Record<GateSignal, string> = {
+  rated_interesting: 'rated interesting',
+  note_ansible: 'note (Ansible)',
+  note_reader: 'note (Reader)',
+  highlight: 'highlight',
+};
+
 export interface EngagementDecision {
   react: boolean;
+  /** Machine outcome code. 'reacted' = pass; 'no_signal' / 'vetoed' = skip (the reason). Persisted on
+   *  the item as relay_gate_code and drives the activity-log display. */
+  code: 'reacted' | 'no_signal' | 'vetoed';
+  /** The signal codes present at eval time — populated even on a veto (a veto overriding a highlight
+   *  still records the highlight). Persisted as relay_gate_signals. */
+  signals: GateSignal[];
   /** Human-readable why, for logs/debugging — never fed to the agent. */
   reason: string;
 }
@@ -40,19 +62,21 @@ export interface EngagementDecision {
  * The rating is read from the LIVE reader_items.rating column (not the append-only item_signals log):
  * clearing a rating truly clears it, so a lifted veto lifts. This mirrors how notes are read live
  * (spec §B), decided 2026-07-10 (deviation from the spec's original "ignore legacy rating column").
+ *
+ * Signals are collected FIRST, then the outcome is decided, so a veto still reports the signals it
+ * overrode (Stage 2.3c — the activity log shows "highlight present, but vetoed").
  */
 export function classifyEngagement(input: EngagementInput): EngagementDecision {
-  // 🤷 veto wins outright.
-  if (input.rating === 1) return { react: false, reason: 'vetoed: rated not-interesting' };
-
-  const signals: string[] = [];
-  if (input.rating === 4) signals.push('rated interesting');
-  if (input.documentNote?.trim()) signals.push('note (Ansible)');
-  if (input.readerNote?.trim()) signals.push('note (Reader)');
+  const signals: GateSignal[] = [];
+  if (input.rating === 4) signals.push('rated_interesting');
+  if (input.documentNote?.trim()) signals.push('note_ansible');
+  if (input.readerNote?.trim()) signals.push('note_reader');
   if ((input.highlightsCount ?? 0) >= 1) signals.push('highlight');
 
-  if (signals.length === 0) return { react: false, reason: 'no engagement signal' };
-  return { react: true, reason: signals.join(' + ') };
+  // 🤷 veto wins outright — but the overridden signals are still recorded.
+  if (input.rating === 1) return { react: false, code: 'vetoed', signals, reason: 'vetoed: rated not-interesting' };
+  if (signals.length === 0) return { react: false, code: 'no_signal', signals, reason: 'no engagement signal' };
+  return { react: true, code: 'reacted', signals, reason: signals.map((s) => SIGNAL_REASON_LABEL[s]).join(' + ') };
 }
 
 // ── The orchestration ──────────────────────────────────────────────────────
@@ -144,8 +168,10 @@ export async function evaluateRelayTriggers(
     });
 
     if (!decision.react) {
-      // Permanent skip — stamp so we never re-evaluate this archived item.
-      await stamp(supabase, row.id, now());
+      // Permanent skip — stamp so we never re-evaluate this archived item. The same UPDATE records the
+      // gate outcome (2.3c): the skip reason + the signals present. One write, no separate insert to
+      // lose or duplicate, so the never-miss bias needs no ordering dance here.
+      await stamp(supabase, row.id, now(), decision.code, decision.signals);
       skippedItems++;
       continue;
     }
@@ -162,7 +188,10 @@ export async function evaluateRelayTriggers(
 
     const ok = await enqueueSession(orchestrator, row.reader_id);
     if (ok) {
-      await stamp(supabase, row.id, now());
+      // enqueue → stamp (unchanged order). The gate outcome ('reacted' + the triggering signals) rides
+      // the same stamp UPDATE. The pass's duplicate-session risk is exactly the pre-existing one (a
+      // failed stamp re-enqueues); folding the outcome in adds no new write, so it is not worsened.
+      await stamp(supabase, row.id, now(), decision.code, decision.signals);
       enqueued++;
     } else {
       // Enqueue failed — leave NULL → retry next sync.
@@ -175,12 +204,18 @@ export async function evaluateRelayTriggers(
   return { scanned, enqueued, skippedItems, deferred };
 }
 
-/** Stamp relay_triggered_at (mark an item done). A stamp failure is logged, not thrown — the standing
- *  scan self-heals it next sync. */
-async function stamp(supabase: SupabaseClient, id: string, ts: string): Promise<void> {
+/** Stamp relay_triggered_at (mark an item done) AND record the gate outcome in the same UPDATE (2.3c).
+ *  A stamp failure is logged, not thrown — the standing scan self-heals it next sync. */
+async function stamp(
+  supabase: SupabaseClient,
+  id: string,
+  ts: string,
+  code: EngagementDecision['code'],
+  signals: GateSignal[],
+): Promise<void> {
   const { error } = await supabase
     .from('reader_items')
-    .update({ relay_triggered_at: ts })
+    .update({ relay_triggered_at: ts, relay_gate_code: code, relay_gate_signals: signals })
     .eq('id', id);
   if (error) console.error(`[Relay] failed to stamp relay_triggered_at for ${id}:`, error);
 }

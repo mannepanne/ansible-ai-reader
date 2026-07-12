@@ -25,6 +25,7 @@ vi.mock('@/utils/supabase/server', () => ({
     const resolved = Promise.resolve({ count: 0, data: [], error: null });
     const chain: Record<string, unknown> = {
       eq: vi.fn(() => resolved),
+      in: vi.fn(() => chain),
       order: vi.fn(() => chain),
       limit: vi.fn(() => resolved),
       then: resolved.then.bind(resolved),
