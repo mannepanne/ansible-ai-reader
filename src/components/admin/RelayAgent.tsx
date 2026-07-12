@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import { StatCard } from './ui';
-import type { RelayStats, RelayPieceRow, RelayDecisionRow } from './types';
+import type { RelayStats, RelayPieceRow, RelayActivityRow } from './types';
 
 const fmt = (iso: string) => new Date(iso).toISOString().slice(0, 16).replace('T', ' ');
 const excerpt = (s: string, n = 280) => (s.length > n ? `${s.slice(0, n)}…` : s);
@@ -129,8 +129,11 @@ export default function RelayAgent({ stats }: { stats: RelayStats }) {
       <RunControl />
       <GateToggle gate={stats.engagementGate} />
 
-      {/* Widgets: decision verdicts (declined/wrote) then gate states (pending/rejected/approved) */}
+      {/* Widgets: gate outcomes (pass/not-reacted) → decision verdicts (declined/wrote) → piece-gate
+          states (pending/rejected/approved). Gate pass excludes baselined items (relay_gate_code NULL). */}
       <div style={{ display: 'flex', gap: '16px', marginBottom: '28px', flexWrap: 'wrap' }}>
+        <StatCard icon="🔔" label="Gate pass" value={stats.counts.gatePass} />
+        <StatCard icon="🙈" label="Not reacted" value={stats.counts.gateSkip} />
         <StatCard icon="🔇" label="Declined" value={stats.counts.declined} />
         <StatCard icon="✍️" label="Wrote" value={stats.counts.wrote} />
         <StatCard icon="📥" label="Pending" value={stats.counts.pendingReview} />
@@ -157,7 +160,7 @@ export default function RelayAgent({ stats }: { stats: RelayStats }) {
 
       <div style={{ borderBottom: '1px solid #dee2e6', marginBottom: '24px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
         <button role="tab" aria-selected={view === 'log'} onClick={() => setView('log')} style={subTabStyle('log')}>
-          Decision log
+          Activity log
         </button>
         <button role="tab" aria-selected={view === 'pending'} onClick={() => setView('pending')} style={subTabStyle('pending')}>
           Awaiting review{stats.pending.length > 0 ? ` (${stats.pending.length})` : ''}
@@ -170,7 +173,15 @@ export default function RelayAgent({ stats }: { stats: RelayStats }) {
         </button>
       </div>
 
-      {view === 'log' && <LogPanel decisions={stats.decisions} />}
+      {view === 'log' && (
+        <LogPanel
+          activity={stats.activity}
+          gateEnabled={stats.engagementGate.enabled}
+          // The true total across both sources (each fetch is capped at 200) — so a truncated log reads
+          // "showing X of N" rather than silently implying nothing else was skipped.
+          total={stats.counts.wrote + stats.counts.declined + stats.counts.gateSkip}
+        />
+      )}
       {view === 'pending' && <PieceList pieces={stats.pending} actions={['approve', 'reject']} busyId={busyId} onReview={review} empty="No pieces awaiting review." />}
       {view === 'rejected' && <PieceList pieces={stats.rejected} actions={['approve']} busyId={busyId} onReview={review} empty="No rejected pieces." filterable />}
       {view === 'approved' && <PieceList pieces={stats.approved} actions={['reject']} busyId={busyId} onReview={review} empty="No approved pieces." filterable />}
@@ -542,14 +553,40 @@ function PieceCard({
   );
 }
 
-function LogPanel({ decisions }: { decisions: RelayDecisionRow[] }) {
+// The engagement signal codes, humanised for the admin display. Mirrors GATE_SIGNALS in
+// engagement-trigger.ts (the code vocabulary) and SIGNAL_REASON_LABEL there (the worker-log labels) —
+// data stays as codes; labels live on each presentation side. KEEP IN SYNC: adding a code to
+// GATE_SIGNALS means adding it here too, else the `?? c` fallback renders the raw code.
+const SIGNAL_LABEL: Record<string, string> = {
+  rated_interesting: 'rated interesting',
+  note_ansible: 'note (Ansible)',
+  note_reader: 'note (Reader)',
+  highlight: 'highlight',
+};
+
+// The activity log (2.3c): session decisions (wrote/declined) + engagement-gate skips (not reacted),
+// merged newest-first upstream. Passes are represented by their downstream decision, so only skips show.
+function LogPanel({ activity, gateEnabled, total }: { activity: RelayActivityRow[]; gateEnabled: boolean; total: number }) {
   const [page, setPage] = useState(0);
-  if (decisions.length === 0) {
-    return <p style={{ color: '#6c757d', fontSize: '0.9em' }}>No decisions yet.</p>;
+  // When the gate is off, the skip section is empty for a benign reason — say so, so an empty log isn't
+  // misread as "the gate ran and skipped nothing".
+  const gateOffNote = !gateEnabled ? (
+    <p style={{ color: '#6c757d', fontSize: '0.82em', margin: '0 0 14px', fontStyle: 'italic' }}>
+      The engagement gate is off — archived items aren’t being evaluated, so no “not reacted” entries appear here.
+    </p>
+  ) : null;
+
+  if (activity.length === 0) {
+    return (
+      <div>
+        {gateOffNote}
+        <p style={{ color: '#6c757d', fontSize: '0.9em' }}>No activity yet.</p>
+      </div>
+    );
   }
-  const pageCount = Math.ceil(decisions.length / LOG_PAGE_SIZE);
+  const pageCount = Math.ceil(activity.length / LOG_PAGE_SIZE);
   const current = Math.min(page, pageCount - 1);
-  const slice = decisions.slice(current * LOG_PAGE_SIZE, current * LOG_PAGE_SIZE + LOG_PAGE_SIZE);
+  const slice = activity.slice(current * LOG_PAGE_SIZE, current * LOG_PAGE_SIZE + LOG_PAGE_SIZE);
   const btn = (disabled: boolean) => ({
     padding: '6px 14px',
     border: '1px solid #ced4da',
@@ -561,52 +598,15 @@ function LogPanel({ decisions }: { decisions: RelayDecisionRow[] }) {
   });
   return (
     <div>
+      {gateOffNote}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        {slice.map((d, i) => {
-        const wrote = d.verdict === 'wrote';
-        const material = d.stimulusTitles.length > 0 ? d.stimulusTitles.join('; ') : d.stimulusRef.join(', ') || '(unknown stimulus)';
-        return (
-          <article key={current * LOG_PAGE_SIZE + i} style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '8px', padding: '14px 18px' }}>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'baseline', marginBottom: '6px' }}>
-              <span style={{ fontSize: '0.72em', color: '#6c757d', whiteSpace: 'nowrap' }}>{fmt(d.createdAt)}</span>
-              <span style={{ fontWeight: 700, fontSize: '0.72em', color: wrote ? '#198754' : '#6c757d', textTransform: 'uppercase' }}>
-                {d.verdict}
-              </span>
-              {d.degraded && (
-                <span style={{ fontSize: '0.68em', color: '#9a6700', background: '#fff3cd', borderRadius: '4px', padding: '1px 6px' }}>
-                  degraded: {d.degraded}
-                </span>
-              )}
-            </div>
-            <div style={{ fontSize: '0.85em', color: '#212529', marginBottom: wrote || d.reason ? '6px' : 0 }}>
-              <span style={{ color: '#6c757d' }}>on:</span> {material}
-            </div>
-            {wrote && d.pieceSummary && (
-              <div style={{ fontSize: '0.85em', color: '#495057', marginBottom: d.reason ? '6px' : 0 }}>
-                <span style={{ color: '#6c757d' }}>wrote:</span> {d.pieceSummary}
-              </div>
-            )}
-            {d.reason && (
-              <div style={{ fontSize: '0.82em', color: '#495057', fontStyle: 'italic', lineHeight: 1.5 }}>
-                <span style={{ color: '#6c757d', fontStyle: 'normal' }}>reasoning:</span> {excerpt(d.reason)}
-              </div>
-            )}
-            {d.sources.length > 0 && (
-              <div style={{ fontSize: '0.75em', color: '#495057', marginTop: '6px' }}>
-                <span style={{ color: '#6c757d' }}>researched:</span>{' '}
-                {d.sources.map((s, si) => (
-                  <span key={`${s.source_url}-${si}`}>
-                    {si > 0 ? ' · ' : ''}
-                    <a href={safeHref(s.source_url)} target="_blank" rel="noreferrer noopener" style={{ color: '#0d6efd' }}>
-                      {s.source_title || s.source_url}
-                    </a>
-                  </span>
-                ))}
-              </div>
-            )}
-          </article>
-        );
-      })}
+        {slice.map((row) =>
+          row.kind === 'gate_skip' ? (
+            <GateSkipCard key={`s-${row.id}`} row={row} />
+          ) : (
+            <DecisionCard key={`d-${row.id}`} row={row} />
+          ),
+        )}
       </div>
       {pageCount > 1 && (
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '18px' }}>
@@ -614,7 +614,7 @@ function LogPanel({ decisions }: { decisions: RelayDecisionRow[] }) {
             ← Prev
           </button>
           <span style={{ fontSize: '0.8em', color: '#6c757d' }}>
-            Page {current + 1} of {pageCount} · {decisions.length} decisions
+            Page {current + 1} of {pageCount} · showing {activity.length} of {total} activity entries
           </span>
           <button disabled={current >= pageCount - 1} onClick={() => setPage(current + 1)} style={btn(current >= pageCount - 1)}>
             Next →
@@ -622,5 +622,74 @@ function LogPanel({ decisions }: { decisions: RelayDecisionRow[] }) {
         </div>
       )}
     </div>
+  );
+}
+
+// A session decision: the narrator wrote a piece, or read the material and chose silence.
+function DecisionCard({ row: d }: { row: Extract<RelayActivityRow, { kind: 'decision' }> }) {
+  const wrote = d.verdict === 'wrote';
+  const material =
+    d.stimulusTitles.length > 0 ? d.stimulusTitles.join('; ') : d.stimulusRef.join(', ') || '(unknown stimulus)';
+  return (
+    <article style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '8px', padding: '14px 18px' }}>
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'baseline', marginBottom: '6px' }}>
+        <span style={{ fontSize: '0.72em', color: '#6c757d', whiteSpace: 'nowrap' }}>{fmt(d.createdAt)}</span>
+        <span style={{ fontWeight: 700, fontSize: '0.72em', color: wrote ? '#198754' : '#6c757d', textTransform: 'uppercase' }}>
+          {d.verdict}
+        </span>
+        {d.degraded && (
+          <span style={{ fontSize: '0.68em', color: '#9a6700', background: '#fff3cd', borderRadius: '4px', padding: '1px 6px' }}>
+            degraded: {d.degraded}
+          </span>
+        )}
+      </div>
+      <div style={{ fontSize: '0.85em', color: '#212529', marginBottom: wrote || d.reason ? '6px' : 0 }}>
+        <span style={{ color: '#6c757d' }}>on:</span> {material}
+      </div>
+      {wrote && d.pieceSummary && (
+        <div style={{ fontSize: '0.85em', color: '#495057', marginBottom: d.reason ? '6px' : 0 }}>
+          <span style={{ color: '#6c757d' }}>wrote:</span> {d.pieceSummary}
+        </div>
+      )}
+      {d.reason && (
+        <div style={{ fontSize: '0.82em', color: '#495057', fontStyle: 'italic', lineHeight: 1.5 }}>
+          <span style={{ color: '#6c757d', fontStyle: 'normal' }}>reasoning:</span> {excerpt(d.reason)}
+        </div>
+      )}
+      {d.sources.length > 0 && (
+        <div style={{ fontSize: '0.75em', color: '#495057', marginTop: '6px' }}>
+          <span style={{ color: '#6c757d' }}>researched:</span>{' '}
+          {d.sources.map((s, si) => (
+            <span key={`${s.source_url}-${si}`}>
+              {si > 0 ? ' · ' : ''}
+              <a href={safeHref(s.source_url)} target="_blank" rel="noreferrer noopener" style={{ color: '#0d6efd' }}>
+                {s.source_title || s.source_url}
+              </a>
+            </span>
+          ))}
+        </div>
+      )}
+    </article>
+  );
+}
+
+// A gate skip: the narrator was never woken for this archived item. Visually distinct (dashed, muted) so
+// it reads as "not reacted", not "read and declined". Shows why, and which signals were present (or none).
+function GateSkipCard({ row: s }: { row: Extract<RelayActivityRow, { kind: 'gate_skip' }> }) {
+  const why = s.code === 'vetoed' ? 'vetoed (rated 🤷)' : 'no engagement signal';
+  const signals = s.signals.length > 0 ? s.signals.map((c) => SIGNAL_LABEL[c] ?? c).join(' · ') : 'none';
+  return (
+    <article style={{ background: '#f8f9fa', border: '1px dashed #ced4da', borderRadius: '8px', padding: '14px 18px' }}>
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'baseline', marginBottom: '6px' }}>
+        <span style={{ fontSize: '0.72em', color: '#6c757d', whiteSpace: 'nowrap' }}>{fmt(s.createdAt)}</span>
+        <span style={{ fontWeight: 700, fontSize: '0.72em', color: '#adb5bd', textTransform: 'uppercase' }}>not reacted</span>
+      </div>
+      <div style={{ fontSize: '0.85em', color: '#495057', marginBottom: '4px' }}>
+        <span style={{ color: '#6c757d' }}>on:</span> {s.stimulusTitle || s.stimulusRef || '(unknown item)'}
+      </div>
+      <div style={{ fontSize: '0.82em', color: '#495057' }}>
+        <span style={{ color: '#6c757d' }}>why:</span> {why} · <span style={{ color: '#6c757d' }}>signals:</span> {signals}
+      </div>
+    </article>
   );
 }

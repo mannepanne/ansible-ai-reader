@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import RelayAgent from './RelayAgent';
-import type { RelayStats, RelayPieceRow } from './types';
+import type { RelayStats, RelayPieceRow, RelayActivityRow } from './types';
 
 const mockRefresh = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: mockRefresh }) }));
@@ -26,12 +26,14 @@ const piece = (id: string, title: string, summary: string, over: Partial<RelayPi
 });
 
 const stats: RelayStats = {
-  counts: { pendingReview: 1, approved: 1, rejected: 1, wrote: 2, declined: 1 },
+  counts: { pendingReview: 1, approved: 1, rejected: 1, wrote: 2, declined: 1, gatePass: 3, gateSkip: 4 },
   pending: [piece('p-pending', 'Pending Piece', 'pending summary')],
   approved: [piece('p-approved', 'Approved Piece', 'approved summary')],
   rejected: [piece('p-rejected', 'Rejected Piece', 'rejected summary')],
-  decisions: [
+  activity: [
     {
+      kind: 'decision',
+      id: 'dec-1',
       verdict: 'declined',
       pieceId: null,
       reason: 'No power asymmetry here.',
@@ -106,23 +108,29 @@ describe('RelayAgent', () => {
     expect(screen.queryByRole('button', { name: /^reject$/i })).toBeNull();
   });
 
-  it('renders the five widgets and the decision log on its sub-tab', async () => {
+  it('renders the widgets (incl. gate outcomes) and the activity log on its sub-tab', async () => {
     const user = userEvent.setup();
     render(<RelayAgent stats={stats} />);
 
     expect(screen.getByText('Declined')).toBeDefined();
     expect(screen.getByText('Wrote')).toBeDefined();
+    expect(screen.getByText('Gate pass')).toBeDefined(); // 2.3c gate-outcome widgets
+    expect(screen.getByText('Not reacted')).toBeDefined();
 
     expect(screen.queryByText(/No power asymmetry here/)).toBeNull();
-    await user.click(screen.getByRole('tab', { name: /decision log/i }));
+    await user.click(screen.getByRole('tab', { name: /activity log/i }));
     expect(screen.getByText(/No power asymmetry here/)).toBeDefined(); // reasoning
     expect(screen.getByText(/A neutral changelog/)).toBeDefined(); // the material decided on
   });
 
-  it('paginates the decision log at ten per page', async () => {
+  it('paginates the activity log at ten per page', async () => {
     const many: RelayStats = {
       ...stats,
-      decisions: Array.from({ length: 12 }, (_, i) => ({
+      // 12 entries loaded but 20 total in the DB (counts) — models the 200-cap truncation the footer warns about.
+      counts: { ...stats.counts, wrote: 0, declined: 20, gateSkip: 0 },
+      activity: Array.from({ length: 12 }, (_, i) => ({
+        kind: 'decision' as const,
+        id: `dec-${i}`,
         verdict: 'declined' as const,
         pieceId: null,
         reason: `reason ${i}`,
@@ -136,10 +144,11 @@ describe('RelayAgent', () => {
     };
     const user = userEvent.setup();
     render(<RelayAgent stats={many} />);
-    await user.click(screen.getByRole('tab', { name: /decision log/i }));
+    await user.click(screen.getByRole('tab', { name: /activity log/i }));
 
     expect(screen.getByText(/Material 0/)).toBeDefined();
     expect(screen.getByText(/Page 1 of 2/)).toBeDefined();
+    expect(screen.getByText(/showing 12 of 20 activity entries/)).toBeDefined(); // cap footer: loaded vs true total
     expect(screen.queryByText(/Material 10/)).toBeNull(); // second page not shown yet
 
     await user.click(screen.getByRole('button', { name: /next/i }));
@@ -227,20 +236,81 @@ describe('RelayAgent', () => {
   });
 
   it('surfaces research sources on a decision in the log', async () => {
+    const decisionRow = stats.activity[0] as Extract<RelayActivityRow, { kind: 'decision' }>;
     const withSources: RelayStats = {
       ...stats,
-      decisions: [
+      activity: [
         {
-          ...stats.decisions[0],
+          ...decisionRow,
           sources: [{ quote: 'a verbatim fact', source_url: 'https://ft.com/y', source_title: 'FT analysis' }],
         },
       ],
     };
     const user = userEvent.setup();
     render(<RelayAgent stats={withSources} />);
-    await user.click(screen.getByRole('tab', { name: /decision log/i }));
+    await user.click(screen.getByRole('tab', { name: /activity log/i }));
     const link = screen.getByRole('link', { name: /FT analysis/ });
     expect(link.getAttribute('href')).toBe('https://ft.com/y');
+  });
+
+  // --- Stage 2.3c: gate skips in the activity log ---
+
+  it('renders a gate skip as "not reacted" with its reason and the signals present', async () => {
+    const withSkip: RelayStats = {
+      ...stats,
+      engagementGate: { enabled: true, ownerConfigured: true },
+      activity: [
+        {
+          kind: 'gate_skip',
+          id: 'ri-1',
+          createdAt: '2026-06-28T13:00:00Z',
+          code: 'vetoed',
+          signals: ['highlight'],
+          stimulusRef: 'r9',
+          stimulusTitle: 'A vetoed essay on trust',
+        },
+      ],
+    };
+    const user = userEvent.setup();
+    render(<RelayAgent stats={withSkip} />);
+    await user.click(screen.getByRole('tab', { name: /activity log/i }));
+
+    // "not reacted" appears twice: the gate-outcome StatCard label AND this card's badge.
+    expect(screen.getAllByText(/not reacted/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText(/A vetoed essay on trust/)).toBeDefined();
+    expect(screen.getByText(/vetoed \(rated/)).toBeDefined(); // reason derived from the code
+    expect(screen.getByText(/highlight/)).toBeDefined(); // the overridden signal is still shown
+  });
+
+  it('shows "signals: none" for a no-signal skip', async () => {
+    const withSkip: RelayStats = {
+      ...stats,
+      engagementGate: { enabled: true, ownerConfigured: true },
+      activity: [
+        {
+          kind: 'gate_skip',
+          id: 'ri-2',
+          createdAt: '2026-06-28T13:00:00Z',
+          code: 'no_signal',
+          signals: [],
+          stimulusRef: 'r10',
+          stimulusTitle: 'An unremarkable archive',
+        },
+      ],
+    };
+    const user = userEvent.setup();
+    render(<RelayAgent stats={withSkip} />);
+    await user.click(screen.getByRole('tab', { name: /activity log/i }));
+
+    expect(screen.getByText(/no engagement signal/i)).toBeDefined();
+    expect(screen.getByText(/none/)).toBeDefined();
+  });
+
+  it('explains the empty gate section when the engagement gate is off', async () => {
+    const user = userEvent.setup();
+    render(<RelayAgent stats={{ ...stats, activity: [], engagementGate: { enabled: false, ownerConfigured: true } }} />);
+    await user.click(screen.getByRole('tab', { name: /activity log/i }));
+    expect(screen.getByText(/engagement gate is off/i)).toBeDefined();
   });
 
   it('shows an empty state for a list with no pieces', async () => {

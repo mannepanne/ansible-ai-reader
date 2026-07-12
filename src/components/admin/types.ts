@@ -88,13 +88,39 @@ export interface RelayDecisionRow {
   createdAt: string;
 }
 
+// Stage 2.3c — a unified "activity log" row. Either a session decision (the agent wrote or declined,
+// carrying full RelayDecisionRow provenance) or a gate skip (an archived item the engagement gate never
+// woke the narrator for). The two are merged and shown chronologically; `id` is carried on BOTH arms so
+// pagination stays stable when a decision and a skip share a timestamp (independent clocks collide).
+export type RelayActivityRow =
+  | ({ kind: 'decision'; id: string } & RelayDecisionRow)
+  | {
+      kind: 'gate_skip';
+      id: string; // the reader_items.id of the skipped item
+      createdAt: string; // relay_triggered_at — when the gate evaluated it
+      code: 'no_signal' | 'vetoed'; // why it was skipped (machine code; display text derived in the UI)
+      signals: string[]; // engagement signal codes present (a vetoed skip may still list overridden ones)
+      stimulusRef: string; // the reader_id
+      stimulusTitle: string | null; // resolved title of the skipped item (already on the row — no join)
+    };
+
 export interface RelayStats {
-  // pendingReview/approved/rejected are piece-gate states; wrote/declined are decision verdicts.
-  counts: { pendingReview: number; approved: number; rejected: number; wrote: number; declined: number };
+  // pendingReview/approved/rejected are piece-gate states; wrote/declined are decision verdicts;
+  // gatePass/gateSkip are engagement-gate outcomes (2.3c). gatePass excludes baselined items (code NULL).
+  counts: {
+    pendingReview: number;
+    approved: number;
+    rejected: number;
+    wrote: number;
+    declined: number;
+    gatePass: number;
+    gateSkip: number;
+  };
   pending: RelayPieceRow[];
   approved: RelayPieceRow[];
   rejected: RelayPieceRow[];
-  decisions: RelayDecisionRow[];
+  // The merged activity log: session decisions + gate skips, newest-first (see mergeActivity).
+  activity: RelayActivityRow[];
   // Stage 2.3b engagement-gate toggle state (default-off). ownerConfigured is false when
   // RELAY_OWNER_USER_ID is unset — the toggle then renders disabled with an explanatory note.
   engagementGate: { enabled: boolean; ownerConfigured: boolean };

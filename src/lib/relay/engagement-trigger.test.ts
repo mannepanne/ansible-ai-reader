@@ -59,6 +59,33 @@ describe('classifyEngagement', () => {
     expect(d.reason).toContain('note');
     expect(d.reason).toContain('highlight');
   });
+
+  // --- Stage 2.3c: structured output (machine code + signal codes) for the activity log ---
+
+  it('reports code "reacted" and the present signal codes on a pass', () => {
+    const d = classifyEngagement({ ...base, rating: 4 });
+    expect(d.code).toBe('reacted');
+    expect(d.signals).toEqual(['rated_interesting']);
+  });
+
+  it('reports code "no_signal" with empty signals for a bare archive', () => {
+    const d = classifyEngagement(base);
+    expect(d.code).toBe('no_signal');
+    expect(d.signals).toEqual([]);
+  });
+
+  it('reports code "vetoed" but still lists the signals the veto overrode', () => {
+    // rating:1 vetoes; rating is not 4 so 'rated_interesting' is absent, but the highlight + note remain.
+    const d = classifyEngagement({ ...base, rating: 1, highlightsCount: 5, documentNote: 'x' });
+    expect(d.code).toBe('vetoed');
+    expect(d.signals).toEqual(['note_ansible', 'highlight']);
+    expect(d.signals).not.toContain('rated_interesting');
+  });
+
+  it('lists every present signal code, in a stable order', () => {
+    const d = classifyEngagement({ rating: 4, documentNote: 'n', readerNote: 'r', highlightsCount: 2 });
+    expect(d.signals).toEqual(['rated_interesting', 'note_ansible', 'note_reader', 'highlight']);
+  });
 });
 
 // ── evaluateRelayTriggers (orchestration) ────────────────────────────────────
@@ -97,7 +124,7 @@ function makeSupabase({
   scanError?: null | { message: string };
   stampError?: null | { message: string };
 } = {}) {
-  const stamps: Array<{ id: string; ts: string }> = [];
+  const stamps: Array<{ id: string; ts: string; code?: string; signals?: string[] }> = [];
   let usersQueried = false;
   let scanned = false;
   const supabase = {
@@ -129,9 +156,9 @@ function makeSupabase({
               }),
             }),
           }),
-          update: (patch: { relay_triggered_at: string }) => ({
+          update: (patch: { relay_triggered_at: string; relay_gate_code?: string; relay_gate_signals?: string[] }) => ({
             eq: async (_col: string, id: string) => {
-              stamps.push({ id, ts: patch.relay_triggered_at });
+              stamps.push({ id, ts: patch.relay_triggered_at, code: patch.relay_gate_code, signals: patch.relay_gate_signals });
               return { error: stampError };
             },
           }),
@@ -213,7 +240,19 @@ describe('evaluateRelayTriggers — outcomes', () => {
     const res = await evaluateRelayTriggers(deps({ supabase, orchestrator }));
     expect(res).toMatchObject({ scanned: 1, enqueued: 1, skippedItems: 0, deferred: 0 });
     expect(enqueuedReaderIds()).toEqual(['r1']);
-    expect(stamps).toEqual([{ id: 'i1', ts: NOW }]);
+    // The stamp UPDATE also records the gate outcome: 'reacted' + the triggering signals.
+    expect(stamps).toEqual([{ id: 'i1', ts: NOW, code: 'reacted', signals: ['rated_interesting'] }]);
+  });
+
+  it('records the pass outcome and every triggering signal in the stamp', async () => {
+    const { supabase, stamps } = makeSupabase({
+      rows: [row({ rating: 4, document_note: 'n', reader_note: 'r', highlights_count: 2 })],
+    });
+    const { orchestrator } = makeOrchestrator();
+    await evaluateRelayTriggers(deps({ supabase, orchestrator }));
+    expect(stamps).toEqual([
+      { id: 'i1', ts: NOW, code: 'reacted', signals: ['rated_interesting', 'note_ansible', 'note_reader', 'highlight'] },
+    ]);
   });
 
   it('the enqueue payload is ONLY { readerId } — no rating leaks (gate-blindness)', async () => {
@@ -238,7 +277,8 @@ describe('evaluateRelayTriggers — outcomes', () => {
     const res = await evaluateRelayTriggers(deps({ supabase, orchestrator }));
     expect(res).toMatchObject({ enqueued: 0, skippedItems: 1, deferred: 0 });
     expect(enqueuedReaderIds()).toEqual([]);
-    expect(stamps).toEqual([{ id: 'i1', ts: NOW }]);
+    // Skip outcome recorded in the same stamp: 'no_signal', no signals present.
+    expect(stamps).toEqual([{ id: 'i1', ts: NOW, code: 'no_signal', signals: [] }]);
   });
 
   it('stamps a vetoed (🤷) item as a permanent skip even with a highlight', async () => {
@@ -247,7 +287,8 @@ describe('evaluateRelayTriggers — outcomes', () => {
     const res = await evaluateRelayTriggers(deps({ supabase, orchestrator }));
     expect(res).toMatchObject({ skippedItems: 1, enqueued: 0 });
     expect(enqueuedReaderIds()).toEqual([]);
-    expect(stamps).toEqual([{ id: 'i1', ts: NOW }]);
+    // 'vetoed', and the overridden highlight is still recorded so the log can show it.
+    expect(stamps).toEqual([{ id: 'i1', ts: NOW, code: 'vetoed', signals: ['highlight'] }]);
   });
 
   it('leaves an item unstamped when the enqueue returns non-ok (retry next sync)', async () => {

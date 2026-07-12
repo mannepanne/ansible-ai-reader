@@ -72,7 +72,7 @@ const mockDemoStats: DemoStats = {
 };
 
 const mockRelayStats: RelayStats = {
-  counts: { pendingReview: 1, approved: 3, rejected: 2, wrote: 5, declined: 4 },
+  counts: { pendingReview: 1, approved: 3, rejected: 2, wrote: 5, declined: 4, gatePass: 6, gateSkip: 7 },
   pending: [
     {
       id: 'piece-1',
@@ -91,8 +91,10 @@ const mockRelayStats: RelayStats = {
   ],
   approved: [],
   rejected: [],
-  decisions: [
+  activity: [
     {
+      kind: 'decision',
+      id: 'dec-9',
       verdict: 'wrote',
       pieceId: 'piece-9',
       reason: 'This earns a piece.',
@@ -104,6 +106,8 @@ const mockRelayStats: RelayStats = {
       createdAt: '2026-06-28T11:00:00Z',
     },
     {
+      kind: 'decision',
+      id: 'dec-2',
       verdict: 'declined',
       pieceId: null,
       reason: 'No power asymmetry here.',
@@ -231,7 +235,7 @@ describe('AdminContent', () => {
     expect(exportButtons.length).toBe(1);
   });
 
-  it('renders the Relay Agent tab and shows pending pieces + decision log on switch', async () => {
+  it('renders the Relay Agent tab and shows pending pieces + activity log on switch', async () => {
     const user = userEvent.setup();
     render(
       <AdminContent
@@ -254,8 +258,8 @@ describe('AdminContent', () => {
     expect(screen.getByRole('button', { name: /^approve$/i })).toBeDefined();
     expect(screen.getByRole('button', { name: /^reject$/i })).toBeDefined();
 
-    // the decision log lives behind its own sub-tab and carries the material + reasoning
-    await user.click(screen.getByRole('tab', { name: /decision log/i }));
+    // the activity log lives behind its own sub-tab and carries the material + reasoning
+    await user.click(screen.getByRole('tab', { name: /activity log/i }));
     expect(screen.getByText(/No power asymmetry here/)).toBeDefined();
     expect(screen.getByText(/Fine-Grained Tool Streaming/)).toBeDefined();
   });

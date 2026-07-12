@@ -62,6 +62,8 @@ CREATE TABLE reader_items (
   highlights_count INTEGER NOT NULL DEFAULT 0, -- Relay 2.3b: retained from archive response (filter input)
   reader_note TEXT, -- Relay 2.3b: Reader-authored note retained from archive response (filter + stimulus)
   relay_triggered_at TIMESTAMP WITH TIME ZONE, -- Relay 2.3b work-queue marker; NULL = archived-not-yet-evaluated
+  relay_gate_code TEXT CHECK (relay_gate_code IN ('reacted','no_signal','vetoed')), -- Relay 2.3c gate outcome; NULL = unevaluated (incl. baselined)
+  relay_gate_signals JSONB NOT NULL DEFAULT '[]'::jsonb, -- Relay 2.3c: engagement signal codes present at gate-eval (activity log)
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
@@ -77,6 +79,9 @@ CREATE INDEX idx_reader_items_reader_id ON reader_items(reader_id);
 -- Relay 2.3b: partial index keeping the trigger-eval standing scan cheap (indexes only pending rows)
 CREATE INDEX reader_items_relay_pending_idx ON reader_items(user_id)
   WHERE archived = true AND relay_triggered_at IS NULL;
+-- Relay 2.3c: partial index for the activity-log skip query + skip-count stat (indexes only skipped rows)
+CREATE INDEX reader_items_relay_skip_idx ON reader_items(relay_triggered_at DESC)
+  WHERE relay_gate_code IN ('no_signal', 'vetoed');
 ```
 
 **RLS Policy:**
@@ -283,6 +288,7 @@ supabase db push
 - `20260709_add_relay_decision_sources.sql` - Stage 2.1 fact-grounding: `relay_decisions.sources` (jsonb) — research provenance captured on every decision, writes AND declines. Pairs with `relay_pieces.verification_status` (`unverified` \| `sourced`; `verified` reserved for the deferred re-verification pass) and `relay_pieces.links` (`[{type:'recall'|'source', ref, title?}]`)
 - `20260709_add_relay_piece_review_capture.sql` - Stage 2.2a voice/editorial loop: `relay_pieces.review_note` (text) — the reviewer's "why" captured at decision time — and `relay_pieces.original_body` (text, **write-once**) — the piece as Relay first wrote it, set the first time a human edits the body on approval (the edit delta = `original_body` vs `body`). Both are Channel-2 taste signal for Magnus/curation only; **never** read on the writing-session path (recall / `relay_recall` / system-prompt assembly) — gate-blindness (`stage-1-technical-spec.md` §7/A4).
 - `20260710_add_relay_engagement_columns.sql` - Stage 2.3b engagement-gated archive-hook: `reader_items.relay_triggered_at` (work-queue marker), `highlights_count` + `reader_note` (retained from the archive response, filter inputs), a partial index for the trigger-eval standing scan, and `users.relay_engagement_gate_enabled` (default-off toggle). Baselines existing archived rows on the same predicate the scan uses (`archived = true`). **Run exactly once** — the baseline UPDATE is not re-run-safe (see the file header + the [single-owner ADR](../decisions/2026-07-10-relay-single-owner-engagement-gate.md)).
+- `20260712_add_relay_gate_columns.sql` - Stage 2.3c gate activity log: `reader_items.relay_gate_code` (`reacted`\|`no_signal`\|`vetoed`, NULL = unevaluated) + `relay_gate_signals` (jsonb) record the engagement gate's per-item outcome, written in the same UPDATE that stamps `relay_triggered_at`. Feeds the admin "Activity log" (gate skips shown alongside session decisions). Additive columns, re-run-safe, **no baseline UPDATE** — pre-existing rows keep `relay_gate_code` NULL so history is neither a pass nor a skip. See [stage-2.3c spec](../../SPECIFICATIONS/relay/stage-2.3c-gate-activity-log-spec.md).
 
 > **Note:** the `relay_*` migrations are applied via the Supabase dashboard SQL editor, not `supabase db push` — the CLI migration history is out of sync (the initial schema was created directly).
 
