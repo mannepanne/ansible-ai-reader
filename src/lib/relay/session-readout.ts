@@ -172,3 +172,51 @@ export function renderTrace(events: MaEvent[]): string {
   }
   return lines.join('\n');
 }
+
+// Per-session token totals recorded on the run ledger for cost/cache observability. Names mirror the
+// Managed-Agent session .usage payload; cache_creation is collapsed from its two TTL buckets into one.
+export interface SessionUsage {
+  input_tokens: number;
+  output_tokens: number;
+  cache_creation_input_tokens: number;
+  cache_read_input_tokens: number;
+}
+
+function num(v: unknown): number {
+  return typeof v === 'number' && Number.isFinite(v) ? v : 0;
+}
+
+/**
+ * Normalize a finished session's server-computed `.usage` (from GET /v1/sessions/{id}) into flat token
+ * totals for the ledger. This is the canonical per-session cost — the server already sums across every
+ * model turn, so it equals the sum of the session's span.model_request_end model_usage blocks. cache
+ * creation is reported split by TTL bucket (ephemeral_5m + ephemeral_1h); the two are collapsed here (a
+ * flat cache_creation_input_tokens, the span-event shape, is also accepted). Returns null when usage is
+ * absent or carries no recognisable token field, so the ledger stores NULL — "not measured" — rather
+ * than a misleading zero (mirrors how the codebase treats NULL as "not evaluated").
+ */
+export function readUsage(usage: unknown): SessionUsage | null {
+  if (!usage || typeof usage !== 'object') return null;
+  const u = usage as Record<string, unknown>;
+  const cc = u.cache_creation && typeof u.cache_creation === 'object' ? (u.cache_creation as Record<string, unknown>) : {};
+  const cacheCreation =
+    typeof u.cache_creation_input_tokens === 'number'
+      ? num(u.cache_creation_input_tokens)
+      : num(cc.ephemeral_5m_input_tokens) + num(cc.ephemeral_1h_input_tokens);
+
+  const hasAny =
+    typeof u.input_tokens === 'number' ||
+    typeof u.output_tokens === 'number' ||
+    typeof u.cache_read_input_tokens === 'number' ||
+    typeof u.cache_creation_input_tokens === 'number' ||
+    typeof cc.ephemeral_5m_input_tokens === 'number' ||
+    typeof cc.ephemeral_1h_input_tokens === 'number';
+  if (!hasAny) return null;
+
+  return {
+    input_tokens: num(u.input_tokens),
+    output_tokens: num(u.output_tokens),
+    cache_read_input_tokens: num(u.cache_read_input_tokens),
+    cache_creation_input_tokens: cacheCreation,
+  };
+}

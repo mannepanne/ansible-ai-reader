@@ -1,7 +1,7 @@
 // ABOUT: Relay session-run core — create a Managed-Agent session on a stimulus and poll to completion
 // ABOUT: The testable session core; the live orchestrator DO drives it via src/lib/relay/orchestrator.ts
 
-import type { MaEvent } from './session-readout';
+import { readUsage, type MaEvent, type SessionUsage } from './session-readout';
 
 // A Managed-Agents API client: (method, path, body?) → parsed JSON (or null for 202). Throws on non-ok.
 export type MaClient = (method: string, path: string, body?: unknown) => Promise<any>;
@@ -82,4 +82,14 @@ export async function getSessionStatus(ma: MaClient, sessionId: string): Promise
 /** Read the transcript. */
 export async function getSessionEvents(ma: MaClient, sessionId: string): Promise<MaEvent[]> {
   return ((await ma('GET', `/sessions/${sessionId}/events?beta=true`)).data ?? []) as MaEvent[];
+}
+
+/**
+ * Read the session's server-computed token usage (the canonical per-session cost, cache breakdown
+ * included). The session object carries a `.usage` total; readUsage normalizes it. Returns null when
+ * usage is unavailable so the ledger records "not measured" rather than a zero.
+ */
+export async function getSessionUsage(ma: MaClient, sessionId: string): Promise<SessionUsage | null> {
+  const session = await ma('GET', `/sessions/${sessionId}`);
+  return readUsage(session?.usage);
 }

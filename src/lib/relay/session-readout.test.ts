@@ -2,7 +2,7 @@
 // ABOUT: the agent's closing text (the declined reason) and any mid-session fetch degradation
 
 import { describe, it, expect } from 'vitest';
-import { readSession, renderTrace } from './session-readout';
+import { readSession, renderTrace, readUsage } from './session-readout';
 
 describe('readSession', () => {
   it('returns the last agent.message text as the closing text', () => {
@@ -105,6 +105,65 @@ describe('readSession', () => {
       { type: 'agent.mcp_tool_result', content: [{ type: 'text', text: '{"findings":[],"degraded":"research_unavailable"}' }] },
     ];
     expect(readSession(events).degraded).toBe('summary_only,research_unavailable');
+  });
+});
+
+describe('readUsage', () => {
+  // The real GET /sessions/{id} .usage shape: flat input/output/cache_read, plus cache_creation split by TTL.
+  const realUsage = {
+    cache_creation: { ephemeral_1h_input_tokens: 0, ephemeral_5m_input_tokens: 42685 },
+    cache_read_input_tokens: 230613,
+    input_tokens: 14,
+    output_tokens: 23354,
+  };
+
+  it('normalizes the session .usage object, collapsing the two cache_creation buckets', () => {
+    expect(readUsage(realUsage)).toEqual({
+      input_tokens: 14,
+      output_tokens: 23354,
+      cache_read_input_tokens: 230613,
+      cache_creation_input_tokens: 42685, // 0 (1h) + 42685 (5m)
+    });
+  });
+
+  it('sums both cache_creation TTL buckets when both are non-zero', () => {
+    const u = { ...realUsage, cache_creation: { ephemeral_1h_input_tokens: 100, ephemeral_5m_input_tokens: 900 } };
+    expect(readUsage(u)?.cache_creation_input_tokens).toBe(1000);
+  });
+
+  it('returns null when usage is absent (unfinished/failed session, or an API shape change)', () => {
+    expect(readUsage(undefined)).toBeNull();
+    expect(readUsage(null)).toBeNull();
+    expect(readUsage('not-an-object')).toBeNull();
+  });
+
+  it('returns null for an object with no recognisable token fields (not-measured, not a misleading zero)', () => {
+    expect(readUsage({})).toBeNull();
+    expect(readUsage({ something_else: 1 })).toBeNull();
+  });
+
+  it('treats missing cache_creation as zero and still reads the flat fields', () => {
+    expect(readUsage({ input_tokens: 5, output_tokens: 7, cache_read_input_tokens: 9 })).toEqual({
+      input_tokens: 5,
+      output_tokens: 7,
+      cache_read_input_tokens: 9,
+      cache_creation_input_tokens: 0,
+    });
+  });
+
+  it('also accepts a flat cache_creation_input_tokens (span-style) shape', () => {
+    expect(readUsage({ input_tokens: 1, cache_creation_input_tokens: 50 })).toMatchObject({
+      cache_creation_input_tokens: 50,
+    });
+  });
+
+  it('coerces missing or non-number fields to 0 without throwing', () => {
+    expect(readUsage({ input_tokens: 'oops', output_tokens: null, cache_read_input_tokens: 3 })).toEqual({
+      input_tokens: 0,
+      output_tokens: 0,
+      cache_read_input_tokens: 3,
+      cache_creation_input_tokens: 0,
+    });
   });
 });
 

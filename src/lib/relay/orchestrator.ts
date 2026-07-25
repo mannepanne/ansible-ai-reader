@@ -6,6 +6,7 @@ import {
   createSession,
   getSessionStatus,
   getSessionEvents,
+  getSessionUsage,
   formatStimulus,
   type MaClient,
   type RunResourceIds,
@@ -163,6 +164,11 @@ export async function onAlarm(deps: OrchestratorDeps): Promise<void> {
       }
       const events = await getSessionEvents(deps.ma, current.sessionId);
       const readout = readSession(events);
+      // Orchestration telemetry (not owned memory): the session's server-computed token totals, recorded
+      // on the run ledger for cost/cache visibility. Null (no usage on the session) leaves the columns
+      // NULL — "not measured" — and is logged so that's never confused with a silently broken read.
+      const usage = await getSessionUsage(deps.ma, current.sessionId);
+      if (!usage) deps.log(`no session usage for ${current.readerId} session=${current.sessionId}`);
       const result = await deps.finalize({
         stimulusRef: [current.readerId],
         startedAt: current.startedAt,
@@ -170,7 +176,12 @@ export async function onAlarm(deps: OrchestratorDeps): Promise<void> {
         degraded: readout.degraded,
         sources: readout.sources,
       });
-      await updateRun(deps, current.runId, { state: result.verdict, piece_id: result.piece_id, degraded: readout.degraded ?? null });
+      await updateRun(deps, current.runId, {
+        state: result.verdict,
+        piece_id: result.piece_id,
+        degraded: readout.degraded ?? null,
+        ...(usage ?? {}),
+      });
       deps.log(`finalized ${current.readerId} verdict=${result.verdict} piece=${result.piece_id ?? '—'}`);
       await deps.store.setCurrent(null);
       await startNext(deps);
