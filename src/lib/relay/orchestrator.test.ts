@@ -41,12 +41,21 @@ function makeSupabase(item: unknown = { title: 'T', short_summary: 's', commenta
   return supabase;
 }
 
-function makeMa({ status = 'idle', closing = 'done' } = {}) {
+// The session .usage shape GET /sessions/{id} returns; readUsage collapses cache_creation to 100.
+const DEFAULT_USAGE = {
+  cache_creation: { ephemeral_1h_input_tokens: 0, ephemeral_5m_input_tokens: 100 },
+  cache_read_input_tokens: 500,
+  input_tokens: 10,
+  output_tokens: 200,
+};
+
+// `usage: null` models a session with no usage on it (getSession → readUsage(null) → null).
+function makeMa({ status = 'idle', closing = 'done', usage = DEFAULT_USAGE as unknown } = {}) {
   let sidc = 0;
   return vi.fn(async (method: string, path: string) => {
     if (method === 'POST' && path === '/sessions') return { id: `sess-${++sidc}` };
     if (path.endsWith('/events?beta=true') && method === 'POST') return null;
-    if (method === 'GET' && /\/sessions\/[^/]+$/.test(path)) return { status };
+    if (method === 'GET' && /\/sessions\/[^/]+$/.test(path)) return { status, usage };
     if (method === 'GET' && path.includes('/events')) return { data: [{ type: 'agent.message', content: [{ type: 'text', text: closing }] }] };
     return {};
   });
@@ -101,6 +110,28 @@ describe('orchestrator', () => {
     expect(finalize).toHaveBeenCalledWith(expect.objectContaining({ stimulusRef: ['r1'] }));
     expect(supabase.__runs.find((r: any) => r.reader_id === 'r1')).toMatchObject({ state: 'wrote', piece_id: 'p1' });
     expect(s._cur?.readerId).toBe('r2'); // advanced to the queued run
+  });
+
+  it('captures the session token usage onto the ledger on finalize', async () => {
+    const { deps, supabase } = mkDeps();
+    await enqueue(deps, 'r1');
+    await onAlarm(deps);
+    expect(supabase.__runs.find((r: any) => r.reader_id === 'r1')).toMatchObject({
+      input_tokens: 10,
+      output_tokens: 200,
+      cache_read_input_tokens: 500,
+      cache_creation_input_tokens: 100, // 0 (1h) + 100 (5m)
+    });
+  });
+
+  it('leaves the usage columns unset when the session reports no usage (not measured, not zero)', async () => {
+    const { deps, supabase } = mkDeps({ ma: makeMa({ usage: null }) });
+    await enqueue(deps, 'r1');
+    await onAlarm(deps);
+    const row = supabase.__runs.find((r: any) => r.reader_id === 'r1');
+    expect(row).toMatchObject({ state: 'wrote' }); // still finalizes normally
+    expect(row.input_tokens).toBeUndefined();
+    expect(row.cache_read_input_tokens).toBeUndefined();
   });
 
   it('alarm while running reschedules and bumps attempt (no finalize)', async () => {

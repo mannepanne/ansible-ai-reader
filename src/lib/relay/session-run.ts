@@ -1,7 +1,7 @@
 // ABOUT: Relay session-run core — create a Managed-Agent session on a stimulus and poll to completion
 // ABOUT: The testable session core; the live orchestrator DO drives it via src/lib/relay/orchestrator.ts
 
-import type { MaEvent } from './session-readout';
+import { readUsage, type MaEvent, type SessionUsage } from './session-readout';
 
 // A Managed-Agents API client: (method, path, body?) → parsed JSON (or null for 202). Throws on non-ok.
 export type MaClient = (method: string, path: string, body?: unknown) => Promise<any>;
@@ -74,9 +74,20 @@ export async function createSession(ma: MaClient, ids: RunResourceIds, stimulus:
   return sid;
 }
 
-/** One status poll. */
-export async function getSessionStatus(ma: MaClient, sessionId: string): Promise<string | null> {
-  return ((await ma('GET', `/sessions/${sessionId}`)).status ?? null) as string | null;
+/**
+ * Fetch the session object once and derive both things the poll cares about: its status (the poll's
+ * branch condition) and the server-computed token usage we record on finalize (canonical per-session
+ * cost, cache breakdown included). Reading both from a single GET is deliberate — it means capturing
+ * usage adds no network call and, critically, no failure surface of its own: the usage read shares the
+ * status read's error handling, so a telemetry hiccup can never delay or drop a piece. `usage` is null
+ * when the session carries none, so the ledger records "not measured" rather than a misleading zero.
+ */
+export async function getSession(
+  ma: MaClient,
+  sessionId: string,
+): Promise<{ status: string | null; usage: SessionUsage | null }> {
+  const session = await ma('GET', `/sessions/${sessionId}`);
+  return { status: (session?.status ?? null) as string | null, usage: readUsage(session?.usage) };
 }
 
 /** Read the transcript. */

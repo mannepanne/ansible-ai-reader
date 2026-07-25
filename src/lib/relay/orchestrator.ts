@@ -4,7 +4,7 @@
 
 import {
   createSession,
-  getSessionStatus,
+  getSession,
   getSessionEvents,
   formatStimulus,
   type MaClient,
@@ -147,7 +147,10 @@ export async function onAlarm(deps: OrchestratorDeps): Promise<void> {
   };
 
   try {
-    const status = await getSessionStatus(deps.ma, current.sessionId);
+    // One session fetch serves the poll's status branch AND the finalize telemetry — capturing usage
+    // here adds no extra call and no failure surface it wouldn't otherwise have (see getSession).
+    const session = await getSession(deps.ma, current.sessionId);
+    const status = session.status;
     if (status === 'idle') {
       // Idempotency: if this run was already finalized (an alarm that finished then the DO evicted before
       // clearing `current`), don't re-finalize — the ledger already reflects the verdict.
@@ -163,6 +166,12 @@ export async function onAlarm(deps: OrchestratorDeps): Promise<void> {
       }
       const events = await getSessionEvents(deps.ma, current.sessionId);
       const readout = readSession(events);
+      // Orchestration telemetry (not owned memory): the session's server-computed token totals, recorded
+      // on the run ledger for cost/cache visibility. Read from the same session fetch as the status above,
+      // so it never adds a failure that could delay a piece. Null (no usage on the session) leaves the
+      // columns NULL — "not measured" — and is logged so that's never confused with a silently broken read.
+      const usage = session.usage;
+      if (!usage) deps.log(`no session usage for ${current.readerId} session=${current.sessionId}`);
       const result = await deps.finalize({
         stimulusRef: [current.readerId],
         startedAt: current.startedAt,
@@ -170,7 +179,12 @@ export async function onAlarm(deps: OrchestratorDeps): Promise<void> {
         degraded: readout.degraded,
         sources: readout.sources,
       });
-      await updateRun(deps, current.runId, { state: result.verdict, piece_id: result.piece_id, degraded: readout.degraded ?? null });
+      await updateRun(deps, current.runId, {
+        state: result.verdict,
+        piece_id: result.piece_id,
+        degraded: readout.degraded ?? null,
+        ...(usage ?? {}),
+      });
       deps.log(`finalized ${current.readerId} verdict=${result.verdict} piece=${result.piece_id ?? '—'}`);
       await deps.store.setCurrent(null);
       await startNext(deps);
