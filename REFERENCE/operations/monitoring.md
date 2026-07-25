@@ -462,6 +462,29 @@ WHERE created_at > NOW() - INTERVAL '30 days';
 - Cost per summary: ~$0.002-$0.003
 - 1000 summaries: ~$2-$3
 
+### Relay (Anthropic Managed-Agent sessions)
+
+Each finalized Relay session records its server-computed token totals on the run ledger
+(`agent_session_runs`, added 2026-07-25). `cache_read_input_tokens` shows how much of each session's
+context was served warm from the prompt cache — typically the large majority, since the persona prefix
+and growing transcript are re-read on every model turn within a session.
+
+```sql
+SELECT
+  COUNT(*)                          AS sessions,          -- rows with measured usage
+  SUM(input_tokens)                 AS uncached_input,
+  SUM(cache_read_input_tokens)      AS cache_read,        -- context served warm
+  SUM(cache_creation_input_tokens)  AS cache_write,
+  SUM(output_tokens)                AS output
+FROM agent_session_runs
+WHERE created_at > NOW() - INTERVAL '30 days'
+  AND input_tokens IS NOT NULL;                           -- exclude "not measured" rows
+```
+
+**Caveat — this is a floor, not the full spend.** Usage is captured only on the idle-finalize path;
+failure paths (terminated / poll-cap / stale-release) still consume tokens but leave the columns NULL,
+which the `IS NOT NULL` filter excludes. Read the totals as a lower bound on actual cost.
+
 **Cost optimization:**
 - Use shorter prompts (fewer tokens)
 - Don't regenerate unnecessarily

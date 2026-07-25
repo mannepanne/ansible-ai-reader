@@ -213,6 +213,9 @@ export function readUsage(usage: unknown): SessionUsage | null {
     typeof cc.ephemeral_1h_input_tokens === 'number';
   if (!hasAny) return null;
 
+  // NULL-vs-zero is decided per-object, not per-field: once usage is present, an individual missing or
+  // non-number field coerces to 0 (a deliberate partial-data choice — a row with three good fields beats
+  // discarding all four). The "not measured" NULL applies to the whole row, above.
   return {
     input_tokens: num(u.input_tokens),
     output_tokens: num(u.output_tokens),

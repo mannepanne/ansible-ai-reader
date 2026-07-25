@@ -49,7 +49,7 @@ const DEFAULT_USAGE = {
   output_tokens: 200,
 };
 
-// `usage: null` models a session with no usage on it (getSessionUsage → readUsage(null) → null).
+// `usage: null` models a session with no usage on it (getSession → readUsage(null) → null).
 function makeMa({ status = 'idle', closing = 'done', usage = DEFAULT_USAGE as unknown } = {}) {
   let sidc = 0;
   return vi.fn(async (method: string, path: string) => {

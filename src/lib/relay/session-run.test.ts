@@ -113,5 +113,5 @@ describe('formatStimulus', () => {
   });
 });
 
-// The session create/poll/read steps (createSession/getSessionStatus/getSessionEvents) are exercised
+// The session create/poll/read steps (createSession/getSession/getSessionEvents) are exercised
 // through the orchestrator DO's tests; this file covers the pure formatStimulus assembler.

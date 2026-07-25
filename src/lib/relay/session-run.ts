@@ -74,22 +74,23 @@ export async function createSession(ma: MaClient, ids: RunResourceIds, stimulus:
   return sid;
 }
 
-/** One status poll. */
-export async function getSessionStatus(ma: MaClient, sessionId: string): Promise<string | null> {
-  return ((await ma('GET', `/sessions/${sessionId}`)).status ?? null) as string | null;
+/**
+ * Fetch the session object once and derive both things the poll cares about: its status (the poll's
+ * branch condition) and the server-computed token usage we record on finalize (canonical per-session
+ * cost, cache breakdown included). Reading both from a single GET is deliberate — it means capturing
+ * usage adds no network call and, critically, no failure surface of its own: the usage read shares the
+ * status read's error handling, so a telemetry hiccup can never delay or drop a piece. `usage` is null
+ * when the session carries none, so the ledger records "not measured" rather than a misleading zero.
+ */
+export async function getSession(
+  ma: MaClient,
+  sessionId: string,
+): Promise<{ status: string | null; usage: SessionUsage | null }> {
+  const session = await ma('GET', `/sessions/${sessionId}`);
+  return { status: (session?.status ?? null) as string | null, usage: readUsage(session?.usage) };
 }
 
 /** Read the transcript. */
 export async function getSessionEvents(ma: MaClient, sessionId: string): Promise<MaEvent[]> {
   return ((await ma('GET', `/sessions/${sessionId}/events?beta=true`)).data ?? []) as MaEvent[];
-}
-
-/**
- * Read the session's server-computed token usage (the canonical per-session cost, cache breakdown
- * included). The session object carries a `.usage` total; readUsage normalizes it. Returns null when
- * usage is unavailable so the ledger records "not measured" rather than a zero.
- */
-export async function getSessionUsage(ma: MaClient, sessionId: string): Promise<SessionUsage | null> {
-  const session = await ma('GET', `/sessions/${sessionId}`);
-  return readUsage(session?.usage);
 }
