@@ -21,7 +21,12 @@ export interface SelectBatchInput {
   previous: { id: string; items: PreviousBatchItem[] } | null;
   /** Eligible items: unread, not deleted, has a summary. Order does not matter. */
   candidates: BatchCandidate[];
-  /** Items that were in any batch in the last 14 days (the 14-day exclusion) */
+  /**
+   * Items that were in any batch in the last 14 days. Defence in depth: today an item only leaves a
+   * batch by being archived, and archived items are already outside `candidates`, so this set rarely
+   * excludes anything. It exists so a later slice that removes items for other reasons cannot bounce
+   * them straight back into rotation.
+   */
   excludedIds: Set<string>;
   now: Date;
 }

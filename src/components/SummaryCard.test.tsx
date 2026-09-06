@@ -20,6 +20,11 @@ describe('SummaryCard', () => {
     onGenerateCommentariat: vi.fn(),
   };
 
+  it('exposes the item id as a DOM anchor so deep links can scroll to the card', () => {
+    const { container } = render(<SummaryCard {...defaultProps} />);
+    expect(container.querySelector('#item-1')).not.toBeNull();
+  });
+
   it('renders article title', () => {
     render(<SummaryCard {...defaultProps} />);
 

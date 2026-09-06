@@ -37,5 +37,5 @@ RELAY_OWNER_USER_ID=your-relay-owner-user-uuid-here
 # invalidates links in emails already sent (they show "this link has expired").
 # Generate one with: openssl rand -base64 32
 FIKA_ACTION_SECRET=replace-with-a-long-random-string
-# Public site URL used for links in emails (defaults to https://ansible.hultberg.org when unset)
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
+# Site URL used for links in the Fika email (server-side only; defaults to https://ansible.hultberg.org when unset)
+SITE_URL=http://localhost:3000

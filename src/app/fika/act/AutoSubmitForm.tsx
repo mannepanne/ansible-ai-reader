@@ -1,5 +1,5 @@
 // ABOUT: Client form that posts a Fika action token as soon as it mounts
-// ABOUT: The GET landing page is what link prefetchers see; only this POST performs the action
+// ABOUT: The GET landing page is what link prefetchers see; only this POST performs the action, once per token per session
 
 'use client';
 
@@ -9,12 +9,22 @@ export default function AutoSubmitForm({ token }: { token: string }) {
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
+    // Submit automatically once per token per browser session. Coming back to this page (the
+    // browser's Back button after "Read in full") must not silently act again or bounce the user
+    // straight out; it shows the button instead.
+    const key = `fika-act:${token}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, '1');
+    } catch {
+      // Storage unavailable: fall through and submit once
+    }
     try {
       formRef.current?.requestSubmit();
     } catch {
       // Leave the button as the fallback
     }
-  }, []);
+  }, [token]);
 
   return (
     <form ref={formRef} method="post" action="/api/fika/act" style={{ margin: 0 }}>

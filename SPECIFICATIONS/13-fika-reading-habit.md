@@ -136,7 +136,7 @@ Every signal written from the email carries `source = 'fika'` (section 7). That 
 
 Email clients and corporate link scanners prefetch links. A plain GET that archives an item would be triggered by Gmail. So:
 
-- Each action link is `GET /fika/act?t=<token>`. The GET renders a minimal page that immediately submits `POST /api/fika/act` via a form (a bundled client script auto-submits, with a visible button as the no-JS fallback; no inline script, so spec 12's CSP is unaffected). Prefetchers only ever see the GET.
+- Each action link is `GET /fika/act?t=<token>`. The GET renders a minimal page that immediately submits `POST /api/fika/act` via a form (a bundled client script auto-submits once per token per browser session, with a visible button as the no-JS fallback and for the Back-button case; no inline script, so spec 12's CSP is unaffected). Ordinary prefetchers and Gmail's link proxy only ever see the GET. A JavaScript-executing mail scanner would submit the form; accepted for a single owner on a personal mailbox.
 - For 📖 the POST response is a redirect to the source URL, not a confirmation page. For the other three the POST response is a one-line confirmation: item title, what happened, link to the summaries page.
 - The token is an HMAC-signed payload `{ user_id, item_id, batch_id, action, exp }` signed with a new secret `FIKA_ACTION_SECRET`. Expiry 7 days, which deliberately outlives the batch so an old email still works. Signature verified with a constant-time compare. Web Crypto in workerd.
 - The endpoint uses the service-role client after verifying the token and re-checks that the item belongs to the user in the token. No session cookie is involved, which makes this the fourth client type after the three in [REFERENCE/architecture/authentication.md](../REFERENCE/architecture/authentication.md); document it there.
@@ -170,9 +170,9 @@ The cron worker fires hourly and calls `/api/cron/auto-sync`. Add `/api/cron/fik
 Each hour, for each user with `fika_hour` set:
 
 1. Compute the user's local hour and local date.
-2. Send if local hour is at or after `fika_hour`, within a six-hour window after it, and there is no batch for today's local date with `sent_at` set. The window means a missed tick, an overrunning sync, or a DST spring-forward still gets a Fika that day, but a long-dead cron does not fire a morning email at 23:00 on recovery.
+2. Send if local hour is at or after `fika_hour`, within a six-hour window after it, and there is no batch for today's local date with `sent_at` set. The window means a missed tick, an overrunning sync, or a DST spring-forward still gets a Fika that day, but a long-dead cron does not fire a morning email at 23:00 on recovery. The window never crosses midnight, so `fika_hour = 23` gets a single tick and no retry.
 3. Build the batch if none exists for today (upsert on `user_id, batch_date`), render, send.
-4. `sent_at` is set only on a Resend 2xx. On failure, `send_attempts` increments and the next tick retries within the window, up to three attempts. A Resend timeout with an unknown outcome counts as an attempt and is retried; the small chance of a duplicate email is accepted over the certainty of a missing one. Exhausted attempts are logged with the Resend error class (429, 4xx, 5xx) and surfaced as a count in the admin dashboard.
+4. `send_attempts` increments before the Resend call and `sent_at` is set only on a 2xx, so a send whose bookkeeping fails afterwards can never repeat past the cap. On failure the next tick retries within the window, up to three attempts. A Resend timeout with an unknown outcome counts as an attempt and is retried; the small chance of a duplicate email is accepted over the certainty of a missing one. Exhausted attempts are logged with the Resend error class (429, 4xx, 5xx) and surfaced as a count in the admin dashboard.
 
 Concurrency with a running sync is acceptable: an item archived by the mirror in the same minute is dropped at the next selection.
 
@@ -215,7 +215,7 @@ ALTER TABLE users
   ADD COLUMN drift_days integer NOT NULL DEFAULT 0 CHECK (drift_days >= 0);
 ```
 
-A child table rather than `uuid[]`: carry-forward, per-item state, and the 14-day exclusion become joins, and slices 2 to 4 want per-item state anyway. `fika_batches` follows the `reader_items` RLS pattern (owner read, service-role write) and is added to the admin delete-user-data route's explicit table list.
+A child table rather than `uuid[]`: carry-forward, per-item state, and the 14-day exclusion become joins, and slices 2 to 4 want per-item state anyway. `fika_batches` follows the `reader_items` RLS pattern (owner read, service-role write). Account deletion covers it through `ON DELETE CASCADE` from `users`; the admin delete-user-data route only clears demo-analytics tables by email and was never the right place for it.
 
 ### 8. The shared archive helper
 
@@ -223,7 +223,7 @@ Today the user-facing archive logic is inlined in the session-authenticated rout
 
 - Extract `archiveItemForUser(db, { userId, itemId, reason })` into `src/lib/archive.ts`. It archives in Reader, ports the 404-to-`reader_deleted` case, and sets `archived`, `archived_at`, and `archive_reason` together. The codebase queries both `archived` and `archived_at` in different places, so the helper always sets both.
 - Migrate the existing route onto it. Its existing tests change accordingly; reviewers should expect that churn.
-- `sync-operations.ts` is not touched: its archive step is the Reader-to-Ansible mirror, not a writer. The mirror sets `archive_reason = 'user'` for archives it discovers, since a Reader-side archive is a user action.
+- `sync-operations.ts` does not use the helper: its archive step is the Reader-to-Ansible mirror, which records archives Reader already made rather than making them. It gains one field, `archive_reason = 'user'`, since a Reader-side archive is a user action.
 
 ### 9. Key files (1a)
 
@@ -248,7 +248,6 @@ Modified
   src/lib/sync-operations.ts          mirror writes archive_reason = 'user'
   src/app/settings/*                  new fields
   src/components/Header.tsx           weekly dots
-  src/app/api/admin/delete-user-data/route.ts   fika tables
 ```
 
 ### 10. Acceptance criteria (1a)
@@ -267,7 +266,7 @@ Modified
 - [ ] All rendered fields are escaped. Snapshot tests cover one-item and two-item batches, with and without prose, with and without `word_count`.
 - [ ] Manual: email renders in Gmail web, Gmail Android, and Apple Mail, light and dark. This is unverifiable in CI and is a manual step on every template change.
 - [ ] Tests first, coverage targets hold, `npx tsc --noEmit` clean.
-- [ ] REFERENCE docs: new `features/fika.md`, `authentication.md` fourth client type, `automated-sync.md` cron additions, `database-schema.md`, `interest-signals.md` source column, `patterns/` archive helper.
+- [ ] REFERENCE docs: new `features/fika.md`, `authentication.md` fourth client type, `automated-sync.md` cron additions, `database-schema.md`, `interest-signals.md` source column, the archive helper in `reader-sync.md`.
 
 ### 11. Testing strategy (1a)
 

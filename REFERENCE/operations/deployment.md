@@ -159,7 +159,7 @@ npx wrangler secret put READER_API_TOKEN --config wrangler-consumer.toml
 npx wrangler secret put PERPLEXITY_API_KEY --config wrangler-consumer.toml
 ```
 
-**For main app (6 secrets):**
+**For main app (7 secrets):**
 
 ```bash
 # Supabase configuration
@@ -171,6 +171,9 @@ npx wrangler secret put SUPABASE_SECRET_KEY
 npx wrangler secret put RESEND_API_KEY
 npx wrangler secret put READER_API_TOKEN
 npx wrangler secret put CRON_SECRET
+
+# Fika: signs the daily email's action links (any long random string, e.g. `openssl rand -base64 32`)
+npx wrangler secret put FIKA_ACTION_SECRET
 ```
 
 When prompted, paste the value from your `.dev.vars` file.

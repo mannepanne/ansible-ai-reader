@@ -19,7 +19,7 @@ Together: instant access to distilled knowledge from your reading list.
 - **UI**: ReactMarkdown for formatted summaries
 - **AI**: Perplexity API (sonar-pro model)
 - **Integrations**: Readwise Reader API, Resend (magic link emails)
-- **Testing**: Vitest, React Testing Library (360 tests, 95%+ coverage)
+- **Testing**: Vitest, React Testing Library (run `npm test` for the live count; 95%+ coverage target)
 - **CI/CD**: GitHub Actions
 
 ## Overview
@@ -125,6 +125,7 @@ graph TB
 - **Real-time Sync**: Fetch unread items from Readwise Reader
 - **Tag Regeneration**: Bulk reprocess items missing AI-generated tags
 - **Archive Sync**: Two-way sync with Readwise Reader
+- **Fika**: A daily email with two items to read, action buttons that work from the inbox, and weekly reading-day dots
 
 See [`REFERENCE/architecture/overview.md`](./REFERENCE/architecture/overview.md) for detailed documentation.
 

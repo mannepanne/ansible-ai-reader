@@ -55,14 +55,19 @@ export function savedAgoLabel(days: number): string {
   return `saved ${days} days ago`;
 }
 
-function metaLine(item: FikaEmailItem): string[] {
+/** Unescaped meta parts; the HTML path escapes, the text path uses them as they are */
+function metaParts(item: FikaEmailItem): string[] {
   const parts: string[] = [];
-  if (item.author) parts.push(escapeHtml(item.author));
-  if (item.source) parts.push(escapeHtml(item.source));
+  if (item.author) parts.push(item.author);
+  if (item.source) parts.push(item.source);
   const minutes = readingMinutes(item.wordCount);
   if (minutes !== null) parts.push(`${minutes} min read`);
   parts.push(savedAgoLabel(item.savedDaysAgo));
   return parts;
+}
+
+export function headingFor(itemCount: number): string {
+  return itemCount === 1 ? 'Your item to go.' : 'Your two items to go.';
 }
 
 function button(href: string, label: string): string {
@@ -70,7 +75,7 @@ function button(href: string, label: string): string {
 }
 
 function renderItemHtml(item: FikaEmailItem): string {
-  const meta = metaLine(item).join(' &middot; ');
+  const meta = metaParts(item).map(escapeHtml).join(' &middot; ');
   const body = item.proseSummary
     ? renderProseHtml(item.proseSummary)
     : renderSummaryHtml(item.summaryMarkdown ?? '');
@@ -107,7 +112,7 @@ function renderDots(days: boolean[]): string {
 }
 
 function renderItemText(item: FikaEmailItem): string {
-  const meta = metaLine(item).map((m) => m.replace(/&amp;/g, '&')).join(' · ');
+  const meta = metaParts(item).join(' · ');
   const body = item.proseSummary ? item.proseSummary.trim() : renderSummaryText(item.summaryMarkdown ?? '');
   const lines = [
     item.title,
@@ -143,7 +148,7 @@ export function renderFikaEmail(input: FikaEmailInput): RenderedEmail {
       </tr>
     </table>
   </td></tr>
-  <tr><td style="padding:0 4px 18px;font-size:22px;line-height:1.3;font-weight:700;color:#212529;">Your two items to go.</td></tr>
+  <tr><td style="padding:0 4px 18px;font-size:22px;line-height:1.3;font-weight:700;color:#212529;">${headingFor(input.items.length)}</td></tr>
 ${input.items.map(renderItemHtml).join('')}
   <tr><td align="center" style="padding:10px 4px 0;font-size:13px;line-height:1.7;color:#6c757d;">
     ${renderDots(input.week.days)}&nbsp; ${weekLine}<br>
@@ -158,7 +163,7 @@ ${input.items.map(renderItemHtml).join('')}
 
   const text = [
     `Ansible Fika — ${input.dateLabel}`,
-    'Your two items to go.',
+    headingFor(input.items.length),
     '',
     ...input.items.map((item, i) => `${i + 1}. ${renderItemText(item)}\n`),
     `${input.week.days.map((d) => (d ? '●' : '○')).join('')} ${weekLine}`,

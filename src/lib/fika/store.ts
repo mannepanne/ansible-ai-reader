@@ -106,17 +106,33 @@ export async function getMostRecentBatch(
   return { id: data.id, items };
 }
 
-/** Eligible items: unread, not deleted in Reader, and summarised */
+/**
+ * Slot 1 wants the oldest eligible item and slot 2 the newest, so only the two ends of the
+ * backlog matter. The exclusion set is at most 2 items x 14 days, so CANDIDATE_LIMIT from each
+ * end provably contains a non-excluded candidate for both slots whenever one exists.
+ */
+export const CANDIDATE_LIMIT = 30;
+
+/** Eligible items: unread, not deleted in Reader, and summarised. Bounded: oldest and newest ends only. */
 export async function listCandidates(db: SupabaseClient, userId: string): Promise<BatchCandidate[]> {
-  const { data, error } = await db
-    .from('reader_items')
-    .select('id, created_at')
-    .eq('user_id', userId)
-    .is('archived_at', null)
-    .eq('reader_deleted', false)
-    .not('short_summary', 'is', null);
-  if (error) fail('listCandidates', error);
-  return (data ?? []).map((row) => ({ id: row.id, createdAt: row.created_at }));
+  const eligible = (ascending: boolean) =>
+    db
+      .from('reader_items')
+      .select('id, created_at')
+      .eq('user_id', userId)
+      .is('archived_at', null)
+      .eq('reader_deleted', false)
+      .not('short_summary', 'is', null)
+      .order('created_at', { ascending })
+      .limit(CANDIDATE_LIMIT);
+  const [oldest, newest] = await Promise.all([eligible(true), eligible(false)]);
+  if (oldest.error) fail('listCandidates oldest', oldest.error);
+  if (newest.error) fail('listCandidates newest', newest.error);
+  const byId = new Map<string, BatchCandidate>();
+  for (const row of [...(oldest.data ?? []), ...(newest.data ?? [])]) {
+    byId.set(row.id, { id: row.id, createdAt: row.created_at });
+  }
+  return [...byId.values()];
 }
 
 /** Item ids that appeared in any batch on or after the given local date */
@@ -134,6 +150,8 @@ export async function listRecentlyBatchedIds(db: SupabaseClient, userId: string,
   return ids;
 }
 
+/** Creates the batch row, then its items. If the second write fails, the batch is left empty and
+ *  `runFikaForUser` re-selects into it on the next tick rather than reporting a false "empty". */
 export async function createBatch(
   db: SupabaseClient,
   userId: string,
@@ -146,11 +164,15 @@ export async function createBatch(
     .select('id')
     .single();
   if (error || !data) fail('createBatch', error);
-  const { error: itemsError } = await db.from('fika_batch_items').insert(
-    items.map((item) => ({ batch_id: data.id, item_id: item.itemId, slot: item.slot, carried_from: item.carriedFrom }))
-  );
-  if (itemsError) fail('createBatch items', itemsError);
+  await addBatchItems(db, data.id, items);
   return data.id;
+}
+
+export async function addBatchItems(db: SupabaseClient, batchId: string, items: SelectedItem[]): Promise<void> {
+  const { error } = await db.from('fika_batch_items').insert(
+    items.map((item) => ({ batch_id: batchId, item_id: item.itemId, slot: item.slot, carried_from: item.carriedFrom }))
+  );
+  if (error) fail('addBatchItems', error);
 }
 
 /** Loads the items for the email, in the order of the given ids */

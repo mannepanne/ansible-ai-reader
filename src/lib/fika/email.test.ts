@@ -117,6 +117,21 @@ describe('renderFikaEmail', () => {
     expect(text).not.toContain('<');
   });
 
+  it('says "your item" in the body for a one-item batch while the subject stays fixed', () => {
+    const one = renderFikaEmail({ ...base, items: [item()] });
+    expect(one.subject).toBe(FIKA_SUBJECT);
+    expect(one.html).toContain('>Your item to go.<');
+    expect(one.text).toContain('Your item to go.');
+    const two = renderFikaEmail({ ...base, items: [item(), item({ id: 'item-2' })] });
+    expect(two.html).toContain('>Your two items to go.<');
+  });
+
+  it('keeps the plain-text meta line free of HTML entities', () => {
+    const { text, html } = renderFikaEmail({ ...base, items: [item({ author: "Conor O'Brien", source: 'Ars & Co' })] });
+    expect(text).toContain("Conor O'Brien · Ars & Co · 14 min read · saved 47 days ago");
+    expect(html).toContain('Conor O&#39;Brien &middot; Ars &amp; Co');
+  });
+
   it('handles an item with no summary at all', () => {
     const { html } = renderFikaEmail({ ...base, items: [item({ summaryMarkdown: null })] });
     expect(html).toContain('Why Stockholm');

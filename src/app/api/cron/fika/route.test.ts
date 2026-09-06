@@ -7,7 +7,7 @@ import { NextRequest } from 'next/server';
 import { listFikaUsers } from '@/lib/fika/store';
 import { runFikaForUser } from '@/lib/fika/run';
 
-vi.mock('@supabase/supabase-js', () => ({ createClient: vi.fn(() => ({ tag: 'db' })) }));
+vi.mock('@/utils/supabase/server', () => ({ createServiceRoleClient: vi.fn(() => ({ tag: 'db' })) }));
 vi.mock('@/lib/fika/store');
 vi.mock('@/lib/fika/run');
 
@@ -33,7 +33,7 @@ describe('GET /api/cron/fika', () => {
     process.env.RESEND_API_KEY = 'rk';
     process.env.RESEND_FROM_EMAIL = 'fika@x';
     process.env.FIKA_ACTION_SECRET = 'as';
-    process.env.NEXT_PUBLIC_SITE_URL = 'https://app.test';
+    process.env.SITE_URL = 'https://app.test';
     vi.mocked(listFikaUsers).mockResolvedValue(users);
   });
 
@@ -44,6 +44,14 @@ describe('GET /api/cron/fika', () => {
   it('rejects a missing or wrong secret', async () => {
     expect((await GET(request())).status).toBe(401);
     expect((await GET(request('Bearer wrong'))).status).toBe(401);
+    expect(listFikaUsers).not.toHaveBeenCalled();
+  });
+
+  it('fails closed with 500 when CRON_SECRET is not configured, even for "Bearer undefined"', async () => {
+    Reflect.deleteProperty(process.env, 'CRON_SECRET');
+    const res = await GET(request('Bearer undefined'));
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: 'Cron not configured' });
     expect(listFikaUsers).not.toHaveBeenCalled();
   });
 
@@ -78,7 +86,7 @@ describe('GET /api/cron/fika', () => {
   });
 
   it('falls back to the production site url', async () => {
-    Reflect.deleteProperty(process.env, 'NEXT_PUBLIC_SITE_URL');
+    Reflect.deleteProperty(process.env, 'SITE_URL');
     vi.mocked(listFikaUsers).mockResolvedValue([users[0]]);
     vi.mocked(runFikaForUser).mockResolvedValue({ status: 'skipped', reason: 'fika_off' });
     await GET(request('Bearer cron'));

@@ -93,8 +93,8 @@ openssl rand -base64 32
 npx wrangler secret put FIKA_ACTION_SECRET
 ```
 
-#### NEXT_PUBLIC_SITE_URL
-Base URL for links in the Fika email and its confirmation pages. Optional; defaults to `https://ansible.hultberg.org`. Set to `http://localhost:3000` in `.dev.vars` for local runs.
+#### SITE_URL
+Base URL for links in the Fika email and its confirmation pages. Optional plain variable (not a secret, and deliberately without the `NEXT_PUBLIC_` prefix: it is read only in route handlers at runtime, and a `NEXT_PUBLIC_` name would be inlined at build time instead). Defaults to `https://ansible.hultberg.org`. Set to `http://localhost:3000` in `.dev.vars` for local runs; in production it is only needed for a non-production deployment, as a `[vars]` entry in `wrangler.toml`.
 
 ### Contact Form Variables
 
@@ -470,7 +470,7 @@ Before deploying to production:
 10. `CONTACT_EMAIL`
 11. `RELAY_OWNER_USER_ID` (Relay 2.3b engagement-gated archive-hook owner)
 12. `FIKA_ACTION_SECRET` (Fika: signs the daily email's action links)
-13. `NEXT_PUBLIC_SITE_URL` (optional; defaults to the production URL)
+13. `SITE_URL` (optional plain var, not a secret; defaults to the production URL)
 
 ### Consumer Worker (`wrangler-consumer.toml`)
 1. `NEXT_PUBLIC_SUPABASE_URL`

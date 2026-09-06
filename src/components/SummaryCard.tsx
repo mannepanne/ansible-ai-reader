@@ -254,6 +254,7 @@ export default function SummaryCard({
 
   return (
     <div
+      id={id}
       style={{
         background: '#fff',
         borderRadius: '6px',

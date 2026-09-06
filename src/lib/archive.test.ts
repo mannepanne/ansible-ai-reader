@@ -20,14 +20,15 @@ import { ReaderAPIError } from '@/lib/reader-api';
 
 function makeDb(row: Record<string, unknown> | null, updateError: { message: string } | null = null) {
   const single = vi.fn().mockResolvedValue(row ? { data: row, error: null } : { data: null, error: { message: 'no rows' } });
-  const update = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: updateError }) });
+  const updateEqUser = vi.fn().mockResolvedValue({ error: updateError });
+  const update = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: updateEqUser }) });
   const db = {
     from: vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single }) }) }),
       update,
     }),
   };
-  return { db: db as never, update };
+  return { db: db as never, update, updateEqUser };
 }
 
 const base = { userId: 'user-1', itemId: 'item-1', reason: 'user' as const, readerApiToken: 'tok', now: new Date('2026-09-06T07:00:00Z') };
@@ -38,7 +39,7 @@ describe('archiveItemForUser', () => {
 
   it('archives in Reader, then writes archived, archived_at, archive_reason and reader_deleted', async () => {
     mockArchiveItem.mockResolvedValue(undefined);
-    const { db, update } = makeDb(unarchived);
+    const { db, update, updateEqUser } = makeDb(unarchived);
 
     const result = await archiveItemForUser(db, base);
 
@@ -50,6 +51,7 @@ describe('archiveItemForUser', () => {
       archive_reason: 'user',
       reader_deleted: false,
     });
+    expect(updateEqUser).toHaveBeenCalledWith('user_id', 'user-1');
   });
 
   it('writes the drift reason when asked', async () => {

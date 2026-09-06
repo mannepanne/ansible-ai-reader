@@ -1,7 +1,7 @@
 // ABOUT: Tests for SettingsContent component
 // ABOUT: Validates sync interval + prompt UI, Fika settings, tab navigation (summary add-on, base prompt, commentary), save/reset behaviour, character counter
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SettingsContent from './SettingsContent';
@@ -317,15 +317,45 @@ describe('SettingsContent', () => {
   });
 
   describe('Fika settings', () => {
+    const resolvedOptions = Intl.DateTimeFormat.prototype.resolvedOptions;
+    const withBrowserZone = (zone: string) => {
+      Intl.DateTimeFormat.prototype.resolvedOptions = function () {
+        return { ...resolvedOptions.call(this), timeZone: zone };
+      };
+    };
+    afterEach(() => {
+      Intl.DateTimeFormat.prototype.resolvedOptions = resolvedOptions;
+    });
+
     it('defaults to off, Europe/London and 5 days when the API omits the fields', async () => {
+      withBrowserZone('Europe/London');
       render(<SettingsContent userEmail="test@example.com" />);
       await waitFor(() => expect(screen.getByLabelText('Fika email')).toHaveValue('off'));
       expect(screen.getByLabelText('Timezone')).toHaveValue('Europe/London');
+      expect(screen.queryByText(/Detected from your browser/)).toBeNull();
       expect(screen.getByLabelText('Reading days a week')).toHaveValue('5');
       expect(screen.getByText(/Fika is off/)).toBeInTheDocument();
     });
 
+    it('offers the browser timezone when the stored value is still the default, until the user changes it', async () => {
+      withBrowserZone('Europe/Stockholm');
+      render(<SettingsContent userEmail="test@example.com" />);
+      await waitFor(() => expect(screen.getByLabelText('Timezone')).toHaveValue('Europe/Stockholm'));
+      expect(screen.getByText(/Detected from your browser/)).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText('Timezone'), { target: { value: 'UTC' } });
+      expect(screen.queryByText(/Detected from your browser/)).toBeNull();
+    });
+
+    it('keeps a saved non-default timezone even when the browser differs', async () => {
+      withBrowserZone('America/New_York');
+      (global.fetch as any).mockImplementation(() => defaultFetchResponse({ timezone: 'Europe/Stockholm' }));
+      render(<SettingsContent userEmail="test@example.com" />);
+      await waitFor(() => expect(screen.getByLabelText('Timezone')).toHaveValue('Europe/Stockholm'));
+      expect(screen.queryByText(/Detected from your browser/)).toBeNull();
+    });
+
     it('shows saved Fika settings', async () => {
+      withBrowserZone('Europe/Stockholm');
       (global.fetch as any).mockImplementation(() =>
         defaultFetchResponse({ fika_hour: 7, timezone: 'Europe/Stockholm', weekly_target: 4 })
       );

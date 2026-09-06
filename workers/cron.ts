@@ -7,7 +7,7 @@ interface Env {
 
 const BASE_URL = 'https://ansible.hultberg.org';
 
-/** Each endpoint runs in its own try/catch so one failure never suppresses the others */
+/** Each endpoint runs independently and concurrently; one failure never suppresses the others */
 export const CRON_ENDPOINTS = ['/api/cron/auto-sync', '/api/cron/fika'] as const;
 
 async function trigger(path: string, env: Env): Promise<unknown> {
@@ -33,16 +33,19 @@ export default {
   ): Promise<void> {
     console.log('[Cron Worker] Scheduled event triggered:', event.cron);
 
+    // Concurrent, not serial: the jobs touch different tables and Fika has a hard send window, so a
+    // slow or hanging sync must not delay it. Failures are isolated per endpoint and reported together.
+    const results = await Promise.allSettled(CRON_ENDPOINTS.map((path) => trigger(path, env)));
     const failures: string[] = [];
-    for (const path of CRON_ENDPOINTS) {
-      try {
-        const result = await trigger(path, env);
-        console.log(`[Cron Worker] ${path} completed:`, result);
-      } catch (error) {
-        console.error(`[Cron Worker] ${path} failed:`, error);
-        failures.push(`${path}: ${error instanceof Error ? error.message : String(error)}`);
+    results.forEach((result, i) => {
+      const path = CRON_ENDPOINTS[i];
+      if (result.status === 'fulfilled') {
+        console.log(`[Cron Worker] ${path} completed:`, result.value);
+      } else {
+        console.error(`[Cron Worker] ${path} failed:`, result.reason);
+        failures.push(`${path}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
       }
-    }
+    });
 
     // Re-throw after every endpoint has had its turn, so the cron execution is marked failed
     if (failures.length > 0) {

@@ -16,21 +16,30 @@ GET /api/settings
 
 Response: {
   sync_interval: 2,  // Hours (0 = disabled)
-  summary_prompt: "Custom prompt..." | null
+  summary_prompt: "Custom prompt..." | null,
+  fika_hour: 7 | null,          // Local hour to send the Fika email; null = off
+  timezone: "Europe/London",    // IANA zone
+  weekly_target: 5              // Reading days per week (1-7)
 }
 ```
 
 **Defaults:**
 - `sync_interval`: 0 (disabled)
 - `summary_prompt`: null (use system default)
+- `fika_hour`: null (Fika off)
+- `timezone`: `Europe/London`
+- `weekly_target`: 5
 
 ### PATCH - Update Settings
 ```typescript
 PATCH /api/settings
 
 Body: {
-  sync_interval?: number,        // 0-24
-  summary_prompt?: string | null  // 10-2000 chars, null to reset to default
+  sync_interval?: number,         // 0-24
+  summary_prompt?: string | null, // 10-2000 chars, null to reset to default
+  fika_hour?: number | null,      // 0-23, null to switch Fika off
+  timezone?: string,              // IANA zone, validated
+  weekly_target?: number          // 1-7
 }
 
 Response: { success: true }
@@ -68,6 +77,15 @@ z.string()
 - Prompt injection patterns blocked
 - Length limits enforced
 
+### Fika Settings
+```typescript
+fika_hour: z.number().int().min(0).max(23).nullable().optional()
+timezone: z.string().refine(isValidTimeZone, 'Unknown timezone').optional()  // Intl.DateTimeFormat must accept it
+weekly_target: z.number().int().min(1).max(7).optional()
+```
+
+The database mirrors these bounds with CHECK constraints. See [fika.md](./fika.md#settings).
+
 See: [API Validation Pattern](../patterns/api-validation.md)
 
 ## Service Role Client Pattern
@@ -99,6 +117,7 @@ See: [Service Role Pattern](../patterns/service-role-client.md)
 - ✅ Inline validation error (min 10 chars if non-empty)
 - ✅ Save button with success/error notifications
 - ✅ Info text: custom prompt only affects new summaries, not existing ones
+- ✅ Fika card: send hour select ("Off" or 00:00-23:00), timezone select (prefilled from the browser when the stored value is still the default, saved only on Save), reading days a week (1-7)
 
 ### Full Prompt Tab
 
@@ -110,10 +129,11 @@ The custom prompt is prepended to the user message when set.
 
 ### Form Handling
 ```typescript
-// Save: send both fields together
+// Save: send all fields together (Fika fields via fikaPayload())
 body: JSON.stringify({
   sync_interval: syncInterval,
   summary_prompt: summaryPrompt.length > 0 ? summaryPrompt : null,
+  fika_hour: fikaHour, timezone, weekly_target: weeklyTarget,
 })
 
 // Reset to default

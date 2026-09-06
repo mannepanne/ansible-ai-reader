@@ -8,6 +8,8 @@ export interface SendEmailInput {
   subject: string;
   html: string;
   text: string;
+  /** Where "unsubscribe" leads: the Settings page, where Fika is switched off */
+  unsubscribeUrl?: string;
 }
 
 export type SendEmailResult =
@@ -31,6 +33,8 @@ export async function sendViaResend(input: SendEmailInput): Promise<SendEmailRes
         subject: input.subject,
         html: input.html,
         text: input.text,
+        // A recurring email should say how to stop it in the headers mail providers read
+        ...(input.unsubscribeUrl ? { headers: { 'List-Unsubscribe': `<${input.unsubscribeUrl}>` } } : {}),
       }),
     });
   } catch (error) {

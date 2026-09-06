@@ -5,6 +5,9 @@ import AutoSubmitForm from './AutoSubmitForm';
 
 export const dynamic = 'force-dynamic';
 
+// This is the one URL that carries a token; keep it out of search indexes
+export const metadata = { robots: { index: false, follow: false } };
+
 const wrap: React.CSSProperties = {
   maxWidth: '600px',
   margin: '0 auto',

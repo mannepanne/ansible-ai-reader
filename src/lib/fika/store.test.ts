@@ -11,6 +11,8 @@ import {
   listCandidates,
   listRecentlyBatchedIds,
   createBatch,
+  addBatchItems,
+  CANDIDATE_LIMIT,
   loadEmailItems,
   countUnread,
   listReadingEvents,
@@ -104,12 +106,21 @@ describe('store', () => {
     expect(await getMostRecentBatch(db({ fika_batches: chain({ data: null }) }), 'u1')).toBeNull();
   });
 
-  it('listCandidates applies the eligibility filters', async () => {
-    const items = chain({ data: [{ id: 'i1', created_at: '2026-08-01T00:00:00Z' }] });
-    expect(await listCandidates(db({ reader_items: items }), 'u1')).toEqual([{ id: 'i1', createdAt: '2026-08-01T00:00:00Z' }]);
-    expect(items.calls).toContainEqual(['is', ['archived_at', null]]);
-    expect(items.calls).toContainEqual(['eq', ['reader_deleted', false]]);
-    expect(items.calls).toContainEqual(['not', ['short_summary', 'is', null]]);
+  it('listCandidates reads a bounded window from each end and de-duplicates the overlap', async () => {
+    const oldest = chain({ data: [{ id: 'a', created_at: '2026-06-01T00:00:00Z' }, { id: 'b', created_at: '2026-07-01T00:00:00Z' }] });
+    const newest = chain({ data: [{ id: 'c', created_at: '2026-09-01T00:00:00Z' }, { id: 'b', created_at: '2026-07-01T00:00:00Z' }] });
+    const result = await listCandidates(db({ reader_items: [oldest, newest] }), 'u1');
+    expect(result.map((r) => r.id).sort()).toEqual(['a', 'b', 'c']);
+    expect(oldest.calls).toContainEqual(['is', ['archived_at', null]]);
+    expect(oldest.calls).toContainEqual(['eq', ['reader_deleted', false]]);
+    expect(oldest.calls).toContainEqual(['not', ['short_summary', 'is', null]]);
+    expect(oldest.calls).toContainEqual(['order', ['created_at', { ascending: true }]]);
+    expect(oldest.calls).toContainEqual(['limit', [CANDIDATE_LIMIT]]);
+    expect(newest.calls).toContainEqual(['order', ['created_at', { ascending: false }]]);
+  });
+
+  it('listCandidates surfaces an error from either end', async () => {
+    await expect(listCandidates(db({ reader_items: [chain({}), chain({ error: { message: 'newest broke' } })] }), 'u1')).rejects.toThrow('newest broke');
   });
 
   it('listRecentlyBatchedIds flattens batch items into a set', async () => {
@@ -137,6 +148,12 @@ describe('store', () => {
         ],
       ],
     ]);
+  });
+
+  it('addBatchItems inserts into an existing batch', async () => {
+    const items = chain({});
+    await addBatchItems(db({ fika_batch_items: items }), 'b9', [{ itemId: 'z', slot: 1, carriedFrom: null }]);
+    expect(items.calls[0]).toEqual(['insert', [[{ batch_id: 'b9', item_id: 'z', slot: 1, carried_from: null }]]]);
   });
 
   it('createBatch surfaces errors', async () => {

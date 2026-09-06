@@ -44,9 +44,11 @@ All timezone logic lives here, using `Intl.DateTimeFormat` so DST is ICU's probl
 
 Inline styles, table layout, a 100 percent width container with a 600px max, a two-by-two button grid at every width, and a plain-text alternative. Every model-generated field is escaped, then a small allowlist markdown renderer re-enables bullets, numbered lists, bold, emphasis, and http(s) links. The subject is fixed: `Ansible Fika: Your two items to go`. Titles go in a hidden preheader, never the subject. Render the sample with `npm run fika:preview` and open `fika-preview.html`.
 
-### Action links (`src/lib/fika/action-token.ts`, `/fika/act`, `/api/fika/act`)
+### Action links
 
-Each button is `GET /fika/act?t=<token>`. The GET renders a form that a bundled client script submits to `POST /api/fika/act`; a visible Continue button is the no-JS fallback. Link prefetchers only ever see the GET, which writes nothing.
+Files: `src/lib/fika/action-token.ts`, `src/app/fika/act/`, `src/app/api/fika/act/route.ts`.
+
+Each button is `GET /fika/act?t=<token>`. The GET renders a form that a bundled client script submits to `POST /api/fika/act`, once per token per browser session (so the Back button after "Read in full" shows the Continue button instead of acting again); the button is also the no-JS fallback. Ordinary link prefetchers and Gmail's link proxy only ever see the GET, which writes nothing. A scanner that executes JavaScript (some corporate mail-security products) would submit the form; that is accepted for a single owner on a personal mailbox, since archive is reversible and ratings are harmless.
 
 The token is an HMAC-SHA256 signature over `{ userId, itemId, batchId, action, exp }` with `FIKA_ACTION_SECRET`, base64url encoded, verified with a constant-time compare, valid for 7 days. No session is involved: the token is the credential. See [authentication.md](../architecture/authentication.md#4-signed-action-token-fika-email) for the threat model.
 
@@ -77,7 +79,7 @@ Edited on the Settings page; saved with the rest of the settings through `PATCH 
 
 - `FIKA_ACTION_SECRET` (main app secret): signs action links. Rotating it invalidates links in emails already sent.
 - `RESEND_API_KEY`, `RESEND_FROM_EMAIL`: already present for the contact form; Fika sends as `Ansible <RESEND_FROM_EMAIL>`.
-- `NEXT_PUBLIC_SITE_URL`: base for links in the email; defaults to `https://ansible.hultberg.org`.
+- `SITE_URL` (plain var, optional): base for links in the email and its pages; defaults to `https://ansible.hultberg.org`. Server-side only, so no build-time registration.
 - `CRON_SECRET`: the cron worker calls `/api/cron/fika` with it, in its own try/catch after auto-sync.
 
 ## Measuring the trial
@@ -95,7 +97,8 @@ Reading days (the dots) and the unread count are secondary. Drift stays off duri
 
 ## Troubleshooting
 
-- **No email arrived.** Check `fika_batches` for today's local date: no row means `shouldSend` never returned true (Fika off, before the hour, or the six-hour window passed). A row with `sent_at` null and `send_attempts` 3 means Resend failed three times; the cron log has the Resend status.
+- **No email arrived.** First check the main-worker cron log for `[Cron Fika]`: a 500 there means missing configuration (`FIKA_ACTION_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, or `CRON_SECRET`) and nothing ran. Then check `fika_batches` for today's local date: no row means `shouldSend` never returned true (Fika off, before the hour, or the six-hour window passed). A row with `sent_at` null and `send_attempts` 3 means Resend failed three times; the cron log has the Resend status.
+- **Send hour 23:00 has no retry window.** The window cannot cross midnight, so a 23:00 Fika gets one tick; a Resend failure at that tick means no email that day. Pick an earlier hour if that matters.
 - **Same two items every day.** That is the idempotence rule: nothing changes until one of them is archived.
 - **A link says it expired.** Tokens last 7 days, and rotating `FIKA_ACTION_SECRET` invalidates every existing link.
 - **Dots look wrong.** Reading days are computed in `users.timezone`; check it is the zone the user is actually in.

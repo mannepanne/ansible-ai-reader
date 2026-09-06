@@ -52,9 +52,10 @@ export async function runFikaForUser(db: SupabaseClient, user: FikaUser, deps: R
   if (!decision.send) return { status: 'skipped', reason: decision.reason };
 
   // Reuse an unsent batch from earlier today (a failed send) so the day's Fika never changes.
+  // A batch row with no items (the items insert failed) is re-selected into, not reported as empty.
   let batchId: string;
   let itemIds: string[];
-  if (existing) {
+  if (existing && existing.itemIds.length > 0) {
     batchId = existing.id;
     itemIds = existing.itemIds;
   } else {
@@ -65,7 +66,12 @@ export async function runFikaForUser(db: SupabaseClient, user: FikaUser, deps: R
     ]);
     const selected = selectBatch({ previous, candidates, excludedIds, now });
     if (selected.length === 0) return { status: 'empty' };
-    batchId = await store.createBatch(db, user.id, localDate, selected);
+    if (existing) {
+      batchId = existing.id;
+      await store.addBatchItems(db, batchId, selected);
+    } else {
+      batchId = await store.createBatch(db, user.id, localDate, selected);
+    }
     itemIds = selected.map((s) => s.itemId);
   }
 
@@ -114,6 +120,11 @@ export async function runFikaForUser(db: SupabaseClient, user: FikaUser, deps: R
     sendTimeLabel: `${String(user.fikaHour).padStart(2, '0')}:00`,
   });
 
+  // Count the attempt before sending, so a send that succeeds but whose bookkeeping throws can
+  // never be repeated beyond MAX_SEND_ATTEMPTS.
+  const attempts = (existing?.sendAttempts ?? 0) + 1;
+  await store.recordSendAttempt(db, batchId, attempts);
+
   const send = deps.sendEmail ?? sendViaResend;
   const result = await send({
     apiKey: deps.resendApiKey,
@@ -122,6 +133,7 @@ export async function runFikaForUser(db: SupabaseClient, user: FikaUser, deps: R
     subject: email.subject,
     html: email.html,
     text: email.text,
+    unsubscribeUrl: `${deps.siteUrl}/settings`,
   });
 
   if (result.ok) {
@@ -129,7 +141,5 @@ export async function runFikaForUser(db: SupabaseClient, user: FikaUser, deps: R
     return { status: 'sent', batchId, itemCount: items.length };
   }
 
-  const attempts = (existing?.sendAttempts ?? 0) + 1;
-  await store.recordSendAttempt(db, batchId, attempts);
   return { status: 'send_failed', batchId, attempts, message: result.message };
 }

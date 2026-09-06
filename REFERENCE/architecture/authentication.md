@@ -169,7 +169,7 @@ See: [Service Role Client Pattern](../patterns/service-role-client.md)
 ### 4. Signed Action Token (Fika email)
 The daily Fika email carries buttons that must work from an inbox with no session. The credential is a signed token, not a cookie.
 
-- `GET /fika/act?t=<token>` renders a form; `POST /api/fika/act` verifies and acts. A GET never writes, so link prefetchers are harmless.
+- `GET /fika/act?t=<token>` renders a form that auto-submits once per token per browser session; `POST /api/fika/act` verifies and acts. A GET never writes, so ordinary link prefetchers and Gmail's link proxy are harmless. A mail scanner that executes JavaScript would submit the form; accepted under the same threat model below.
 - Token = base64url(JSON `{ userId, itemId, batchId, action, exp }`) + `.` + base64url(HMAC-SHA256 with `FIKA_ACTION_SECRET`). Signature is checked with a constant-time compare before the payload is parsed; expiry is 7 days.
 - After verification the endpoint uses the service-role client and re-checks that the item belongs to the user in the token. Actions are idempotent.
 

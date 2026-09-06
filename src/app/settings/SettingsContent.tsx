@@ -41,6 +41,16 @@ Author: [Author]
 Content:
 [Article Content]`;
 
+const DEFAULT_TIMEZONE = 'Europe/London';
+
+function detectTimeZone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone ?? null;
+  } catch {
+    return null;
+  }
+}
+
 const TIMEZONES: string[] = (() => {
   try {
     return Intl.supportedValuesOf('timeZone');
@@ -70,7 +80,8 @@ const fieldLabelStyle: CSSProperties = {
 export default function SettingsContent({ userEmail, isAdmin = false }: SettingsContentProps) {
   const [syncInterval, setSyncInterval] = useState<number>(0);
   const [fikaHour, setFikaHour] = useState<number | null>(null);
-  const [timezone, setTimezone] = useState<string>('Europe/London');
+  const [timezone, setTimezone] = useState<string>(DEFAULT_TIMEZONE);
+  const [timezoneDetected, setTimezoneDetected] = useState(false);
   const [weeklyTarget, setWeeklyTarget] = useState<number>(5);
   const [summaryPrompt, setSummaryPrompt] = useState<string>('');
   const [promptError, setPromptError] = useState<string | null>(null);
@@ -99,8 +110,17 @@ export default function SettingsContent({ userEmail, isAdmin = false }: Settings
         setSyncInterval(data.sync_interval);
         setSummaryPrompt(data.summary_prompt ?? '');
         setFikaHour(data.fika_hour ?? null);
-        setTimezone(data.timezone ?? 'Europe/London');
         setWeeklyTarget(data.weekly_target ?? 5);
+        // A stored default is probably untouched: offer the browser's zone instead so a user
+        // outside London does not get silently London-timed Fikas. Saved only when they save.
+        const stored = data.timezone ?? DEFAULT_TIMEZONE;
+        const detected = detectTimeZone();
+        if (stored === DEFAULT_TIMEZONE && detected && detected !== DEFAULT_TIMEZONE) {
+          setTimezone(detected);
+          setTimezoneDetected(true);
+        } else {
+          setTimezone(stored);
+        }
       } catch (error) {
         setMessage({
           type: 'error',
@@ -334,7 +354,10 @@ export default function SettingsContent({ userEmail, isAdmin = false }: Settings
               <select
                 id="timezone"
                 value={timezone}
-                onChange={(e) => setTimezone(e.target.value)}
+                onChange={(e) => {
+                  setTimezone(e.target.value);
+                  setTimezoneDetected(false);
+                }}
                 disabled={loading || saving}
                 style={fieldStyle}
               >
@@ -345,6 +368,11 @@ export default function SettingsContent({ userEmail, isAdmin = false }: Settings
                   </option>
                 ))}
               </select>
+              {timezoneDetected && (
+                <p style={{ fontSize: '0.8em', color: '#6c757d', margin: '6px 0 0' }}>
+                  Detected from your browser. Save to keep it.
+                </p>
+              )}
             </div>
             <div style={{ flex: '0 1 180px' }}>
               <label htmlFor="weekly-target" style={fieldLabelStyle}>

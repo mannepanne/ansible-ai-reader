@@ -37,6 +37,19 @@ describe('cron worker', () => {
     });
   });
 
+  it('starts both endpoints without waiting for the first to finish', async () => {
+    let resolveSync!: (r: Response) => void;
+    vi.mocked(fetch)
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => (resolveSync = resolve)))
+      .mockResolvedValueOnce(ok({ sent: 1 }));
+
+    const run = worker.scheduled(event, env, ctx);
+    await Promise.resolve();
+    expect(fetch).toHaveBeenCalledTimes(2); // fika was requested while auto-sync is still pending
+    resolveSync(ok({ synced: 1 }));
+    await run;
+  });
+
   it('still calls fika when auto-sync fails, then throws with the failure', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(fail(500, 'sync broke')).mockResolvedValueOnce(ok({ sent: 1 }));
 

@@ -37,6 +37,13 @@ describe('sendViaResend', () => {
     });
   });
 
+  it('adds a List-Unsubscribe header when given an unsubscribe url', async () => {
+    vi.mocked(fetch).mockResolvedValue({ ok: true, status: 200, json: async () => ({ id: 'x' }) } as Response);
+    await sendViaResend({ ...input, unsubscribeUrl: 'https://app.test/settings' });
+    const call = vi.mocked(fetch).mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(call.body as string).headers).toEqual({ 'List-Unsubscribe': '<https://app.test/settings>' });
+  });
+
   it('returns the status and Resend message on failure', async () => {
     vi.mocked(fetch).mockResolvedValue({ ok: false, status: 429, json: async () => ({ message: 'Too many' }) } as Response);
     expect(await sendViaResend(input)).toEqual({ ok: false, status: 429, message: 'Resend responded 429: Too many' });

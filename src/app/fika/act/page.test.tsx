@@ -9,6 +9,7 @@ import AutoSubmitForm from './AutoSubmitForm';
 describe('FikaActPage', () => {
   beforeEach(() => {
     HTMLFormElement.prototype.requestSubmit = vi.fn();
+    sessionStorage.clear();
   });
 
   it('renders a POST form carrying the token and submits it on mount', async () => {
@@ -35,6 +36,30 @@ describe('FikaActPage', () => {
     expect(screen.getByText('Missing link')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open Ansible' })).toHaveAttribute('href', '/summaries');
     expect(document.querySelector('form')).toBeNull();
+  });
+
+  it('auto-submits a token only once per session, then shows the button instead', () => {
+    const { unmount } = render(<AutoSubmitForm token="same" />);
+    expect(HTMLFormElement.prototype.requestSubmit).toHaveBeenCalledTimes(1);
+    unmount();
+    render(<AutoSubmitForm token="same" />);
+    expect(HTMLFormElement.prototype.requestSubmit).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument();
+    render(<AutoSubmitForm token="different" />);
+    expect(HTMLFormElement.prototype.requestSubmit).toHaveBeenCalledTimes(2);
+  });
+
+  it('still submits when session storage is unavailable', () => {
+    const original = Storage.prototype.getItem;
+    Storage.prototype.getItem = () => {
+      throw new Error('blocked');
+    };
+    try {
+      render(<AutoSubmitForm token="x" />);
+      expect(HTMLFormElement.prototype.requestSubmit).toHaveBeenCalledTimes(1);
+    } finally {
+      Storage.prototype.getItem = original;
+    }
   });
 
   it('keeps the button as a fallback when requestSubmit throws', () => {

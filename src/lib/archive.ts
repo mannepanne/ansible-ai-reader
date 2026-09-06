@@ -68,7 +68,8 @@ export async function archiveItemForUser(
       archive_reason: reason,
       reader_deleted: readerDeleted,
     })
-    .eq('id', itemId);
+    .eq('id', itemId)
+    .eq('user_id', userId); // ownership was proven above; scoping the write keeps that local to the statement
 
   if (updateError) {
     return {

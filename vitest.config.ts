@@ -22,6 +22,11 @@ export default defineConfig({
         '.next/**',
         '.open-next/**',
         'coverage/**',
+        // Build output, one-off operator scripts, and scratch files are not product code
+        '.vercel/**',
+        '.wrangler/**',
+        'scripts/**',
+        'SCRATCH/**',
       ],
       thresholds: {
         lines: 95,

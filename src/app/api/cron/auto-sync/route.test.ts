@@ -45,6 +45,13 @@ describe('GET /api/cron/auto-sync', () => {
     expect(data).toEqual({ error: 'Unauthorized' });
   });
 
+  it('fails closed when CRON_SECRET is not configured', async () => {
+    Reflect.deleteProperty(process.env, 'CRON_SECRET');
+    const response = await GET(mockRequest('Bearer undefined'));
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: 'Cron not configured' });
+  });
+
   it('requires authorization header', async () => {
     const response = await GET(mockRequest());
     const data = await response.json();

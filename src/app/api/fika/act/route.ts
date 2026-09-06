@@ -7,7 +7,7 @@ import { verifyActionToken, type ActionTokenPayload } from '@/lib/fika/action-to
 import { archiveItemForUser } from '@/lib/archive';
 import { renderFikaPage, type FikaPageInput } from '@/lib/fika/pages';
 
-const SITE_URL = () => process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ansible.hultberg.org';
+const SITE_URL = () => process.env.SITE_URL ?? 'https://ansible.hultberg.org';
 
 function page(status: number, input: Omit<FikaPageInput, 'linkHref' | 'linkLabel'> & Partial<FikaPageInput>) {
   return new NextResponse(
@@ -81,6 +81,10 @@ export async function POST(request: Request) {
 
     switch (payload.action) {
       case 'read': {
+        // Validate first: a click that goes nowhere must not count as a click-through
+        if (!/^https?:\/\//.test(item.url)) {
+          return page(400, { heading: 'This item has no readable link', itemTitle: item.title, tone: 'error' });
+        }
         const { error } = await db.from('item_signals').insert({
           user_id: payload.userId,
           item_id: payload.itemId,
@@ -88,9 +92,6 @@ export async function POST(request: Request) {
           source: 'fika',
         });
         if (error) console.error('[Fika act] Failed to record click_through:', error);
-        if (!/^https?:\/\//.test(item.url)) {
-          return page(400, { heading: 'This item has no readable link', itemTitle: item.title, tone: 'error' });
-        }
         return NextResponse.redirect(item.url, 303);
       }
 

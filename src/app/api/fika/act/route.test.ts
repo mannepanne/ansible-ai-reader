@@ -70,7 +70,7 @@ describe('POST /api/fika/act', () => {
     vi.clearAllMocks();
     process.env.FIKA_ACTION_SECRET = SECRET;
     process.env.READER_API_TOKEN = 'reader-token';
-    process.env.NEXT_PUBLIC_SITE_URL = 'https://app.test';
+    process.env.SITE_URL = 'https://app.test';
   });
 
   afterEach(() => {
@@ -186,10 +186,11 @@ describe('POST /api/fika/act', () => {
     setupDb(ITEM, { insertError: { message: 'x' } });
     expect((await POST(formRequest(await tokenFor({ action: 'read' })))).status).toBe(303);
 
-    setupDb({ ...ITEM, url: 'javascript:alert(1)' });
+    const { insert: insert2 } = setupDb({ ...ITEM, url: 'javascript:alert(1)' });
     const res = await POST(formRequest(await tokenFor({ action: 'read' })));
     expect(res.status).toBe(400);
     expect(await res.text()).toContain('no readable link');
+    expect(insert2).not.toHaveBeenCalled(); // a click that went nowhere is not a signal
   });
 
   it('returns a friendly 500 page on unexpected errors', async () => {

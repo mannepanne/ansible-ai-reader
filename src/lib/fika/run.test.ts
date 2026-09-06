@@ -45,6 +45,7 @@ describe('runFikaForUser', () => {
     ]);
     vi.mocked(store.listRecentlyBatchedIds).mockResolvedValue(new Set());
     vi.mocked(store.createBatch).mockResolvedValue('batch-1');
+    vi.mocked(store.addBatchItems).mockResolvedValue();
     vi.mocked(store.loadEmailItems).mockImplementation(async (_db, _u, ids) =>
       ids.map((id) => storedItem(id, id === 'old' ? '2026-07-01T00:00:00Z' : '2026-09-05T10:00:00Z'))
     );
@@ -78,11 +79,15 @@ describe('runFikaForUser', () => {
       { itemId: 'new', slot: 2, carriedFrom: null },
     ]);
     expect(store.markSent).toHaveBeenCalledWith(db, 'batch-1', now.toISOString(), 'msg-1');
+    // The attempt is counted before the send, so a bookkeeping failure after a successful send cannot loop
+    expect(store.recordSendAttempt).toHaveBeenCalledWith(db, 'batch-1', 1);
+    expect(vi.mocked(store.recordSendAttempt).mock.invocationCallOrder[0]).toBeLessThan(deps.sendEmail.mock.invocationCallOrder[0]);
 
     const sent = deps.sendEmail.mock.calls[0][0];
     expect(sent.to).toBe('me@example.com');
     expect(sent.from).toBe('fika@app.test');
     expect(sent.subject).toBe('Ansible Fika: Your two items to go');
+    expect(sent.unsubscribeUrl).toBe('https://app.test/settings');
     expect(sent.html).toContain('Sunday 6 September');
     expect(sent.html).toContain('saved 67 days ago');
     expect(sent.html).toContain('saved yesterday');
@@ -128,12 +133,30 @@ describe('runFikaForUser', () => {
     expect(await runFikaForUser(db, user, deps)).toEqual({ status: 'empty' });
   });
 
+  it('re-selects into a half-created batch that has no items instead of reporting empty', async () => {
+    vi.mocked(store.getBatchByDate).mockResolvedValue({ id: 'b-half', sentAt: null, sendAttempts: 0, itemIds: [] });
+    const outcome = await runFikaForUser(db, user, deps);
+    expect(outcome).toEqual({ status: 'sent', batchId: 'b-half', itemCount: 2 });
+    expect(store.createBatch).not.toHaveBeenCalled();
+    expect(store.addBatchItems).toHaveBeenCalledWith(db, 'b-half', [
+      { itemId: 'old', slot: 1, carriedFrom: null },
+      { itemId: 'new', slot: 2, carriedFrom: null },
+    ]);
+  });
+
   it('records an attempt and reports failure when Resend rejects', async () => {
     deps.sendEmail.mockResolvedValue({ ok: false, status: 500, message: 'Resend responded 500' });
     const outcome = await runFikaForUser(db, user, deps);
     expect(outcome).toEqual({ status: 'send_failed', batchId: 'batch-1', attempts: 1, message: 'Resend responded 500' });
     expect(store.recordSendAttempt).toHaveBeenCalledWith(db, 'batch-1', 1);
     expect(store.markSent).not.toHaveBeenCalled();
+  });
+
+  it('does not resend when the send succeeded but marking it sent throws', async () => {
+    vi.mocked(store.markSent).mockRejectedValue(new Error('db down'));
+    await expect(runFikaForUser(db, user, deps)).rejects.toThrow('db down');
+    // The attempt was recorded before Resend was called, so the next tick sees attempts = 1, not 0
+    expect(store.recordSendAttempt).toHaveBeenCalledWith(db, 'batch-1', 1);
   });
 
   it('counts attempts on top of an existing unsent batch', async () => {

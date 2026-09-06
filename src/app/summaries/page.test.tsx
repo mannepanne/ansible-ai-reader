@@ -167,6 +167,36 @@ describe('SummariesPage', () => {
     });
   });
 
+  it('scrolls to the card named in the URL hash once items have loaded', async () => {
+    mockGetSession.mockResolvedValue({
+      data: { session: { user: { id: 'test-user-id', email: 'test@example.com' } } },
+    });
+    (global.fetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        items: [
+          { id: 'item-1', reader_id: 'r1', title: 'First', url: 'https://t.co/1', short_summary: 's', tags: [], created_at: '2024-01-01T00:00:00Z' },
+          { id: 'item-2', reader_id: 'r2', title: 'Second', url: 'https://t.co/2', short_summary: 's', tags: [], created_at: '2024-01-02T00:00:00Z' },
+        ],
+      }),
+    });
+    const scrollIntoView = vi.fn();
+    window.HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    window.location.hash = '#item-2';
+
+    try {
+      const component = await SummariesPage();
+      await act(async () => {
+        render(component as any);
+      });
+      await waitFor(() => expect(screen.getByText('Second')).toBeInTheDocument());
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
+      expect((scrollIntoView.mock.instances[0] as HTMLElement).id).toBe('item-2');
+    } finally {
+      window.location.hash = '';
+    }
+  });
+
   it('displays logout button', async () => {
     mockGetSession.mockResolvedValue({
       data: {

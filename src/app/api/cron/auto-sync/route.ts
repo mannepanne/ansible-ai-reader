@@ -25,8 +25,14 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 export async function GET(request: NextRequest) {
   try {
     // 1. Authenticate with CRON_SECRET
+    const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret) {
+      // Fail closed: otherwise the expected header would be the literal "Bearer undefined"
+      console.error('[Cron] CRON_SECRET not configured');
+      return NextResponse.json({ error: 'Cron not configured' }, { status: 500 });
+    }
     const authHeader = request.headers.get('authorization');
-    const expectedSecret = `Bearer ${process.env.CRON_SECRET}`;
+    const expectedSecret = `Bearer ${cronSecret}`;
 
     if (!authHeader || authHeader !== expectedSecret) {
       console.error('[Cron] Unauthorized access attempt');

@@ -2,7 +2,7 @@
 // ABOUT: Same shape as auto-sync: CRON_SECRET auth, service-role client, per-user try/catch, time budget
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createServiceRoleClient } from '@/utils/supabase/server';
 import { listFikaUsers } from '@/lib/fika/store';
 import { runFikaForUser } from '@/lib/fika/run';
 
@@ -15,7 +15,7 @@ const MAX_EXECUTION_TIME = 14 * 60 * 1000;
  * Sending once per local day inside a window after fika_hour, with retries, is decided in
  * `shouldSend`; this handler is only the loop.
  *
- * Authentication: CRON_SECRET bearer header (called by workers/cron.ts)
+ * Authentication: CRON_SECRET bearer header (called by workers/cron.ts); fails closed if the secret is unset
  *
  * Response:
  * - 200: { sent, skipped, empty, sendFailed, failed }
@@ -24,8 +24,15 @@ const MAX_EXECUTION_TIME = 14 * 60 * 1000;
  */
 export async function GET(request: NextRequest) {
   try {
+    // A missing CRON_SECRET must fail closed: without this check the expected value would be the
+    // literal string "Bearer undefined", which anyone could send.
+    const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret) {
+      console.error('[Cron Fika] CRON_SECRET not configured');
+      return NextResponse.json({ error: 'Cron not configured' }, { status: 500 });
+    }
     const authHeader = request.headers.get('authorization');
-    if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
       console.error('[Cron Fika] Unauthorized access attempt');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -35,7 +42,7 @@ export async function GET(request: NextRequest) {
     const resendApiKey = process.env.RESEND_API_KEY;
     const fromEmail = process.env.RESEND_FROM_EMAIL;
     const actionSecret = process.env.FIKA_ACTION_SECRET;
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ansible.hultberg.org';
+    const siteUrl = process.env.SITE_URL ?? 'https://ansible.hultberg.org';
 
     if (!supabaseUrl || !supabaseSecretKey) {
       console.error('[Cron Fika] Supabase credentials not configured');
@@ -46,7 +53,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Fika not configured' }, { status: 500 });
     }
 
-    const db = createClient(supabaseUrl, supabaseSecretKey);
+    const db = createServiceRoleClient();
     const users = await listFikaUsers(db);
     console.log(`[Cron Fika] ${users.length} users with Fika on`);
 

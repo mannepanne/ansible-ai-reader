@@ -28,6 +28,10 @@ ALTER TABLE reader_items
 COMMENT ON COLUMN reader_items.archive_reason IS
   'Why the item was archived: user (any user action, incl. Reader-side archives mirrored by sync) or drift (river mode). NULL on rows archived before this column existed.';
 
+-- Make archived_at the reliable "is archived" predicate: any legacy row flagged archived without a
+-- timestamp gets one now, so Fika's candidate query (archived_at IS NULL) agrees with the archived flag.
+UPDATE reader_items SET archived_at = now() WHERE archived = true AND archived_at IS NULL;
+
 -- ---------------------------------------------------------------------------
 -- item_signals: where the action came from. Existing rows were all web.
 -- ---------------------------------------------------------------------------
@@ -36,7 +40,8 @@ ALTER TABLE item_signals
 
 COMMENT ON COLUMN item_signals.source IS 'Surface the signal was recorded from: web UI or the Fika email. Fika-sourced signals are the trial success measure.';
 
-CREATE INDEX item_signals_source_idx ON item_signals(source);
+-- Partial: the only query that filters on source is the Fika trial measure (source = 'fika')
+CREATE INDEX item_signals_source_fika_idx ON item_signals(created_at) WHERE source = 'fika';
 
 -- ---------------------------------------------------------------------------
 -- fika_batches: one row per user per local day
