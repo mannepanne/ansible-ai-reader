@@ -28,10 +28,12 @@ function tokenFor(overrides: Partial<ActionTokenPayload> = {}) {
 function formRequest(t: string | null) {
   const body = new URLSearchParams();
   if (t !== null) body.set('t', t);
+  // A string body, not the URLSearchParams object: under jsdom that object comes from jsdom's realm
+  // and Node 22's Request constructor rejects it as a foreign instance (Node 24 accepts it).
   return new Request('http://localhost/api/fika/act', {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body,
+    body: body.toString(),
   });
 }
 
