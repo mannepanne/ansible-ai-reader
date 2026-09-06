@@ -76,3 +76,6 @@ tmp/
 
 # Imported prototype — reference only, not part of the application
 imported/
+
+# Rendered Fika email preview (npm run fika:preview)
+fika-preview.html

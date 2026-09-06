@@ -1,9 +1,10 @@
-// ABOUT: API endpoint for user settings (sync interval, summary prompt)
+// ABOUT: API endpoint for user settings (sync interval, summary prompt, Fika)
 // ABOUT: GET fetches current settings, PATCH updates settings with validation
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceRoleClient } from '@/utils/supabase/server';
 import { z } from 'zod';
+import { isValidTimeZone } from '@/lib/fika/schedule';
 
 // Note: Using Node.js runtime (nodejs_compat) instead of edge runtime
 // OpenNext requires edge runtime functions to be defined separately
@@ -36,12 +37,18 @@ const SummaryPromptSchema = z
 const settingsSchema = z.object({
   sync_interval: z.number().int().min(0).max(24).optional(),
   summary_prompt: SummaryPromptSchema.nullable().optional(),
+  // Fika (spec 13): local send hour (null = off), IANA zone, weekly reading-day target
+  fika_hour: z.number().int().min(0).max(23).nullable().optional(),
+  timezone: z.string().refine(isValidTimeZone, 'Unknown timezone').optional(),
+  weekly_target: z.number().int().min(1).max(7).optional(),
 });
+
+export const FIKA_SETTINGS_DEFAULTS = { fika_hour: null as number | null, timezone: 'Europe/London', weekly_target: 5 };
 
 /**
  * GET /api/settings
  *
- * Fetches current user settings (sync_interval, summary_prompt).
+ * Fetches current user settings (sync_interval, summary_prompt, fika_hour, timezone, weekly_target).
  * Returns defaults if user record doesn't exist yet.
  *
  * Authentication: Required (session check)
@@ -64,7 +71,7 @@ export async function GET() {
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('sync_interval, summary_prompt')
+      .select('sync_interval, summary_prompt, fika_hour, timezone, weekly_target')
       .eq('id', authUser.id)
       .single();
 
@@ -81,6 +88,9 @@ export async function GET() {
     return NextResponse.json({
       sync_interval: user?.sync_interval ?? 0,
       summary_prompt: user?.summary_prompt ?? null,
+      fika_hour: user?.fika_hour ?? FIKA_SETTINGS_DEFAULTS.fika_hour,
+      timezone: user?.timezone ?? FIKA_SETTINGS_DEFAULTS.timezone,
+      weekly_target: user?.weekly_target ?? FIKA_SETTINGS_DEFAULTS.weekly_target,
     });
   } catch (error) {
     console.error('[Settings] Unexpected error:', error);
@@ -94,7 +104,7 @@ export async function GET() {
 /**
  * PATCH /api/settings
  *
- * Updates user settings (sync_interval, summary_prompt).
+ * Updates user settings (sync_interval, summary_prompt, fika_hour, timezone, weekly_target).
  * Creates user record if it doesn't exist (upsert).
  *
  * Authentication: Required (session check)
@@ -102,6 +112,9 @@ export async function GET() {
  * Request body:
  * - sync_interval?: number (0-24, where 0 = disabled)
  * - summary_prompt?: string (10-2000 chars)
+ * - fika_hour?: number | null (0-23 local hour, null = Fika off)
+ * - timezone?: string (IANA zone)
+ * - weekly_target?: number (1-7)
  *
  * Response:
  * - 200: { success: true }

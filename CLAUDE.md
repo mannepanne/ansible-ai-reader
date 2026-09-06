@@ -61,6 +61,7 @@ Documentation is organized by **function** (what you're trying to do), not build
 - Automated sync (cron worker, intervals, settings)
 - Settings (sync intervals, custom prompts)
 - Tags (AI generation, regeneration)
+- Fika (daily two-item reading email, in-inbox actions, weekly reading-day dots)
 
 ### 🚀 Deploying & Operating
 **[REFERENCE/operations/](./REFERENCE/operations/)** - Production deployment

@@ -41,7 +41,8 @@ script_name = "ansible-relay-orchestrator"
 #   - NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 #   - SUPABASE_SECRET_KEY
 #   - RESEND_API_KEY
-#   - CRON_SECRET (for /api/cron/auto-sync endpoint authentication)
+#   - CRON_SECRET (for the /api/cron/* endpoints' authentication)
+#   - FIKA_ACTION_SECRET (Fika, spec 13: signs the action links in the daily email)
 #   - NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY (contact form CAPTCHA — also required at build time in CI)
 #   - CLOUDFLARE_TURNSTILE_SECRET_KEY (contact form CAPTCHA server-side verification)
 #   - RESEND_FROM_EMAIL (contact form sender address — verified Resend domain)

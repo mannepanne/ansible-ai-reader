@@ -1,5 +1,5 @@
 // ABOUT: Tests for SettingsContent component
-// ABOUT: Validates sync interval + prompt UI, tab navigation (summary add-on, base prompt, commentary), save/reset behaviour, character counter
+// ABOUT: Validates sync interval + prompt UI, Fika settings, tab navigation (summary add-on, base prompt, commentary), save/reset behaviour, character counter
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -32,7 +32,7 @@ describe('SettingsContent', () => {
   it('loads and displays saved sync interval', async () => {
     render(<SettingsContent userEmail="test@example.com" />);
     await waitFor(() => {
-      expect(screen.getByRole('combobox')).toHaveValue('2');
+      expect(screen.getByLabelText('Automatic Sync Interval')).toHaveValue('2');
     });
   });
 
@@ -315,4 +315,62 @@ describe('SettingsContent', () => {
       expect(screen.getByText(/failed to save/i)).toBeInTheDocument();
     });
   });
+
+  describe('Fika settings', () => {
+    it('defaults to off, Europe/London and 5 days when the API omits the fields', async () => {
+      render(<SettingsContent userEmail="test@example.com" />);
+      await waitFor(() => expect(screen.getByLabelText('Fika email')).toHaveValue('off'));
+      expect(screen.getByLabelText('Timezone')).toHaveValue('Europe/London');
+      expect(screen.getByLabelText('Reading days a week')).toHaveValue('5');
+      expect(screen.getByText(/Fika is off/)).toBeInTheDocument();
+    });
+
+    it('shows saved Fika settings', async () => {
+      (global.fetch as any).mockImplementation(() =>
+        defaultFetchResponse({ fika_hour: 7, timezone: 'Europe/Stockholm', weekly_target: 4 })
+      );
+      render(<SettingsContent userEmail="test@example.com" />);
+      await waitFor(() => expect(screen.getByLabelText('Fika email')).toHaveValue('7'));
+      expect(screen.getByLabelText('Timezone')).toHaveValue('Europe/Stockholm');
+      expect(screen.getByLabelText('Reading days a week')).toHaveValue('4');
+      expect(screen.getByText(/every day at 07:00 \(Europe\/Stockholm\)/)).toBeInTheDocument();
+    });
+
+    it('saves the Fika fields with the rest of the settings', async () => {
+      (global.fetch as any)
+        .mockImplementationOnce(() => defaultFetchResponse())
+        .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => ({ success: true }) }));
+      render(<SettingsContent userEmail="test@example.com" />);
+      await waitFor(() => screen.getByLabelText('Fika email'));
+
+      fireEvent.change(screen.getByLabelText('Fika email'), { target: { value: '7' } });
+      fireEvent.change(screen.getByLabelText('Timezone'), { target: { value: 'Europe/Stockholm' } });
+      fireEvent.change(screen.getByLabelText('Reading days a week'), { target: { value: '3' } });
+      fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
+
+      await waitFor(() => {
+        const patchCall = (global.fetch as any).mock.calls.find((call: any[]) => call[1]?.method === 'PATCH');
+        expect(patchCall).toBeTruthy();
+        const body = JSON.parse(patchCall[1].body);
+        expect(body).toMatchObject({ fika_hour: 7, timezone: 'Europe/Stockholm', weekly_target: 3 });
+      });
+    });
+
+    it('sends null when Fika is switched off', async () => {
+      (global.fetch as any)
+        .mockImplementationOnce(() => defaultFetchResponse({ fika_hour: 9 }))
+        .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => ({ success: true }) }));
+      render(<SettingsContent userEmail="test@example.com" />);
+      await waitFor(() => expect(screen.getByLabelText('Fika email')).toHaveValue('9'));
+
+      fireEvent.change(screen.getByLabelText('Fika email'), { target: { value: 'off' } });
+      fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
+
+      await waitFor(() => {
+        const patchCall = (global.fetch as any).mock.calls.find((call: any[]) => call[1]?.method === 'PATCH');
+        expect(JSON.parse(patchCall[1].body).fika_hour).toBeNull();
+      });
+    });
+  });
+
 });

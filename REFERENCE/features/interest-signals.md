@@ -69,6 +69,8 @@ Navigation is never blocked regardless of signal API outcome.
 
 See [database-schema.md](../architecture/database-schema.md#item_signals) for full schema, indexes, and RLS policies.
 
+**`source` column:** every signal records the surface it came from, `web` (the summaries page; the default, so pre-existing rows are `web`) or `fika` (the daily email's buttons, see [fika.md](./fika.md)). The Fika endpoint writes the same signal types with `source = 'fika'`; the interest model treats both alike, and the column exists so the Fika trial can be measured.
+
 ### Non-Blocking Architecture
 
 Signal capture is intentionally "best-effort" everywhere:

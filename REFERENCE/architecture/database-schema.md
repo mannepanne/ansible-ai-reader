@@ -19,6 +19,10 @@ CREATE TABLE users (
   summary_prompt TEXT, -- Custom AI summary prompt (10-2000 chars)
   last_auto_sync_at TIMESTAMP WITH TIME ZONE,
   relay_engagement_gate_enabled BOOLEAN NOT NULL DEFAULT FALSE, -- Relay 2.3b auto-trigger (owner's row only)
+  fika_hour INTEGER CHECK (fika_hour BETWEEN 0 AND 23), -- Fika send hour, local; NULL = off
+  timezone TEXT NOT NULL DEFAULT 'Europe/London', -- IANA zone for Fika and reading days
+  weekly_target INTEGER NOT NULL DEFAULT 5 CHECK (weekly_target BETWEEN 1 AND 7), -- reading days per week
+  drift_days INTEGER NOT NULL DEFAULT 0 CHECK (drift_days >= 0), -- river mode (slice 1b); 0 = off
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -31,6 +35,7 @@ CREATE TABLE users (
 - `summary_prompt` - Custom prompt for AI summaries (optional, 10-2000 chars)
 - `last_auto_sync_at` - Timestamp of last automated sync (updated by cron)
 - `relay_engagement_gate_enabled` - Relay Stage 2.3b engagement-gated auto-trigger toggle, default off. Meaningful only on the Relay owner's row (`RELAY_OWNER_USER_ID`); flipped from the admin Relay tab.
+- `fika_hour`, `timezone`, `weekly_target` - Fika settings (see [fika.md](../features/fika.md)). `drift_days` is reserved for river mode (slice 1b) and is 0 (off) until that ships.
 
 **RLS Policy:**
 ```sql
@@ -58,6 +63,7 @@ CREATE TABLE reader_items (
   content_truncated BOOLEAN DEFAULT FALSE, -- True if content > 30k chars
   archived BOOLEAN DEFAULT FALSE,
   archived_at TIMESTAMP WITH TIME ZONE,
+  archive_reason TEXT CHECK (archive_reason IN ('user', 'drift')), -- who archived: any user action (incl. Reader-side) or river-mode drift; NULL before 2026-09
   reader_deleted BOOLEAN NOT NULL DEFAULT FALSE, -- Item gone from Reader (deleted); set by manual archive + consumer auto-archive
   highlights_count INTEGER NOT NULL DEFAULT 0, -- Relay 2.3b: retained from archive response (filter input)
   reader_note TEXT, -- Relay 2.3b: Reader-authored note retained from archive response (filter + stimulus)
@@ -201,9 +207,12 @@ CREATE TABLE item_signals (
     'rated_interesting',
     'rated_not_interesting'
   )),
+  source TEXT NOT NULL DEFAULT 'web' CHECK (source IN ('web', 'fika')), -- surface the action came from
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
+
+**Source:** `web` for the summaries page, `fika` for the daily email's buttons. Fika-sourced signals are the trial's success measure ([fika.md](../features/fika.md#measuring-the-trial)).
 
 **Signal types (Phase 1):**
 - `click_through` — User clicked "Open in Reader" (every click recorded, no deduplication)
@@ -232,6 +241,35 @@ CREATE POLICY "Users can read own signals" ON item_signals
 ```
 
 **Design rationale:** Append-only event log (not current-state). Enables future pattern analysis of `signals × tags` to surface which topics consistently trigger engagement. `reader_items.rating` remains the authoritative current rating state; `item_signals` records the full history.
+
+---
+
+### fika_batches / fika_batch_items
+Today's Fika for a user: one batch per user per local date, with up to two items in slots.
+
+```sql
+CREATE TABLE fika_batches (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  batch_date DATE NOT NULL,             -- the user's local date
+  sent_at TIMESTAMPTZ,                  -- set only after Resend accepts the email
+  send_attempts INTEGER NOT NULL DEFAULT 0,
+  resend_message_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, batch_date)
+);
+
+CREATE TABLE fika_batch_items (
+  batch_id UUID NOT NULL REFERENCES fika_batches(id) ON DELETE CASCADE,
+  item_id UUID NOT NULL REFERENCES reader_items(id) ON DELETE CASCADE,
+  slot SMALLINT NOT NULL CHECK (slot IN (1, 2)),  -- 1 = oldest eligible, 2 = freshest
+  carried_from UUID REFERENCES fika_batches(id) ON DELETE SET NULL,
+  PRIMARY KEY (batch_id, item_id),
+  UNIQUE (batch_id, slot)
+);
+```
+
+**RLS:** owner read; all writes come from the service-role client (cron, action endpoint). Rows cascade from `users`, so account deletion covers them. See [fika.md](../features/fika.md).
 
 ---
 

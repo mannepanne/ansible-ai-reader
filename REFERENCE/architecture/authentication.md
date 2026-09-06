@@ -166,6 +166,15 @@ await serviceClient.from('users').upsert({
 
 See: [Service Role Client Pattern](../patterns/service-role-client.md)
 
+### 4. Signed Action Token (Fika email)
+The daily Fika email carries buttons that must work from an inbox with no session. The credential is a signed token, not a cookie.
+
+- `GET /fika/act?t=<token>` renders a form; `POST /api/fika/act` verifies and acts. A GET never writes, so link prefetchers are harmless.
+- Token = base64url(JSON `{ userId, itemId, batchId, action, exp }`) + `.` + base64url(HMAC-SHA256 with `FIKA_ACTION_SECRET`). Signature is checked with a constant-time compare before the payload is parsed; expiry is 7 days.
+- After verification the endpoint uses the service-role client and re-checks that the item belongs to the user in the token. Actions are idempotent.
+
+**Threat model:** anyone holding the email can act on those two items for a week. That is accepted under the single-trusted-user model ([ADR 2026-04-25](../decisions/2026-04-25-pr-review-threat-model.md)); the token cannot read anything, cannot touch other items, and every effect is one the user could undo in the UI. Rotating the secret invalidates all outstanding links, which show "this link has expired" rather than implying tampering. Details: [fika.md](../features/fika.md#action-links).
+
 ## Middleware (`src/middleware.ts`)
 
 Protects routes by checking for valid session.

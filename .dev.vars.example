@@ -32,3 +32,10 @@ NEXT_PUBLIC_CF_ANALYTICS_TOKEN=your-cloudflare-web-analytics-token-here
 # Relay Stage 2.3b — the single-owner user id the engagement-gated archive-hook is scoped to.
 # Unset ⟹ the auto-trigger never fires and the admin toggle renders disabled. See the 2026-07-10 ADR.
 RELAY_OWNER_USER_ID=your-relay-owner-user-uuid-here
+
+# Fika (spec 13) — signs the action links in the daily email. Any long random string; rotating it
+# invalidates links in emails already sent (they show "this link has expired").
+# Generate one with: openssl rand -base64 32
+FIKA_ACTION_SECRET=replace-with-a-long-random-string
+# Public site URL used for links in emails (defaults to https://ansible.hultberg.org when unset)
+NEXT_PUBLIC_SITE_URL=http://localhost:3000

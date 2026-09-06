@@ -36,6 +36,7 @@ Migrations are named with format: `YYYYMMDD_description.sql`
 - **20260315_add_summaries_tags.sql** - Adds `short_summary`, `tags`, and `perplexity_model` columns to `reader_items` table for AI-generated summaries (Phase 4)
 - **20260315_add_content_truncated.sql** - Adds `content_truncated` boolean column to track when summaries are based on truncated content (>30k chars) (Phase 4)
 - **20260315_add_sync_log_timestamps.sql** - Adds `started_at` and `completed_at` timestamp columns to `sync_log` table for tracking sync lifecycle (Phase 4)
+- **20260906_add_fika.sql** - Fika (spec 13): `fika_batches` + `fika_batch_items` tables, Fika settings on `users` (`fika_hour`, `timezone`, `weekly_target`, `drift_days`), `reader_items.archive_reason`, `item_signals.source`
 
 ## Initial Schema
 

@@ -81,6 +81,21 @@ npx wrangler secret put RESEND_API_KEY
 # Enter: re_xxxxxxxxx
 ```
 
+### Fika Variables
+
+#### FIKA_ACTION_SECRET
+Signs the action links in the daily Fika email (HMAC-SHA256). Any long random string. Rotating it invalidates links in emails already sent; they show "this link has expired".
+
+**Required for:** Main app only
+
+```bash
+openssl rand -base64 32
+npx wrangler secret put FIKA_ACTION_SECRET
+```
+
+#### NEXT_PUBLIC_SITE_URL
+Base URL for links in the Fika email and its confirmation pages. Optional; defaults to `https://ansible.hultberg.org`. Set to `http://localhost:3000` in `.dev.vars` for local runs.
+
 ### Contact Form Variables
 
 #### NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY
@@ -454,6 +469,8 @@ Before deploying to production:
 9. `RESEND_FROM_EMAIL`
 10. `CONTACT_EMAIL`
 11. `RELAY_OWNER_USER_ID` (Relay 2.3b engagement-gated archive-hook owner)
+12. `FIKA_ACTION_SECRET` (Fika: signs the daily email's action links)
+13. `NEXT_PUBLIC_SITE_URL` (optional; defaults to the production URL)
 
 ### Consumer Worker (`wrangler-consumer.toml`)
 1. `NEXT_PUBLIC_SUPABASE_URL`

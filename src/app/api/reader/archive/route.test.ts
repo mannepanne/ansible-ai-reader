@@ -73,7 +73,7 @@ describe('POST /api/reader/archive', () => {
   });
 
   it('returns 500 when READER_API_TOKEN not configured', async () => {
-    delete process.env.READER_API_TOKEN;
+    Reflect.deleteProperty(process.env, 'READER_API_TOKEN');
     const response = await POST(makeRequest({ itemId: 'item-123' }));
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({ error: 'Reader API not configured' });

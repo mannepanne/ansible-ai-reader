@@ -203,27 +203,14 @@ GROUP BY sl.id;
 
 ### 3. Archive Item (`POST /api/reader/archive`)
 
-**Steps:**
-1. **Archive in Reader**:
-   ```typescript
-   await fetch('https://readwise.io/api/v3/save/', {
-     method: 'POST',
-     body: JSON.stringify({
-       url: item.url,
-       saved: false,
-       location: 'archive',
-     }),
-   });
-   ```
+The route is a thin session-authenticated wrapper over the shared helper `archiveItemForUser` in `src/lib/archive.ts`, which the Fika action endpoint and cron reuse with the service-role client.
 
-2. **Update local database**:
-   ```sql
-   UPDATE reader_items
-   SET archived = true, archived_at = NOW()
-   WHERE id = $1 AND user_id = $2;
-   ```
+**Steps (inside the helper):**
+1. Load the item for `(id, user_id)`; missing → `not_found`. Already archived → return ok without a Reader call (idempotent).
+2. **Archive in Reader first** (`PATCH /api/v3/update/{reader_id}/` with `location: 'archive'`). A 404 means the item is gone from Reader: still archive locally and set `reader_deleted`. Any other error → `reader_failed`, nothing written locally.
+3. **Update the local row**: `archived = true`, `archived_at = now()`, `archive_reason` (`user` from the web route and Fika, `drift` from river mode), `reader_deleted`. A failure here → `db_failed` with `requiresRefresh`, since Reader is already updated.
 
-3. **Remove from UI** (frontend filters out archived items)
+Both `archived` and `archived_at` are set because the codebase queries both. The archive-sync mirror (below) also writes `archive_reason = 'user'`, because a Reader-side archive is a user action.
 
 ## Database Schema
 

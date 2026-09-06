@@ -41,8 +41,37 @@ Author: [Author]
 Content:
 [Article Content]`;
 
+const TIMEZONES: string[] = (() => {
+  try {
+    return Intl.supportedValuesOf('timeZone');
+  } catch {
+    return ['Europe/London', 'Europe/Stockholm', 'UTC'];
+  }
+})();
+
+const fieldStyle: CSSProperties = {
+  width: '100%',
+  padding: '8px 12px',
+  border: '1px solid #ced4da',
+  borderRadius: '4px',
+  fontSize: '0.95rem',
+  background: '#fff',
+  color: '#212529',
+};
+
+const fieldLabelStyle: CSSProperties = {
+  display: 'block',
+  marginBottom: '8px',
+  color: '#212529',
+  fontWeight: 600,
+  fontSize: '0.95rem',
+};
+
 export default function SettingsContent({ userEmail, isAdmin = false }: SettingsContentProps) {
   const [syncInterval, setSyncInterval] = useState<number>(0);
+  const [fikaHour, setFikaHour] = useState<number | null>(null);
+  const [timezone, setTimezone] = useState<string>('Europe/London');
+  const [weeklyTarget, setWeeklyTarget] = useState<number>(5);
   const [summaryPrompt, setSummaryPrompt] = useState<string>('');
   const [promptError, setPromptError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'custom' | 'full' | 'commentary'>('custom');
@@ -63,9 +92,15 @@ export default function SettingsContent({ userEmail, isAdmin = false }: Settings
         const data = (await response.json()) as {
           sync_interval: number;
           summary_prompt: string | null;
+          fika_hour?: number | null;
+          timezone?: string;
+          weekly_target?: number;
         };
         setSyncInterval(data.sync_interval);
         setSummaryPrompt(data.summary_prompt ?? '');
+        setFikaHour(data.fika_hour ?? null);
+        setTimezone(data.timezone ?? 'Europe/London');
+        setWeeklyTarget(data.weekly_target ?? 5);
       } catch (error) {
         setMessage({
           type: 'error',
@@ -79,6 +114,10 @@ export default function SettingsContent({ userEmail, isAdmin = false }: Settings
     loadSettings();
   }, []);
 
+  function fikaPayload() {
+    return { fika_hour: fikaHour, timezone, weekly_target: weeklyTarget };
+  }
+
   async function resetPromptToDefault() {
     setSummaryPrompt('');
     setPromptError(null);
@@ -90,7 +129,7 @@ export default function SettingsContent({ userEmail, isAdmin = false }: Settings
       const response = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sync_interval: syncInterval, summary_prompt: null }),
+        body: JSON.stringify({ sync_interval: syncInterval, summary_prompt: null, ...fikaPayload() }),
       });
 
       if (!response.ok) {
@@ -128,6 +167,7 @@ export default function SettingsContent({ userEmail, isAdmin = false }: Settings
         body: JSON.stringify({
           sync_interval: syncInterval,
           summary_prompt: summaryPrompt.length > 0 ? summaryPrompt : null,
+          ...fikaPayload(),
         }),
       });
 
@@ -211,6 +251,7 @@ export default function SettingsContent({ userEmail, isAdmin = false }: Settings
           }}
         >
           <label
+            htmlFor="sync-interval"
             style={{
               display: 'block',
               marginBottom: '8px',
@@ -222,6 +263,7 @@ export default function SettingsContent({ userEmail, isAdmin = false }: Settings
             Automatic Sync Interval
           </label>
           <select
+            id="sync-interval"
             value={syncInterval}
             onChange={(e) => setSyncInterval(Number(e.target.value))}
             disabled={loading || saving}
@@ -260,6 +302,69 @@ export default function SettingsContent({ userEmail, isAdmin = false }: Settings
               ? 'Auto-sync is disabled. You will need to sync manually.'
               : `Ansible will automatically sync new items every ${syncInterval} hour${syncInterval > 1 ? 's' : ''}.`}
           </p>
+
+          {/* Fika: the daily two-item reading email */}
+          <label htmlFor="fika-hour" style={fieldLabelStyle}>
+            Fika email
+          </label>
+          <select
+            id="fika-hour"
+            value={fikaHour === null ? 'off' : String(fikaHour)}
+            onChange={(e) => setFikaHour(e.target.value === 'off' ? null : Number(e.target.value))}
+            disabled={loading || saving}
+            style={{ ...fieldStyle, marginBottom: '8px' }}
+          >
+            <option value="off">Off</option>
+            {Array.from({ length: 24 }, (_, h) => (
+              <option key={h} value={String(h)}>
+                {`${String(h).padStart(2, '0')}:00`}
+              </option>
+            ))}
+          </select>
+          <p style={{ fontSize: '0.875em', color: '#6c757d', marginTop: 0, marginBottom: '16px', lineHeight: '1.5' }}>
+            {fikaHour === null
+              ? 'Fika is off. Turn it on to get two items to read by email each day.'
+              : `Two items to read, by email, every day at ${String(fikaHour).padStart(2, '0')}:00 (${timezone}).`}
+          </p>
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 220px' }}>
+              <label htmlFor="timezone" style={fieldLabelStyle}>
+                Timezone
+              </label>
+              <select
+                id="timezone"
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                disabled={loading || saving}
+                style={fieldStyle}
+              >
+                {!TIMEZONES.includes(timezone) && <option value={timezone}>{timezone}</option>}
+                {TIMEZONES.map((tz) => (
+                  <option key={tz} value={tz}>
+                    {tz}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ flex: '0 1 180px' }}>
+              <label htmlFor="weekly-target" style={fieldLabelStyle}>
+                Reading days a week
+              </label>
+              <select
+                id="weekly-target"
+                value={String(weeklyTarget)}
+                onChange={(e) => setWeeklyTarget(Number(e.target.value))}
+                disabled={loading || saving}
+                style={fieldStyle}
+              >
+                {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                  <option key={n} value={String(n)}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
           {/* Prompt tabs */}
           <label

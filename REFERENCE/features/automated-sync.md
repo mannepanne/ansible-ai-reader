@@ -29,24 +29,22 @@ See: [Workers](../architecture/workers.md)
 
 ## Cron Worker (`workers/cron.ts`)
 
-Runs every hour at minute 0:
+Runs every hour at minute 0 and calls each cron endpoint in turn, each in its own try/catch, so a failing sync never suppresses the Fika email (or the reverse). If any endpoint failed, the worker re-throws after all have run, so the execution is marked failed.
+
 ```typescript
-export default {
-  async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
-    const response = await fetch(
-      'https://ansible.hultberg.org/api/cron/auto-sync',
-      {
-        method: 'GET',
-        headers: {
-          'x-cron-secret': env.CRON_SECRET,
-        },
-      }
-    );
-    const result = await response.json();
-    console.log('[Cron] Auto-sync completed:', result);
-  },
-};
+export const CRON_ENDPOINTS = ['/api/cron/auto-sync', '/api/cron/fika'] as const;
+
+for (const path of CRON_ENDPOINTS) {
+  try {
+    const result = await trigger(path, env); // GET with `authorization: Bearer ${env.CRON_SECRET}`
+    console.log(`[Cron Worker] ${path} completed:`, result);
+  } catch (error) {
+    failures.push(...);
+  }
+}
 ```
+
+`/api/cron/fika` is documented in [fika.md](./fika.md).
 
 **Schedule:** `0 * * * *` (every hour)
 
