@@ -646,6 +646,7 @@ describe('performSyncForUser', () => {
       expect(mockItemsUpdate).toHaveBeenCalledWith({
         archived: true,
         archived_at: '2026-04-01T12:00:00Z',
+        archive_reason: 'user',
         highlights_count: 0,
         reader_note: null,
       });
@@ -697,6 +698,7 @@ describe('performSyncForUser', () => {
       expect(mockItemsUpdate).toHaveBeenCalledWith({
         archived: true,
         archived_at: '2026-04-01T12:00:00Z',
+        archive_reason: 'user',
         highlights_count: 3,
         reader_note: 'a reader-side note',
       });
