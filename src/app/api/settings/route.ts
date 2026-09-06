@@ -43,7 +43,8 @@ const settingsSchema = z.object({
   weekly_target: z.number().int().min(1).max(7).optional(),
 });
 
-export const FIKA_SETTINGS_DEFAULTS = { fika_hour: null as number | null, timezone: 'Europe/London', weekly_target: 5 };
+// Not exported: Next.js route files may only export HTTP handlers and route config
+const FIKA_SETTINGS_DEFAULTS = { fika_hour: null as number | null, timezone: 'Europe/London', weekly_target: 5 };
 
 /**
  * GET /api/settings
