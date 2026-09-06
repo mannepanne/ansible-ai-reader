@@ -1,6 +1,6 @@
 # 13 — Fika: a reading habit for Ansible
 
-**Status:** Slice 1a implemented on `feature/fika-slice-1a` (2026-09-06), in PR review. Slice 1b not started.
+**Status:** Slice 1a merged (PR #143, 2026-09-06) and in a three-week owner trial. Slice 1b not started. Implementation reference: [REFERENCE/features/fika.md](../REFERENCE/features/fika.md).
 **Last updated:** 2026-09-06
 **Depends on:** nothing for slice 1a; [14-prose-summary.md](./14-prose-summary.md) improves the email but is not required
 **Related:** [relay/restraint-and-prose-tuning.md](./relay/restraint-and-prose-tuning.md)
