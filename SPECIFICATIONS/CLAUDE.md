@@ -17,12 +17,15 @@ Development followed 5 sequential phases (all complete). Active work is now feat
 
 ### Active Feature Specs
 
+- **[13-fika-reading-habit.md](./13-fika-reading-habit.md)** - Fika: a daily two-item reading email with in-inbox actions and weekly reading-day dots (slice 1a), then river mode where unread items drift to archive in both Ansible and Reader after 60 days (slice 1b). Umbrella spec with research-derived design rules; reviewed and revised 2026-09-06; slices 2-4 outlined.
+- **[14-prose-summary.md](./14-prose-summary.md)** - Prose summary: a second, reading-time-bounded summary generated via the Claude API, with a shared plain-prose style guide and a deterministic tells checker (also adopted by Relay). Bullets stay on Perplexity.
 - **[12-content-security-policy.md](./12-content-security-policy.md)** - Content-Security-Policy (Report-Only first, then enforce). Follow-up to the baseline security-headers work.
 
 ### Relay (autonomous narrator)
 
 Stage 0 (voice spike) + Stage 1 (mechanical engine) complete. Stage 2 in progress: **2.1 fact-grounding, 2.2a taste-capture, and 2.3 (engine: engagement-gated archive-hook + rich stimulus) shipped**; remaining: 2.2b (editor-agent + distiller, awaiting a captured corpus), 2.4 (blog), 2.5 (trigger-automation — turns the default-off gate always-on at scale). Forward plan:
 - **[relay/stage-2-roadmap.md](./relay/stage-2-roadmap.md)** — Stage 2 "making it come alive": Phases 2.1 fact-grounding → 2.2 voice/editorial loop → 2.3 engine (archive-hook + rich engagement stimulus) → 2.4 blog → 2.5 trigger-automation. Maps every idea from the north-star memory-system spec.
+- **[relay/restraint-and-prose-tuning.md](./relay/restraint-and-prose-tuning.md)** — Tuning note: Relay fires too often and carries prose tells. Measure via the 2.3c activity log, tighten the cheapest brake, adopt the shared style guide + tells checker from spec 14.
 - **[relay/stage-3-outline.md](./relay/stage-3-outline.md)** — Stage 3 outline: the frontier of attention + full autonomy (the anti-radicalisation machinery). To be enriched at kickoff.
 - North star: **[ORIGINAL_IDEA/ansible-relay-agent-memory-system-spec.md](./ORIGINAL_IDEA/ansible-relay-agent-memory-system-spec.md)**. Delivered Stage-1 specs also in [relay/](./relay/).
 
