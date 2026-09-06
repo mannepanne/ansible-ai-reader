@@ -134,18 +134,20 @@ npx wrangler tail > logs.txt
 
 ### Cron Worker Logs
 
-**Successful trigger:**
+**Successful trigger** (both endpoints, run concurrently):
 ```
-[Cron] Auto-sync triggered
-[Cron] Calling /api/cron/auto-sync
-[Cron] Auto-sync completed: {users_processed: 5, syncs_triggered: 4}
+[Cron Worker] Scheduled event triggered: 0 * * * *
+[Cron Worker] /api/cron/auto-sync completed: { synced: 1, skipped: 0, failed: 0, timestampFailures: 0 }
+[Cron Worker] /api/cron/fika completed: { sent: 1, skipped: 0, empty: 0, sendFailed: 0, failed: 0 }
 ```
 
-**Errors:**
+**Errors** (one endpoint failing never stops the other; the run is marked failed afterwards):
 ```
-[Cron] Auto-sync failed: Invalid CRON_SECRET
-[Cron] Auto-sync endpoint returned 500
+[Cron Worker] /api/cron/auto-sync failed: Error: API returned 401: {"error":"Unauthorized"}
+Error: Cron endpoints failed: /api/cron/auto-sync: API returned 401: ...
 ```
+
+For Fika, the main-worker log is the one to tail when a user says no email arrived: `[Cron Fika] Send failed for user ... (attempt N): Resend responded 4xx/5xx`. See [fika.md](../features/fika.md#troubleshooting).
 
 ---
 
@@ -164,6 +166,7 @@ npx wrangler tail > logs.txt
 - `/api/reader/items`: Fast (<100ms), high frequency
 - `/api/settings`: Fast (<100ms), low frequency
 - `/api/cron/auto-sync`: Hourly, should succeed
+- `/api/cron/fika`: Hourly, should succeed; `sendFailed` in its result means Resend rejected an email
 
 **Resource Usage:**
 - **CPU time**: < 50ms per request (Workers limit: 50ms/10ms burst)

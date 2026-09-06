@@ -26,7 +26,8 @@
     "relay:reject": "tsx scripts/relay-review.ts reject",
     "relay:acceptance-check": "tsx scripts/relay-acceptance-check.ts",
     "relay:run-status": "tsx scripts/relay-run-status.ts",
-    "relay:pending": "tsx scripts/relay-pending-check.ts"
+    "relay:pending": "tsx scripts/relay-pending-check.ts",
+    "fika:preview": "tsx scripts/fika-preview.ts"
   },
   "dependencies": {
     "@marsidev/react-turnstile": "^1.5.0",

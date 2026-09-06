@@ -57,7 +57,7 @@ We deploy **five Cloudflare Workers**: three for the core Ansible app, plus two 
 
 ### 3. Cron Worker (`wrangler-cron.toml`)
 - Runs hourly (cron schedule)
-- Triggers automated sync for users with sync_interval > 0
+- Triggers automated sync for users with sync_interval > 0, and the Fika email for users whose local send hour has arrived (two independent, concurrent calls)
 - Separate worker because OpenNext doesn't support scheduled() function
 
 **Why these 3 split out?** OpenNext (Cloudflare adapter for Next.js) only generates HTTP request handlers, not scheduled event handlers. The cron functionality must be in a separate worker, and queue consumption is isolated for the same handler-shape reason.
@@ -99,7 +99,7 @@ graph TB
         Auth[Auth API Routes<br/>/api/auth/*]
         ReaderAPI[Reader API Routes<br/>/api/reader/*]
         SettingsAPI[Settings API<br/>/api/settings]
-        CronAPI[Cron Handler<br/>/api/cron/auto-sync]
+        CronAPI[Cron Handlers<br/>/api/cron/auto-sync<br/>/api/cron/fika]
         Middleware[Auth Middleware<br/>Session Protection]
     end
 

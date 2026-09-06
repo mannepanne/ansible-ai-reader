@@ -1,342 +1,115 @@
 // ABOUT: Tests for Reader archive API endpoint
-// ABOUT: Validates archiving items, authentication, error handling
+// ABOUT: Validates authentication, validation, and the mapping of helper outcomes to responses
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { POST } from './route';
 import { NextRequest } from 'next/server';
 
-// Mock dependencies
 const mockGetUser = vi.fn();
-const mockFrom = vi.fn();
+const mockClient = { auth: { getUser: mockGetUser }, from: vi.fn() };
 
 vi.mock('@/utils/supabase/server', () => ({
-  createClient: vi.fn(async () => ({
-    auth: {
-      getUser: mockGetUser,
-    },
-    from: mockFrom,
-  })),
+  createClient: vi.fn(async () => mockClient),
 }));
 
-const mockArchiveItem = vi.fn();
-
-vi.mock('@/lib/reader-api', () => ({
-  archiveItem: (...args: any[]) => mockArchiveItem(...args),
-  ReaderAPIError: class ReaderAPIError extends Error {
-    constructor(
-      message: string,
-      public statusCode?: number,
-      public retryable: boolean = false
-    ) {
-      super(message);
-      this.name = 'ReaderAPIError';
-    }
-  },
+const mockArchiveItemForUser = vi.fn();
+vi.mock('@/lib/archive', () => ({
+  archiveItemForUser: (...args: unknown[]) => mockArchiveItemForUser(...args),
 }));
+
+function makeRequest(body: unknown) {
+  return new NextRequest('http://localhost/api/reader/archive', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
 
 describe('POST /api/reader/archive', () => {
-  const mockSession = {
-    user: { id: 'user-123', email: 'test@example.com' },
-    access_token: 'test-token',
-  };
-
   const originalEnv = process.env.READER_API_TOKEN;
 
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.READER_API_TOKEN = 'test-reader-token';
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-123' } } });
   });
 
   afterEach(() => {
     process.env.READER_API_TOKEN = originalEnv;
   });
 
-  it('archives item successfully', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: mockSession.user },
-    });
+  it('archives item successfully via the shared helper with reason user', async () => {
+    mockArchiveItemForUser.mockResolvedValue({ ok: true, readerDeleted: false, alreadyArchived: false });
 
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'reader_items') {
-        const selectMock = {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    id: 'item-123',
-                    reader_id: 'reader-123',
-                  },
-                  error: null,
-                }),
-              }),
-            }),
-          }),
-          update: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({
-              error: null,
-            }),
-          }),
-        };
-
-        return selectMock as any;
-      }
-    });
-
-    mockArchiveItem.mockResolvedValue(undefined);
-
-    const request = new NextRequest('http://localhost:3000/api/reader/archive', {
-      method: 'POST',
-      body: JSON.stringify({ itemId: 'item-123' }),
-    });
-
-    const response = await POST(request);
-    const data = (await response.json()) as any;
+    const response = await POST(makeRequest({ itemId: 'item-123' }));
 
     expect(response.status).toBe(200);
-    expect(data.success).toBe(true);
-    expect(mockArchiveItem).toHaveBeenCalledWith('test-reader-token', 'reader-123');
+    expect(await response.json()).toEqual({ success: true, readerDeleted: false });
+    expect(mockArchiveItemForUser).toHaveBeenCalledWith(mockClient, {
+      userId: 'user-123',
+      itemId: 'item-123',
+      reason: 'user',
+      readerApiToken: 'test-reader-token',
+    });
   });
 
   it('returns 401 when not authenticated', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-    });
-
-    const request = new NextRequest('http://localhost:3000/api/reader/archive', {
-      method: 'POST',
-      body: JSON.stringify({ itemId: 'item-123' }),
-    });
-
-    const response = await POST(request);
-    const data = (await response.json()) as any;
-
+    mockGetUser.mockResolvedValue({ data: { user: null } });
+    const response = await POST(makeRequest({ itemId: 'item-123' }));
     expect(response.status).toBe(401);
-    expect(data.error).toBe('Unauthorized');
+    expect(mockArchiveItemForUser).not.toHaveBeenCalled();
   });
 
   it('returns 400 when itemId is missing', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: mockSession.user },
-    });
-
-    const request = new NextRequest('http://localhost:3000/api/reader/archive', {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
-
-    const response = await POST(request);
-    const data = (await response.json()) as any;
-
+    const response = await POST(makeRequest({}));
     expect(response.status).toBe(400);
-    expect(data.error).toBe('Missing itemId parameter');
+    expect(await response.json()).toEqual({ error: 'Missing itemId parameter' });
   });
 
   it('returns 404 when item not found', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: mockSession.user },
-    });
-
-    mockFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: null,
-              error: { message: 'Not found' },
-            }),
-          }),
-        }),
-      }),
-    });
-
-    const request = new NextRequest('http://localhost:3000/api/reader/archive', {
-      method: 'POST',
-      body: JSON.stringify({ itemId: 'nonexistent' }),
-    });
-
-    const response = await POST(request);
-    const data = (await response.json()) as any;
-
+    mockArchiveItemForUser.mockResolvedValue({ ok: false, error: 'not_found' });
+    const response = await POST(makeRequest({ itemId: 'item-123' }));
     expect(response.status).toBe(404);
-    expect(data.error).toBe('Item not found');
+    expect(await response.json()).toEqual({ error: 'Item not found' });
   });
 
   it('returns 500 when READER_API_TOKEN not configured', async () => {
-    process.env.READER_API_TOKEN = '';
-
-    mockGetUser.mockResolvedValue({
-      data: { user: mockSession.user },
-    });
-
-    mockFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: {
-                id: 'item-123',
-                reader_id: 'reader-123',
-              },
-              error: null,
-            }),
-          }),
-        }),
-      }),
-    });
-
-    const request = new NextRequest('http://localhost:3000/api/reader/archive', {
-      method: 'POST',
-      body: JSON.stringify({ itemId: 'item-123' }),
-    });
-
-    const response = await POST(request);
-    const data = (await response.json()) as any;
-
+    Reflect.deleteProperty(process.env, 'READER_API_TOKEN');
+    const response = await POST(makeRequest({ itemId: 'item-123' }));
     expect(response.status).toBe(500);
-    expect(data.error).toBe('Reader API not configured');
+    expect(await response.json()).toEqual({ error: 'Reader API not configured' });
+    expect(mockArchiveItemForUser).not.toHaveBeenCalled();
   });
 
-  it('returns 500 when Reader API fails', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: mockSession.user },
-    });
-
-    mockFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: {
-                id: 'item-123',
-                reader_id: 'reader-123',
-              },
-              error: null,
-            }),
-          }),
-        }),
-      }),
-    });
-
-    mockArchiveItem.mockRejectedValue(new Error('Reader API error'));
-
-    const request = new NextRequest('http://localhost:3000/api/reader/archive', {
-      method: 'POST',
-      body: JSON.stringify({ itemId: 'item-123' }),
-    });
-
-    const response = await POST(request);
-    const data = (await response.json()) as any;
-
+  it('returns 500 with the Reader message when Reader API fails', async () => {
+    mockArchiveItemForUser.mockResolvedValue({ ok: false, error: 'reader_failed', message: 'Rate limited' });
+    const response = await POST(makeRequest({ itemId: 'item-123' }));
     expect(response.status).toBe(500);
-    expect(data.error).toBe('Reader API error');
+    expect(await response.json()).toEqual({ error: 'Rate limited' });
   });
 
-  it('returns 500 when database update fails after Reader archive', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: mockSession.user },
+  it('returns 500 with requiresRefresh when database update fails after Reader archive', async () => {
+    mockArchiveItemForUser.mockResolvedValue({
+      ok: false,
+      error: 'db_failed',
+      message: 'Item archived in Reader but failed to update local database. Please refresh the page.',
+      requiresRefresh: true,
     });
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'reader_items') {
-        const selectMock = {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    id: 'item-123',
-                    reader_id: 'reader-123',
-                  },
-                  error: null,
-                }),
-              }),
-            }),
-          }),
-          update: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({
-              error: { message: 'Database error' },
-            }),
-          }),
-        };
-
-        return selectMock as any;
-      }
-    });
-
-    mockArchiveItem.mockResolvedValue(undefined);
-
-    const request = new NextRequest('http://localhost:3000/api/reader/archive', {
-      method: 'POST',
-      body: JSON.stringify({ itemId: 'item-123' }),
-    });
-
-    const response = await POST(request);
-    const data = (await response.json()) as any;
-
-    // Should fail to maintain data consistency
+    const response = await POST(makeRequest({ itemId: 'item-123' }));
     expect(response.status).toBe(500);
-    expect(data.error).toContain('failed to update local database');
-    expect(data.requiresRefresh).toBe(true);
+    expect(await response.json()).toMatchObject({ requiresRefresh: true });
   });
 
-  it('archives item locally when item was deleted in Reader (404)', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: mockSession.user },
-    });
-
-    const mockUpdate = vi.fn().mockReturnValue({
-      eq: vi.fn().mockResolvedValue({
-        error: null,
-      }),
-    });
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'reader_items') {
-        const selectMock = {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    id: 'item-123',
-                    reader_id: 'reader-123',
-                  },
-                  error: null,
-                }),
-              }),
-            }),
-          }),
-          update: mockUpdate,
-        };
-
-        return selectMock as any;
-      }
-    });
-
-    // Simulate Reader API returning 404 (item not found)
-    const { ReaderAPIError } = await import('@/lib/reader-api');
-    mockArchiveItem.mockRejectedValue(
-      new ReaderAPIError('Item not found in Reader', 404, false)
-    );
-
-    const request = new NextRequest('http://localhost:3000/api/reader/archive', {
-      method: 'POST',
-      body: JSON.stringify({ itemId: 'item-123' }),
-    });
-
-    const response = await POST(request);
-    const data = (await response.json()) as any;
-
+  it('reports readerDeleted when the item was already deleted in Reader (404)', async () => {
+    mockArchiveItemForUser.mockResolvedValue({ ok: true, readerDeleted: true, alreadyArchived: false });
+    const response = await POST(makeRequest({ itemId: 'item-123' }));
     expect(response.status).toBe(200);
-    expect(data.success).toBe(true);
-    expect(data.readerDeleted).toBe(true);
+    expect(await response.json()).toEqual({ success: true, readerDeleted: true });
+  });
 
-    // Verify the update was called with reader_deleted: true
-    expect(mockUpdate).toHaveBeenCalledWith({
-      archived: true,
-      archived_at: expect.any(String),
-      reader_deleted: true,
-    });
+  it('returns 500 on unexpected errors', async () => {
+    mockGetUser.mockRejectedValue(new Error('auth exploded'));
+    const response = await POST(makeRequest({ itemId: 'item-123' }));
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: 'Internal server error' });
   });
 });

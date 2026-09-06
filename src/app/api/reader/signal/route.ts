@@ -59,6 +59,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       item_id: itemId,
       signal_type: 'click_through',
+      source: 'web',
     });
 
     if (insertError) {

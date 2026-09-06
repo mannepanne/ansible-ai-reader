@@ -45,6 +45,9 @@ describe('GET /api/settings', () => {
     expect(data).toEqual({
       sync_interval: 2,
       summary_prompt: 'Custom prompt',
+      fika_hour: null,
+      timezone: 'Europe/London',
+      weekly_target: 5,
     });
   });
 
@@ -71,6 +74,9 @@ describe('GET /api/settings', () => {
     expect(data).toEqual({
       sync_interval: 0,
       summary_prompt: null,
+      fika_hour: null,
+      timezone: 'Europe/London',
+      weekly_target: 5,
     });
   });
 
@@ -544,6 +550,51 @@ describe('PATCH /api/settings', () => {
 
     expect(response.status).toBe(500);
     expect(data).toEqual({ error: 'Internal server error' });
+  });
+});
+
+describe('PATCH /api/settings - Fika fields', () => {
+  const mockSession = { user: { id: 'user-123', email: 'test@example.com' } };
+  const mockRequest = (body: unknown) =>
+    new NextRequest('http://localhost:3000/api/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+  let upsert: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    upsert = vi.fn().mockResolvedValue({ error: null });
+    vi.mocked(createClient).mockResolvedValue({
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: mockSession.user } }) },
+    } as any);
+    vi.mocked(createServiceRoleClient).mockReturnValue({ from: vi.fn().mockReturnThis(), upsert } as any);
+  });
+
+  it('accepts fika_hour, timezone and weekly_target', async () => {
+    const response = await PATCH(mockRequest({ fika_hour: 7, timezone: 'Europe/Stockholm', weekly_target: 4 }));
+    expect(response.status).toBe(200);
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ fika_hour: 7, timezone: 'Europe/Stockholm', weekly_target: 4 }),
+      { onConflict: 'id' }
+    );
+  });
+
+  it('accepts null fika_hour to switch Fika off', async () => {
+    const response = await PATCH(mockRequest({ fika_hour: null }));
+    expect(response.status).toBe(200);
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ fika_hour: null }), { onConflict: 'id' });
+  });
+
+  it('rejects an out-of-range hour, an unknown timezone, and a bad weekly target', async () => {
+    expect((await PATCH(mockRequest({ fika_hour: 24 }))).status).toBe(400);
+    expect((await PATCH(mockRequest({ fika_hour: -1 }))).status).toBe(400);
+    expect((await PATCH(mockRequest({ timezone: 'Mars/Olympus' }))).status).toBe(400);
+    expect((await PATCH(mockRequest({ weekly_target: 0 }))).status).toBe(400);
+    expect((await PATCH(mockRequest({ weekly_target: 8 }))).status).toBe(400);
+    expect(upsert).not.toHaveBeenCalled();
   });
 });
 

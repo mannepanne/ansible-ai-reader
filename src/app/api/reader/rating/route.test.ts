@@ -460,6 +460,7 @@ describe('POST /api/reader/rating', () => {
         user_id: 'user-123',
         item_id: ITEM_ID,
         signal_type: 'rated_interesting',
+        source: 'web',
       });
     });
 
@@ -478,6 +479,7 @@ describe('POST /api/reader/rating', () => {
         user_id: 'user-123',
         item_id: ITEM_ID,
         signal_type: 'rated_not_interesting',
+        source: 'web',
       });
     });
 

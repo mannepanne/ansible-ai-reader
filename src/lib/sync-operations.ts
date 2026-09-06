@@ -269,6 +269,7 @@ export async function performSyncForUser(
               .update({
                 archived: true,
                 archived_at: archivedAt,
+                archive_reason: 'user',
                 highlights_count: meta?.highlights_count ?? 0,
                 reader_note: meta?.reader_note ?? null,
               })

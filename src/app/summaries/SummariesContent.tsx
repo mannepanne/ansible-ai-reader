@@ -76,6 +76,20 @@ export default function SummariesContent({ userEmail, isAdmin = false }: Summari
   const [dismissingItemId, setDismissingItemId] = useState<string | null>(null);
 
   // Load items on mount
+  // Deep links (e.g. "Open in Ansible" in the Fika email) arrive as /summaries#<item id>. Items load
+  // client-side, so the browser's own hash scroll finds nothing; scroll once the card exists.
+  const [hashScrolled, setHashScrolled] = useState(false);
+  useEffect(() => {
+    if (hashScrolled || items.length === 0 || typeof window === 'undefined') return;
+    const id = window.location.hash.slice(1);
+    if (!id) return;
+    const target = document.getElementById(id);
+    if (target) {
+      target.scrollIntoView?.({ block: 'start' });
+      setHashScrolled(true);
+    }
+  }, [items, hashScrolled]);
+
   useEffect(() => {
     loadItems();
   }, []);

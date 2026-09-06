@@ -157,6 +157,7 @@ describe('POST /api/reader/signal', () => {
         user_id: USER_ID,
         item_id: VALID_ITEM_ID,
         signal_type: 'click_through',
+        source: 'web',
       });
     });
 

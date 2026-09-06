@@ -43,7 +43,7 @@ REST API conventions, error handling patterns, and validation strategies.
 
 ## Authentication
 
-All protected routes require valid session.
+Protected routes require a valid session, with one exception: the Fika email's action links, where a signed token is the credential (see [authentication.md](./authentication.md#4-signed-action-token-fika-email)).
 
 **Pattern:**
 ```typescript
@@ -58,10 +58,14 @@ if (!session) {
 **Protected domains:**
 - `/api/reader/*` - Reader operations
 - `/api/settings` - User settings
+- `/api/fika/reading-days` - Weekly reading-day dots
+
+**Token-authenticated:**
+- `/api/fika/act` (and the `/fika/act` landing page) - Fika email actions; HMAC-signed, expiring token instead of a session
 
 **Public domains:**
 - `/api/auth/*` - Authentication
-- `/api/cron/*` - Cron endpoints (protected by CRON_SECRET)
+- `/api/cron/*` - Cron endpoints (protected by CRON_SECRET; fail closed if it is unset)
 
 ## Request Validation
 

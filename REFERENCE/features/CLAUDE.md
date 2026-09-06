@@ -21,6 +21,7 @@ How-it-works documentation for user-facing features.
 
 ### Automation
 - **[automated-sync.md](./automated-sync.md)** - Scheduled syncing system (cron worker, intervals, user settings)
+- **[fika.md](./fika.md)** - Fika: the daily two-item reading email with in-inbox actions, signed action links, and weekly reading-day dots
 
 ### Relay (autonomous narrator)
 - **[relay-operator-cli.md](./relay-operator-cli.md)** - The `relay:*` operator CLIs (run a session, read pending pieces, approve/reject) — the scriptable backstop; the admin "Relay Agent" tab is now the primary operator surface
@@ -41,6 +42,7 @@ How-it-works documentation for user-facing features.
 - **"How does the admin dashboard work?"** → [admin-analytics.md](./admin-analytics.md)
 - **"How does GDPR export/delete work?"** → [admin-analytics.md](./admin-analytics.md#gdpr-api-routes)
 - **"How does Reader sync work?"** → [reader-sync.md](./reader-sync.md)
+- **"How does the Fika email work?"** → [fika.md](./fika.md)
 - **"How does archive sync work?"** → [reader-sync.md](./reader-sync.md#archive-sync)
 - **"How are AI summaries generated?"** → [ai-summaries.md](./ai-summaries.md)
 - **"How does Commentariat work?"** → [commentariat.md](./commentariat.md)

@@ -1,10 +1,11 @@
 // ABOUT: Header component for authenticated pages
-// ABOUT: Dark header bar with branding, sync button, user info, and logout
+// ABOUT: Dark header bar with branding, weekly reading dots, sync button, user info, and logout
 
 'use client';
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import WeeklyDots from './WeeklyDots';
 
 interface HeaderProps {
   userEmail: string;
@@ -61,19 +62,21 @@ export default function Header({
           gap: '16px',
         }}
       >
-      {/* Branding */}
-      <Link
-        href="/"
-        style={{
-          fontWeight: 700,
-          fontSize: '1.1em',
-          flex: 1,
-          color: '#fff',
-          textDecoration: 'none',
-        }}
-      >
-        {isMobile ? 'Ansible' : 'Ansible AI Reader'}
-      </Link>
+      {/* Branding + this week's reading dots */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+        <Link
+          href="/"
+          style={{
+            fontWeight: 700,
+            fontSize: '1.1em',
+            color: '#fff',
+            textDecoration: 'none',
+          }}
+        >
+          {isMobile ? 'Ansible' : 'Ansible AI Reader'}
+        </Link>
+        <WeeklyDots compact={isMobile} />
+      </div>
 
       {/* Regenerate Tags button (orange, before Sync) */}
       {showRegenerateTags && (

@@ -45,7 +45,9 @@ binding = "PROCESSING_QUEUE"
   - `/api/auth/*` - Authentication (login, callback, logout)
   - `/api/reader/*` - Reader operations (sync, items, archive, status, retry)
   - `/api/settings` - User settings (GET/PATCH)
-  - `/api/cron/auto-sync` - Automated sync handler (called by cron worker)
+  - `/api/cron/auto-sync`, `/api/cron/fika` - Cron handlers (called by the cron worker)
+  - `/api/fika/act`, `/fika/act` - Fika email action links (signed token, no session; see [fika.md](../features/fika.md))
+  - `/api/fika/reading-days` - Weekly reading-day dots
   - `/api/jobs` - Manual job creation (testing)
 - **Queue Producer**: Enqueues jobs to `ansible-processing-queue`
 - **Session Management**: Cookie-based authentication via middleware
@@ -132,7 +134,7 @@ npx wrangler tail ansible-ai-reader-consumer
 ## Worker 3: Cron (`wrangler-cron.toml`)
 
 ### Purpose
-Trigger automated syncs hourly for users who have enabled scheduled syncing.
+Run the hourly jobs: trigger automated syncs for users with scheduled syncing, and send the Fika email to users whose local send hour has arrived.
 
 ### Configuration
 ```toml
@@ -148,38 +150,27 @@ crons = ["0 * * * *"]  # Every hour at minute 0
 ```
 
 ### Responsibilities
-- **Run Hourly**: Cloudflare executes `scheduled()` function every hour
-- **Trigger Sync**: Call `/api/cron/auto-sync` endpoint on main worker
-- **Authentication**: Pass `x-cron-secret` header for security
+- **Run Hourly**: Cloudflare executes `scheduled()` every hour
+- **Trigger both endpoints**: `/api/cron/auto-sync` and `/api/cron/fika` on the main worker, concurrently and independently, so a slow or failing sync never delays or suppresses the Fika email
+- **Authentication**: `authorization: Bearer ${CRON_SECRET}` header on each request
+- **Report failures**: after both have run, re-throw if any failed so the execution is marked failed
 
 ### Implementation
 ```typescript
-export default {
-  async scheduled(
-    event: ScheduledEvent,
-    env: Env,
-    ctx: ExecutionContext
-  ): Promise<void> {
-    const response = await fetch(
-      'https://ansible.hultberg.org/api/cron/auto-sync',
-      {
-        method: 'GET',
-        headers: {
-          'x-cron-secret': env.CRON_SECRET,
-        },
-      }
-    );
+export const CRON_ENDPOINTS = ['/api/cron/auto-sync', '/api/cron/fika'] as const;
 
-    const result = await response.json();
-    console.log('[Cron Worker] Auto-sync completed:', result);
+export default {
+  async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
+    const results = await Promise.allSettled(CRON_ENDPOINTS.map((path) => trigger(path, env)));
+    // log each result; collect failures; throw after both have run if any failed
   },
 };
 ```
 
 ### Security
 - **CRON_SECRET**: Shared secret between cron worker and main worker
-- Main worker validates secret before processing auto-sync
-- Prevents unauthorized triggering of automated syncs
+- Each cron endpoint validates the secret before doing anything, and fails closed (500) if the secret is not configured on the main worker
+- Prevents unauthorized triggering of syncs or emails
 
 ### Deployment
 ```bash
@@ -320,9 +311,10 @@ Main Worker
 ### Cron → Main Worker
 ```
 Cron Worker (hourly trigger)
-  → HTTP GET https://ansible.hultberg.org/api/cron/auto-sync
-  → Header: x-cron-secret
-  → Main worker processes auto-sync logic
+  → HTTP GET https://ansible.hultberg.org/api/cron/auto-sync   (concurrently with)
+  → HTTP GET https://ansible.hultberg.org/api/cron/fika
+  → Header: authorization: Bearer <CRON_SECRET>
+  → Main worker runs auto-sync / Fika send logic
 ```
 
 ## Secrets Management
