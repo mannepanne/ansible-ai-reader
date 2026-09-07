@@ -7,7 +7,7 @@ Detailed documentation of the Cloudflare Workers architecture: three core worker
 
 We deploy **three core Cloudflare Workers** because of OpenNext limitations:
 
-**OpenNext** (`@cloudflare/next-on-pages`) adapts Next.js for Cloudflare Workers but only generates **HTTP request handlers**. It doesn't support:
+**OpenNext** (`@opennextjs/cloudflare`) adapts Next.js for Cloudflare Workers but only generates **HTTP request handlers**. It doesn't support:
 - `scheduled()` function for cron triggers
 - Long-running background tasks
 

@@ -25,7 +25,7 @@ When asked to remember anything, add project memory in this CLAUDE.md (project r
 
 **Stack:**
 - **Framework**: Next.js 15 (App Router), React 19
-- **Runtime**: Cloudflare Workers (via `@cloudflare/next-on-pages`)
+- **Runtime**: Cloudflare Workers (via OpenNext, `@opennextjs/cloudflare`)
 - **Database**: Supabase (PostgreSQL + Auth)
 - **Queues**: Cloudflare Queues (async job processing)
 - **UI**: ReactMarkdown for formatted summaries
@@ -133,7 +133,7 @@ npm run test:coverage     # Coverage report
 - Strict mode enabled
 - Path alias: `@/` maps to `./src/` (Next.js convention)
 - React 19 and Next.js 15 types included
-- Configured with `@cloudflare/next-on-pages` adapter
+- Configured with the OpenNext adapter (`@opennextjs/cloudflare`)
 
 ## Implementation History
 
