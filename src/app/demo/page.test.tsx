@@ -115,5 +115,122 @@ describe('DemoPage', () => {
       // Article should be removed from view (4 summary tabs remaining)
       expect(screen.getAllByRole('tab', { name: /summary/i }).length).toBe(4);
     });
+
+    it('Sync restores archived articles, shows the popup, and tracks sync', async () => {
+      const user = userEvent.setup();
+      render(<DemoPage />);
+
+      await user.click(screen.getAllByRole('button', { name: /archive/i })[0]);
+      expect(screen.getAllByRole('tab', { name: /summary/i }).length).toBe(4);
+
+      await user.click(screen.getByRole('button', { name: /^sync$/i }));
+      expect(mockTrackEvent).toHaveBeenCalledWith('sync');
+      expect(screen.getAllByRole('tab', { name: /summary/i }).length).toBe(5);
+      expect(screen.getByText(/unread items are synced/i)).toBeDefined();
+
+      await user.click(document.querySelector('.fixed.inset-0')!);
+      expect(screen.queryByText(/unread items are synced/i)).toBeNull();
+    });
+
+    it('tracks expand and collapse and swaps the summary text', async () => {
+      const user = userEvent.setup();
+      render(<DemoPage />);
+
+      await user.click(screen.getAllByRole('button', { name: /expand/i })[0]);
+      expect(mockTrackEvent).toHaveBeenCalledWith('expand', { article_id: '1' });
+      expect(screen.getByText(/survey of 340 European enterprises/i)).toBeDefined();
+
+      await user.click(screen.getAllByRole('button', { name: /collapse/i })[0]);
+      expect(mockTrackEvent).toHaveBeenCalledWith('collapse', { article_id: '1' });
+      expect(screen.queryByText(/survey of 340 European enterprises/i)).toBeNull();
+    });
+
+    it('tracks tab switches, collapses on switch, and shows the commentary teaser', async () => {
+      const user = userEvent.setup();
+      render(<DemoPage />);
+
+      await user.click(screen.getAllByRole('button', { name: /expand/i })[0]);
+      await user.click(screen.getAllByRole('tab', { name: /commentary/i })[0]);
+
+      expect(mockTrackEvent).toHaveBeenCalledWith('tab_switch', { article_id: '1', tab: 'commentary' });
+      expect(screen.getByText(/\.\.\.$/)).toBeDefined();
+      expect(screen.queryByText(/Methodological caveat/i)).toBeNull();
+
+      await user.click(screen.getAllByRole('button', { name: /expand/i })[0]);
+      expect(screen.getByText(/Methodological caveat/i)).toBeDefined();
+    });
+
+    it('adds a note (tracked), edits it, and cancels', async () => {
+      const user = userEvent.setup();
+      render(<DemoPage />);
+
+      await user.click(screen.getAllByRole('button', { name: /add note/i })[0]);
+      const save = screen.getByRole('button', { name: /save note/i });
+      expect((save as HTMLButtonElement).disabled).toBe(true);
+
+      await user.type(screen.getByPlaceholderText(/add your thoughts/i), ' read later ');
+      expect(screen.getByText('12 / 10,000')).toBeDefined();
+      await user.click(save);
+
+      expect(mockTrackEvent).toHaveBeenCalledWith('add_note', { article_id: '1' });
+      expect(screen.getByText('read later')).toBeDefined();
+
+      await user.click(screen.getByRole('button', { name: /edit note/i }));
+      expect(screen.queryByText('read later')).toBeNull();
+      expect(screen.getByPlaceholderText(/add your thoughts/i)).toBeDefined();
+
+      await user.click(screen.getByRole('button', { name: /cancel/i }));
+      expect(screen.queryByPlaceholderText(/add your thoughts/i)).toBeNull();
+
+      await user.click(screen.getAllByRole('button', { name: /add note/i })[0]);
+      await user.click(screen.getAllByRole('button', { name: /add note/i })[0]);
+      expect(screen.queryByPlaceholderText(/add your thoughts/i)).toBeNull();
+    });
+
+    it('tracks reactions only when set, not when cleared', async () => {
+      const user = userEvent.setup();
+      render(<DemoPage />);
+
+      const interesting = screen.getAllByTitle('Interesting')[0];
+      const notInteresting = screen.getAllByTitle('Not interesting')[0];
+
+      await user.click(interesting);
+      expect(mockTrackEvent).toHaveBeenCalledWith('reaction', { article_id: '1', reaction: 'interesting' });
+      expect(interesting.className).toContain('bg-yellow-100');
+
+      mockTrackEvent.mockClear();
+      await user.click(interesting);
+      expect(interesting.className).not.toContain('bg-yellow-100');
+      expect(mockTrackEvent).not.toHaveBeenCalledWith('reaction', expect.anything());
+
+      await user.click(notInteresting);
+      expect(mockTrackEvent).toHaveBeenCalledWith('reaction', { article_id: '1', reaction: 'not-interesting' });
+      expect(notInteresting.className).toContain('bg-red-100');
+
+      mockTrackEvent.mockClear();
+      await user.click(notInteresting);
+      expect(notInteresting.className).not.toContain('bg-red-100');
+      expect(mockTrackEvent).not.toHaveBeenCalled();
+    });
+
+    it('tracks open_reader once per open and closes via backdrop or button', async () => {
+      const user = userEvent.setup();
+      render(<DemoPage />);
+
+      const openButton = screen.getAllByRole('button', { name: /open in reader/i })[0];
+      await user.click(openButton);
+      expect(mockTrackEvent).toHaveBeenCalledWith('open_reader', { article_id: '1' });
+      expect(screen.getByText(/piqued your interest/i)).toBeDefined();
+
+      await user.click(document.querySelector('.fixed.inset-0')!);
+      expect(screen.queryByText(/piqued your interest/i)).toBeNull();
+
+      mockTrackEvent.mockClear();
+      await user.click(openButton);
+      await user.click(openButton);
+      expect(screen.queryByText(/piqued your interest/i)).toBeNull();
+      // Closing via the button is not a fresh open, so only one open_reader event
+      expect(mockTrackEvent.mock.calls.filter((c) => c[0] === 'open_reader').length).toBe(1);
+    });
   });
 });

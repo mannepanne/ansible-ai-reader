@@ -269,10 +269,14 @@ npx tsc --noEmit   # Type check must pass
 ```
 
 ### Pull Request Checks
-1. All tests pass
-2. Coverage maintained or improved
-3. TypeScript compiles
-4. Linting passes
+
+The deploy workflow runs on every pull request against `main` (deploy steps skipped) and enforces, in this order:
+1. All tests pass on Node 22 (`npx vitest run --coverage`)
+2. Coverage thresholds from `vitest.config.ts` hold: 95% lines, functions, and statements, 90% branches. Test files, type declarations, build output, scripts, and `SCRATCH/` are excluded, so the number is product code only
+3. TypeScript compiles (`npx tsc --noEmit`)
+4. The worker build succeeds (`npm run build:worker`)
+
+Linting (`npx next lint`) is not in CI; run it before opening the PR.
 
 ---
 

@@ -27,6 +27,11 @@ export default defineConfig({
         '.wrangler/**',
         'scripts/**',
         'SCRATCH/**',
+        // Tests and type declarations are not product code either; counting them inflates the number
+        '**/*.test.ts',
+        '**/*.test.tsx',
+        '**/*.d.ts',
+        'vitest.setup.ts',
       ],
       thresholds: {
         lines: 95,

@@ -1,13 +1,21 @@
-# ABOUT: Automated CI/CD workflow for deploying Ansible AI Reader to Cloudflare Workers
-# ABOUT: Runs tests, type checks, builds, and deploys all four workers on every push to main
-# See REFERENCE/deployment-guide.md for setup instructions and troubleshooting
+# ABOUT: CI/CD workflow: tests, coverage gate, type check, and worker build on every pull request and push to main
+# ABOUT: The deploy steps run only on push to main, so a PR proves it is deployable without deploying
+# See REFERENCE/operations/deployment.md for setup instructions and troubleshooting
 
 name: Deploy to Production
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
+
+# A newer push to the same PR cancels the older run; pushes to main never cancel each other
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test-and-deploy:
@@ -29,8 +37,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test -- --run
+      # Coverage thresholds live in vitest.config.ts; vitest exits non-zero when any is missed
+      - name: Run tests with coverage gate
+        run: npx vitest run --coverage
 
       - name: Type check
         run: npx tsc --noEmit
@@ -44,6 +53,7 @@ jobs:
           NEXT_PUBLIC_CF_ANALYTICS_TOKEN: ${{ secrets.NEXT_PUBLIC_CF_ANALYTICS_TOKEN }}
 
       - name: Deploy consumer worker
+        if: github.event_name == 'push'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -55,6 +65,7 @@ jobs:
           PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
 
       - name: Deploy cron worker
+        if: github.event_name == 'push'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -66,6 +77,7 @@ jobs:
       # (RELAY_ORCHESTRATOR, script_name) requires this worker to exist. Secrets are set manually
       # (wrangler secret put) and persist; this env block is for parity with the other steps.
       - name: Deploy relay orchestrator worker
+        if: github.event_name == 'push'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -77,6 +89,7 @@ jobs:
           RELAY_CONTROL_TOKEN: ${{ secrets.RELAY_CONTROL_TOKEN }}
 
       - name: Deploy main application
+        if: github.event_name == 'push'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -97,6 +110,7 @@ jobs:
       # without it that tool silently degrades to summary-only. PERPLEXITY_API_KEY powers the
       # `research` tool's grounded search; without it that tool fails closed to degraded.
       - name: Deploy relay bridge worker
+        if: github.event_name == 'push'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}

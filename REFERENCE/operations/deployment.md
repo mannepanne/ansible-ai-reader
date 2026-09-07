@@ -66,13 +66,12 @@ OpenNext (the Next.js → Cloudflare adapter) deploys to **Cloudflare Workers**,
 
 ### GitHub Actions Workflow
 
-Every push to the `main` branch automatically:
-1. Runs all tests (`npm test -- --run`)
+One workflow serves both pull requests and `main`. Every pull request against `main`, and every push to `main`:
+1. Runs the full test suite with the coverage gate (`npx vitest run --coverage`); the thresholds in `vitest.config.ts` fail the run when missed
 2. Runs type checking (`npx tsc --noEmit`)
 3. Builds the application (`npm run build:worker`)
-4. Deploys cron worker (`wrangler deploy --config wrangler-cron.toml`)
-5. Deploys consumer worker (`wrangler deploy --config wrangler-consumer.toml`)
-6. Deploys main application (`wrangler deploy`)
+
+A push to `main` then continues and deploys all five workers, in order: consumer, cron, relay orchestrator, main application, relay bridge. On a pull request the deploy steps are skipped, so a green check on a PR means "tests, coverage, types, and the worker build all pass on Node 22", nothing has been deployed, and merging is what deploys. A newer push to the same PR cancels the older run.
 
 **Workflow file:** `.github/workflows/deploy.yml`
 

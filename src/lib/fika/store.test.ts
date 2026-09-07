@@ -213,4 +213,38 @@ describe('store', () => {
     await expect(listFikaUsers(db({ users: chain({ error: { message: 'boom' } }) }))).rejects.toThrow('[Fika store] listFikaUsers: boom');
     await expect(countUnread(db({ reader_items: chain({ error: {} as never }) }), 'u')).rejects.toThrow('unknown error');
   });
+
+  it('every read and write surfaces its own error with the function name as context', async () => {
+    const failing = () => chain({ error: { message: 'pg' } });
+    await expect(getUserFikaSettings(db({ users: failing() }), 'u')).rejects.toThrow('getUserFikaSettings: pg');
+    await expect(getBatchByDate(db({ fika_batches: failing() }), 'u', 'd')).rejects.toThrow('getBatchByDate: pg');
+    await expect(getMostRecentBatch(db({ fika_batches: failing() }), 'u')).rejects.toThrow('getMostRecentBatch: pg');
+    await expect(listCandidates(db({ reader_items: [failing(), chain({})] }), 'u')).rejects.toThrow('listCandidates oldest: pg');
+    await expect(listRecentlyBatchedIds(db({ fika_batches: failing() }), 'u', 'd')).rejects.toThrow('listRecentlyBatchedIds: pg');
+    await expect(loadEmailItems(db({ reader_items: failing() }), 'u', ['a'])).rejects.toThrow('loadEmailItems: pg');
+    await expect(listReadingEvents(db({ item_signals: failing(), reader_items: chain({}) }), 'u', 's')).rejects.toThrow('listReadingEvents signals: pg');
+    await expect(listReadingEvents(db({ item_signals: chain({}), reader_items: failing() }), 'u', 's')).rejects.toThrow('listReadingEvents archives: pg');
+    await expect(recordSendAttempt(db({ fika_batches: failing() }), 'b', 1)).rejects.toThrow('recordSendAttempt: pg');
+  });
+
+  it('treats a missing data payload as empty everywhere', async () => {
+    const empty = () => chain({ data: null });
+    expect(await listFikaUsers(db({ users: empty() }))).toEqual([]);
+    expect(await listCandidates(db({ reader_items: [empty(), empty()] }), 'u')).toEqual([]);
+    expect(await listRecentlyBatchedIds(db({ fika_batches: empty() }), 'u', 'd')).toEqual(new Set());
+    expect(await listRecentlyBatchedIds(db({ fika_batches: chain({ data: [{ fika_batch_items: null }] }) }), 'u', 'd')).toEqual(new Set());
+    expect(await loadEmailItems(db({ reader_items: empty() }), 'u', ['a'])).toEqual([]);
+    expect(await listReadingEvents(db({ item_signals: empty(), reader_items: empty() }), 'u', 's')).toEqual([]);
+    expect(await getUserFikaSettings(db({ users: chain({ data: { timezone: null, weekly_target: null } }) }), 'u')).toEqual({
+      timeZone: 'Europe/London',
+      weeklyTarget: 5,
+    });
+    expect(await getBatchByDate(db({ fika_batches: chain({ data: { id: 'b', sent_at: null, send_attempts: null, fika_batch_items: null } }) }), 'u', 'd')).toEqual({
+      id: 'b',
+      sentAt: null,
+      sendAttempts: 0,
+      itemIds: [],
+    });
+    expect(await getMostRecentBatch(db({ fika_batches: chain({ data: { id: 'b', fika_batch_items: null } }) }), 'u')).toEqual({ id: 'b', items: [] });
+  });
 });
