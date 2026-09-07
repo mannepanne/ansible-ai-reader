@@ -265,7 +265,7 @@ Modified
 - [x] Weekly dots count a reading day from any of the three user actions, in the user's timezone, and reset on Monday.
 - [x] All rendered fields are escaped. Snapshot tests cover one-item and two-item batches, with and without prose, with and without `word_count`.
 - [x] Manual: email renders in Gmail web, Gmail Android, and Apple Mail, light and dark. Checked on the first live email (2026-09-07). This is unverifiable in CI and is a manual step on every template change.
-- [ ] Tests first, coverage targets hold, `npx tsc --noEmit` clean. Tests and `tsc` hold; every Fika module is above the coverage threshold, but the global number sits below 95% because of pre-existing files (see the coverage note on PR #143). Left open until that is resolved.
+- [x] Tests first, coverage targets hold, `npx tsc --noEmit` clean. Every Fika module is above the coverage threshold; the global number has held above 95% since PR #147 and the branch headroom widened with the Vitest 4 upgrade.
 - [x] REFERENCE docs: new `features/fika.md`, `authentication.md` fourth client type, `automated-sync.md` cron additions, `database-schema.md`, `interest-signals.md` source column, the archive helper in `reader-sync.md`.
 
 ### 11. Testing strategy (1a)

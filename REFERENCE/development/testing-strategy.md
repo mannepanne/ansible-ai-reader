@@ -277,7 +277,7 @@ The deploy workflow runs on every pull request against `main` (deploy steps skip
 4. Lint passes (`npx next lint`)
 5. The worker build succeeds (`npm run build:worker`)
 
-Branch coverage has the least headroom, well under a point above the 90% floor. The largest pre-existing gaps are `src/components/admin/RelayAgent.tsx`, `src/app/admin/page.tsx`, and `src/lib/relay/session-readout.ts`, each with twenty to thirty uncovered branches; a PR touching any of them should bring tests for it, and a red gate on an unrelated PR is usually cheapest to clear there.
+Branch coverage has the least headroom, a few points above the 90% floor. The files with the most uncovered branches are `workers/consumer.ts`, `src/lib/reader-api.ts`, and `src/lib/sync-operations.ts`, each with fourteen to twenty; a PR touching any of them should bring tests for it, and a red gate on an unrelated PR is usually cheapest to clear there. Since the Vitest 4 upgrade the measurement counts callbacks and short-circuit branches the old remapper missed, so numbers from before it are not comparable.
 
 ---
 

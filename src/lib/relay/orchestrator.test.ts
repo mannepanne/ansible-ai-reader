@@ -22,7 +22,7 @@ function makeStore() {
   return { store, s };
 }
 
-function makeSupabase(item: unknown = { title: 'T', short_summary: 's', commentariat_summary: 'c' }) {
+function makeSupabase(item: unknown = { title: 'T', short_summary: 's', commentariat_summary: 'c' }, itemError: unknown = null) {
   const runs: any[] = [];
   let idc = 0;
   const agentRuns = {
@@ -32,7 +32,7 @@ function makeSupabase(item: unknown = { title: 'T', short_summary: 's', commenta
   };
   const supabase: any = {
     from: (t: string) => {
-      if (t === 'reader_items') return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: item, error: null }) }) }) };
+      if (t === 'reader_items') return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: itemError ? null : item, error: itemError }) }) }) };
       if (t === 'agent_session_runs') return agentRuns;
       return {};
     },
@@ -61,11 +61,12 @@ function makeMa({ status = 'idle', closing = 'done', usage = DEFAULT_USAGE as un
   });
 }
 
-function mkDeps(over: { item?: unknown; ma?: any; finalize?: any; maxAttempts?: number; now?: () => number } = {}) {
+function mkDeps(over: { item?: unknown; itemError?: unknown; ma?: any; finalize?: any; maxAttempts?: number; now?: () => number } = {}) {
   const { store, s } = makeStore();
-  const supabase = makeSupabase('item' in over ? over.item : undefined);
+  const supabase = makeSupabase('item' in over ? over.item : undefined, over.itemError);
   const ma = over.ma ?? makeMa();
   const finalize = over.finalize ?? vi.fn(async () => ({ verdict: 'wrote', piece_id: 'p1' }));
+  const logs: string[] = [];
   const deps = {
     store,
     ma,
@@ -73,11 +74,13 @@ function mkDeps(over: { item?: unknown; ma?: any; finalize?: any; maxAttempts?: 
     finalize,
     ids: { agentId: 'a', environmentId: 'e', vaultId: 'v' },
     now: over.now ?? (() => 1_000_000),
-    log: () => {},
+    log: (m: string) => {
+      logs.push(m);
+    },
     pollIntervalMs: 1000,
     maxAttempts: over.maxAttempts ?? 3,
   };
-  return { deps, s, supabase, ma, finalize };
+  return { deps, s, supabase, ma, finalize, logs };
 }
 
 describe('orchestrator', () => {
@@ -186,5 +189,84 @@ describe('orchestrator', () => {
     await enqueue(deps, 'ghost');
     expect(supabase.__runs.find((r: any) => r.reader_id === 'ghost').state).toBe('failed');
     expect(s._cur).toBeNull();
+  });
+
+  it('records a failed run with the query message when the stimulus lookup itself errors', async () => {
+    const { deps, s, supabase } = mkDeps({ itemError: { message: 'db down' } });
+    await enqueue(deps, 'r1');
+    expect(supabase.__runs.find((r: any) => r.reader_id === 'r1')).toMatchObject({ state: 'failed', error: 'stimulus fetch: db down' });
+    expect(s._cur).toBeNull();
+  });
+
+  it('stringifies a non-Error start failure into the ledger error column', async () => {
+    const ma = vi.fn(async (method: string, path: string) => {
+      if (method === 'POST' && path === '/sessions') throw 'wire dropped'; // deliberately a bare string, not an Error
+      return {};
+    });
+    const { deps, s, supabase } = mkDeps({ ma });
+    await enqueue(deps, 'r1');
+    expect(supabase.__runs.find((r: any) => r.reader_id === 'r1')).toMatchObject({ state: 'failed', error: 'wire dropped' });
+    expect(s._cur).toBeNull();
+  });
+
+  it('alarm with no run in flight is a no-op (no MA call, no finalize)', async () => {
+    const { deps, ma, finalize } = mkDeps();
+    await onAlarm(deps);
+    expect(ma).not.toHaveBeenCalled();
+    expect(finalize).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the 15s poll interval and 60-attempt cap when neither is configured', async () => {
+    const { deps, s } = mkDeps({ ma: makeMa({ status: 'running' }) });
+    const bare = { ...deps, pollIntervalMs: undefined, maxAttempts: undefined };
+    await enqueue(bare, 'r1');
+    expect(s._alarm).toBe(1_000_000 + 15_000); // start schedules the first poll at the default interval
+    s._alarm = null;
+    await onAlarm(bare);
+    expect(s._cur?.attempt).toBe(1); // well under the default cap
+    expect(s._alarm).toBe(1_000_000 + 15_000); // reschedule uses the default interval too
+  });
+
+  it.each([
+    ['an Error', new Error('MA 503'), 'MA 503'],
+    ['a non-Error value', 'socket hang up', 'socket hang up'],
+  ])('a transient poll failure (%s) is logged and rescheduled under the cap', async (_label, thrown, expectedMsg) => {
+    const ma = vi.fn(async (method: string, path: string) => {
+      if (method === 'POST' && path === '/sessions') return { id: 'sess-1' };
+      if (method === 'GET' && /\/sessions\/[^/]+$/.test(path)) throw thrown;
+      return {};
+    });
+    const { deps, s, finalize, logs } = mkDeps({ ma });
+    await enqueue(deps, 'r1');
+    s._alarm = null;
+    await onAlarm(deps);
+    expect(finalize).not.toHaveBeenCalled();
+    expect(s._cur?.attempt).toBe(1);
+    expect(s._alarm).toBeGreaterThan(0);
+    expect(logs).toContain(`alarm error r1: ${expectedMsg}`);
+  });
+
+  it('logs a dash for the piece id when the verdict is a silence (no piece written)', async () => {
+    const finalize = vi.fn(async () => ({ verdict: 'silent', piece_id: null }));
+    const { deps, supabase, logs } = mkDeps({ finalize });
+    await enqueue(deps, 'r1');
+    await onAlarm(deps);
+    expect(supabase.__runs.find((r: any) => r.reader_id === 'r1')).toMatchObject({ state: 'silent', piece_id: null });
+    expect(logs).toContain('finalized r1 verdict=silent piece=—');
+  });
+
+  it("startNext's own busy guard refuses to start when a run claims the machine after the idle check", async () => {
+    // The DO is single-threaded, so this can only happen if storage disagrees with itself between two
+    // reads; the guard keeps the serial invariant regardless. Model it with a store whose first two
+    // reads (stale check + idle check) see nothing and whose third (inside startNext) sees a run.
+    const { deps, s, ma } = mkDeps();
+    const busy: CurrentRun = { runId: 'run-x', readerId: 'r0', sessionId: 'sess-x', startedAt: new Date(1_000_000).toISOString(), attempt: 0 };
+    s._cur = busy;
+    const real = deps.store.getCurrent;
+    deps.store.getCurrent = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(null).mockImplementation(real);
+    await enqueue(deps, 'r1');
+    expect(ma).not.toHaveBeenCalled();
+    expect(s._q).toEqual(['r1']); // still queued, not consumed
+    expect(s._cur).toBe(busy);
   });
 });

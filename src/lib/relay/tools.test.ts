@@ -20,7 +20,7 @@ vi.mock('./grounded-search', async (importOriginal) => {
   return { ...actual, groundedSearch: (...args: unknown[]) => mockGroundedSearch(...args) };
 });
 
-import { recall, fetchById, writePending, ingestReference, research, normalizeSourceUrl, RESEARCH_ORIGIN } from './tools';
+import { recall, fetchById, writePending, ingestReference, research, normalizeSourceUrl, coerceArray, RESEARCH_ORIGIN } from './tools';
 import { RESEARCH_UNAVAILABLE } from './grounded-search';
 
 // A tiny chainable Supabase stub. Each method records its args and returns `this` until a
@@ -120,6 +120,23 @@ describe('recall', () => {
     });
     await expect(recall(deps(supabase), { stimulus_text: 'x' })).rejects.toThrow(/boom/);
   });
+
+  it('returns an empty list when the RPC yields no rows (data null, no error)', async () => {
+    const supabase = makeSupabase();
+    (supabase as never as { rpc: ReturnType<typeof vi.fn> }).rpc.mockResolvedValue({ data: null, error: null });
+    expect(await recall(deps(supabase), { stimulus_text: 'x' })).toEqual([]);
+  });
+
+  it('fills a sparse neighbour row with null title/summary and empty concepts', async () => {
+    const supabase = makeSupabase();
+    (supabase as never as { rpc: ReturnType<typeof vi.fn> }).rpc.mockResolvedValue({
+      data: [{ id: 'r1', kind: 'reference', concepts: null }],
+      error: null,
+    });
+    expect(await recall(deps(supabase), { stimulus_text: 'x' })).toEqual([
+      { id: 'r1', kind: 'reference', title: null, summary: null, concepts: [] },
+    ]);
+  });
 });
 
 describe('fetchById', () => {
@@ -189,6 +206,79 @@ describe('fetchById', () => {
 
   it('rejects a missing id', async () => {
     await expect(fetchById(deps(makeSupabase()), { id: '' })).rejects.toThrow(/id/);
+  });
+
+  it.each([
+    ['no args object at all', undefined],
+    ['an args object without an id', {}],
+    ['a whitespace-only id', { id: '   ' }],
+  ])('rejects %s before touching the database', async (_label, args) => {
+    const supabase = makeSupabase();
+    await expect(fetchById(deps(supabase), args as never)).rejects.toThrow(/id is required/);
+    expect((supabase as never as { from: ReturnType<typeof vi.fn> }).from).not.toHaveBeenCalled();
+  });
+
+  it('accepts a non-string id that has no trim method, looking it up as-is', async () => {
+    const supabase = makeSupabase();
+    (supabase as never as { __builder: { maybeSingle: ReturnType<typeof vi.fn> } }).__builder.maybeSingle.mockResolvedValueOnce(
+      { data: { id: 42, title: 'N', content: 'numeric', source_ref: null, origin: 'ansible_backfill' }, error: null },
+    );
+    const out = await fetchById(deps(supabase), { id: 42 as never });
+    expect((supabase as never as { __builder: { eq: ReturnType<typeof vi.fn> } }).__builder.eq).toHaveBeenCalledWith('id', 42);
+    expect(out).toEqual({ id: 42, kind: 'reference', title: 'N', text: 'numeric' });
+  });
+
+  it('throws when the reference lookup itself errors', async () => {
+    const supabase = makeSupabase();
+    (supabase as never as { __builder: { maybeSingle: ReturnType<typeof vi.fn> } }).__builder.maybeSingle.mockResolvedValueOnce(
+      { data: null, error: { message: 'ref lookup failed' } },
+    );
+    await expect(fetchById(deps(supabase), { id: 'r1' })).rejects.toThrow(/fetch: ref lookup failed/);
+  });
+
+  it('throws when the piece lookup errors after a reference miss', async () => {
+    const supabase = makeSupabase();
+    (supabase as never as { __builder: { maybeSingle: ReturnType<typeof vi.fn> } }).__builder.maybeSingle
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: null, error: { message: 'piece lookup failed' } });
+    await expect(fetchById(deps(supabase), { id: 'p1' })).rejects.toThrow(/fetch: piece lookup failed/);
+  });
+
+  it('returns stored content (not degraded) for a backfill reference when no Reader token is configured', async () => {
+    const supabase = makeSupabase();
+    (supabase as never as { __builder: { maybeSingle: ReturnType<typeof vi.fn> } }).__builder.maybeSingle.mockResolvedValueOnce(
+      { data: { id: 'r1', title: 'Title', content: 'stored summary', source_ref: 'reader-99', origin: 'ansible_backfill' }, error: null },
+    );
+    const out = await fetchById(deps(supabase, { readerToken: undefined }), { id: 'r1' });
+    expect(mockFetchArticleContent).not.toHaveBeenCalled();
+    expect(out).toEqual({ id: 'r1', kind: 'reference', title: 'Title', text: 'stored summary' });
+  });
+
+  it('falls back to the article title when the stored reference has none', async () => {
+    const supabase = makeSupabase();
+    (supabase as never as { __builder: { maybeSingle: ReturnType<typeof vi.fn> } }).__builder.maybeSingle.mockResolvedValueOnce(
+      { data: { id: 'r1', title: null, content: 'stored', source_ref: 'reader-99', origin: 'ansible_backfill' }, error: null },
+    );
+    mockFetchArticleContent.mockResolvedValue({ title: 'Full Title', content: 'FULL BODY', url: 'u', author: 'a' });
+    const out = await fetchById(deps(supabase), { id: 'r1' });
+    expect(out).toEqual({ id: 'r1', kind: 'reference', title: 'Full Title', text: 'FULL BODY' });
+  });
+});
+
+describe('coerceArray', () => {
+  it.each([
+    ['a native array', [1, 'two'], [1, 'two']],
+    ['a JSON array string', '[1,2]', [1, 2]],
+    ['a JSON object string (wrapped)', '{"a":1}', [{ a: 1 }]],
+    ['a JSON scalar string (dropped)', '42', []],
+    ['a JSON null string (dropped)', 'null', []],
+    ['an unparseable string (dropped)', 'not json', []],
+    ['a whitespace-only string', '   ', []],
+    ['a bare object (wrapped)', { a: 1 }, [{ a: 1 }]],
+    ['undefined', undefined, []],
+    ['a number', 7, []],
+  ])('coerces %s', (_label, raw, expected) => {
+    expect(coerceArray(raw)).toEqual(expected);
   });
 });
 
