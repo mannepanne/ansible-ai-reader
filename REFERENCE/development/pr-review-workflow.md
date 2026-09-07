@@ -280,6 +280,8 @@ git status               # Verify what's included
 git diff                 # Review your own changes first
 ```
 
+Any new Supabase embed, filter syntax, or column name also gets one run against the real schema before the PR is opened; mocked tests cannot catch a query PostgREST rejects. See [testing-strategy.md](./testing-strategy.md#when-tests-are-not-enough).
+
 **PR description should include:**
 - What changed and why
 - How to test manually (if needed)

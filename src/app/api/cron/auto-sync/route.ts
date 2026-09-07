@@ -156,7 +156,9 @@ export async function GET(request: NextRequest) {
           skipped++;
         }
       } catch (error) {
-        console.error(`[Cron] Sync failed for user ${user.id}:`, error);
+        // Workers Logs shows an Error argument as its stack alone, so the message goes in the string
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`[Cron] Sync failed for user ${user.id}: ${message}`, error);
         failed++;
         // Continue to next user - don't let one failure stop the entire job
       }

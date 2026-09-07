@@ -72,11 +72,16 @@ describe('GET /api/cron/fika', () => {
       .mockResolvedValueOnce({ status: 'empty' })
       .mockResolvedValueOnce({ status: 'send_failed', batchId: 'b4', attempts: 1, message: 'Resend responded 500' })
       .mockRejectedValueOnce(new Error('db down'));
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const res = await GET(request('Bearer cron'));
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ sent: 1, skipped: 1, empty: 1, sendFailed: 1, failed: 1 });
+    // The message must be in the log string itself: Workers Logs renders an Error argument as a bare stack
+    expect(errorLog).toHaveBeenCalledWith('[Cron Fika] Run failed for user u5: db down', expect.any(Error));
+    expect(errorLog).toHaveBeenCalledWith('[Cron Fika] Completed:', { sent: 1, skipped: 1, empty: 1, sendFailed: 1, failed: 1 });
+    errorLog.mockRestore();
     expect(runFikaForUser).toHaveBeenCalledTimes(5);
     const [db, user, deps] = vi.mocked(runFikaForUser).mock.calls[0];
     expect(db).toEqual({ tag: 'db' });

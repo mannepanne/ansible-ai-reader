@@ -294,6 +294,7 @@ describe('GET /api/cron/auto-sync', () => {
     vi.mocked(createClient).mockReturnValue(mockSupabase as any);
 
     // First user fails, second succeeds
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.mocked(performSyncForUser)
       .mockRejectedValueOnce(new Error('First user failed'))
       .mockResolvedValueOnce({
@@ -309,6 +310,8 @@ describe('GET /api/cron/auto-sync', () => {
     expect(response.status).toBe(200);
     expect(data).toEqual({ synced: 1, skipped: 0, failed: 1, timestampFailures: 0 });
     expect(performSyncForUser).toHaveBeenCalledTimes(2);
+    expect(errorLog).toHaveBeenCalledWith(expect.stringMatching(/Sync failed for user .*: First user failed$/), expect.any(Error));
+    errorLog.mockRestore();
   });
 
   it('works in local dev mode without Cloudflare queue', async () => {

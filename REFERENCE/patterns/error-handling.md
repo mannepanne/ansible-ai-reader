@@ -227,10 +227,12 @@ async function fetchReaderItems(token: string) {
 
 **Error (always log):**
 ```typescript
-console.error('[API] Failed to process request:', error);
+const message = error instanceof Error ? error.message : String(error);
+console.error(`[API] Failed to process request: ${message}`, error);
 console.error('[Reader] API returned 500:', error.message);
-console.error('[Database] Connection failed:', error);
 ```
+
+Put the message in the string, not only in the `Error` argument. Cloudflare Workers Logs renders an `Error` passed as a second argument as its stack alone, so `console.error('[X] failed:', error)` shows up in production as a bare stack with no message. Passing the object as well keeps the stack. This matters most where the log is the only place a failure surfaces, such as the cron routes.
 
 **Warning (potential issues):**
 ```typescript
