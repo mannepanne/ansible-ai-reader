@@ -147,7 +147,7 @@ npx wrangler tail > logs.txt
 Error: Cron endpoints failed: /api/cron/auto-sync: API returned 401: ...
 ```
 
-For Fika, the main-worker log is the one to tail when a user says no email arrived: `[Cron Fika] Send failed for user ... (attempt N): Resend responded 4xx/5xx`. See [fika.md](../features/fika.md#troubleshooting).
+For Fika, the main-worker log is the one to tail when a user says no email arrived. `[Cron Fika] Run failed for user ...: <message>` is a thrown error before the send (most likely a query the database rejected; `npm run fika:diagnose` replays the same reads locally), `[Cron Fika] Send failed for user ... (attempt N): Resend responded 4xx/5xx` is Resend, and `[Cron Fika] Completed:` is logged at error level whenever any user failed. See [fika.md](../features/fika.md#troubleshooting).
 
 ---
 

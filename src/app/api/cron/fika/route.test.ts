@@ -80,6 +80,7 @@ describe('GET /api/cron/fika', () => {
     expect(await res.json()).toEqual({ sent: 1, skipped: 1, empty: 1, sendFailed: 1, failed: 1 });
     // The message must be in the log string itself: Workers Logs renders an Error argument as a bare stack
     expect(errorLog).toHaveBeenCalledWith('[Cron Fika] Run failed for user u5: db down', expect.any(Error));
+    expect(errorLog).toHaveBeenCalledWith('[Cron Fika] Completed:', { sent: 1, skipped: 1, empty: 1, sendFailed: 1, failed: 1 });
     errorLog.mockRestore();
     expect(runFikaForUser).toHaveBeenCalledTimes(5);
     const [db, user, deps] = vi.mocked(runFikaForUser).mock.calls[0];

@@ -95,8 +95,6 @@ Each test should:
 
 **Mocking:** Vitest built-in mocking + custom mocks for external services
 
-**Limit of mocking Supabase:** a mocked query builder proves we sent the select string we meant to, not that PostgREST accepts it. A new embed (`parent(child(...))`), filter syntax, or column name needs one run against the real schema before merge. `npm run fika:diagnose` is the model: a read-only script that replays the production read path.
-
 **Coverage:** Vitest with v8 coverage provider
 
 ### Setup
@@ -324,24 +322,22 @@ Tests validate **correctness**, but don't guarantee:
 - Good UX (need manual testing)
 - Performance at scale (need load testing)
 - Security against novel attacks (need security review)
+- A query the database accepts (need one run against the real schema)
 
 **Complement tests with:**
 - Manual testing on real devices/browsers
 - Security reviews for auth and data handling
 - Performance profiling for large datasets
+- A read-only replay against the real database for any new Supabase embed, filter syntax, or column name
+
+**Limit of mocking Supabase:** a mocked query builder proves we sent the select string we meant to, not that PostgREST accepts it, and a mocked response proves only the shape we assumed. A new embed (`parent(child(...))`), filter syntax, or column name needs one run against the real schema before merge. `npm run fika:diagnose` is the model: a read-only script that replays the production read path, checks result shapes, and exits non-zero on any failure.
 
 ---
 
 ## Current Status
 
-**Tests passing:** 237 (as of Phase 4 completion)
-**Coverage:** 95%+ (lines/functions/statements), 90%+ (branches)
-
-**Test distribution:**
-- Phase 1 (Foundation): 26 tests
-- Phase 2 (Authentication): 22 tests (64 total)
-- Phase 3 (Reader Integration): 56 tests (120 total)
-- Phase 4 (Perplexity Integration): 117 tests (237 total)
+**Tests passing:** run `npm test` for the live count; it changes on every test-adding PR.
+**Coverage target:** 95%+ (lines/functions/statements), 90%+ (branches); `npm run test:coverage` reports the real number.
 
 ---
 

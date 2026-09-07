@@ -97,7 +97,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log('[Cron Fika] Completed:', counts);
+    // A run where users failed must be visible to an error-level log filter, not buried at info
+    (counts.failed > 0 ? console.error : console.log)('[Cron Fika] Completed:', counts);
     return NextResponse.json(counts);
   } catch (error) {
     console.error('[Cron Fika] Unexpected error:', error);
