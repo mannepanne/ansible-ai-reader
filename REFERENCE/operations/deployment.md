@@ -75,6 +75,8 @@ A push to `main` then continues and deploys all five workers, in order: consumer
 
 **Workflow file:** `.github/workflows/deploy.yml`
 
+**The PR check is advisory unless `main` is protected.** Without branch protection a red pull request can still be merged and deployed. To make the check binding, protect `main` in the repository settings with `Test and Deploy to Cloudflare` as a required status check and "require branches to be up to date", so a check computed against a stale `main` cannot merge. Required checks also block direct pushes to `main`, including the documentation-only pushes the branch rules allow, unless the rule leaves administrators exempt.
+
 ### Required GitHub Secrets
 
 Set these in your repository settings at:
@@ -108,8 +110,8 @@ https://github.com/mannepanne/ansible-ai-reader/settings/secrets/actions
 ### Testing the Workflow
 
 After setting up secrets:
-1. Make any small change to the codebase
-2. Commit and push to `main` branch
+1. Make any small change on a branch and open a pull request; the workflow runs the test, type check, and build steps and skips the deploys
+2. Merge the pull request
 3. Go to Actions tab in GitHub to watch the deployment
 4. All five workers are automatically deployed on success, in order: consumer → cron → relay orchestrator → main app → relay bridge (the orchestrator precedes the app for the DO binding; the bridge is last — see `.github/workflows/deploy.yml`)
 
@@ -405,7 +407,7 @@ See [troubleshooting.md](./troubleshooting.md) for more common issues.
 
 Before deploying to production:
 
-- [ ] All tests pass locally: `npm test -- --run`
+- [ ] Tests and the coverage gate pass locally: `npx vitest run --coverage`
 - [ ] Type checking passes: `npx tsc --noEmit`
 - [ ] Build succeeds: `npm run build:worker`
 - [ ] Database migrations applied in Supabase

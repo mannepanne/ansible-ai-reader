@@ -381,10 +381,19 @@ WHERE sync_interval > 0;
 **Cause:** Environment differences or missing test data
 
 **Fix:**
-1. Check Node.js version matches local (20+)
+1. CI runs Node 22 with `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` set for actions only; check your local Node version, since Node 22 and 24 differ in what the `Request` constructor accepts in jsdom
 2. Verify all dev dependencies are installed
-3. Run tests with same command as CI: `npm test -- --run`
+3. Run tests with the same command as CI: `npx vitest run --coverage`
 4. Check for timing issues or race conditions
+
+### PR check is red on the coverage gate
+
+**Cause:** the suite passed but a threshold in `vitest.config.ts` was missed (95% lines, functions, statements; 90% branches). Branch coverage carries the least headroom, so a new file with a few untested `if` branches is the usual trigger.
+
+**Fix:**
+1. Run `npx vitest run --coverage` locally and open `coverage/index.html`; the CI run also uploads that directory as the `coverage` artifact when the gate fails
+2. Sort by uncovered branches and add tests for the files you touched first; the largest pre-existing gaps are listed in [testing-strategy.md](../development/testing-strategy.md#pull-request-checks)
+3. Do not lower a threshold or add an exclude to get green; product code stays counted
 
 ### Build succeeds but deployment fails
 
@@ -393,7 +402,7 @@ WHERE sync_interval > 0;
 **Fix:**
 1. Verify `wrangler.toml` files are committed
 2. Check Cloudflare API token permissions
-3. Ensure all four workers have secrets configured
+3. Ensure all five workers have secrets configured
 4. Review deployment logs in GitHub Actions
 
 ---

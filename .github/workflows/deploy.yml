@@ -1,5 +1,5 @@
 # ABOUT: CI/CD workflow: tests, coverage gate, type check, and worker build on every pull request and push to main
-# ABOUT: The deploy steps run only on push to main, so a PR proves it is deployable without deploying
+# ABOUT: The deploy steps run only on push to main; a green PR check means tests, coverage, types and the build pass on Node 22, nothing more
 # See REFERENCE/operations/deployment.md for setup instructions and troubleshooting
 
 name: Deploy to Production
@@ -16,6 +16,10 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# The workflow uses no GITHUB_TOKEN write access; say so, so a repo-settings change cannot widen it
+permissions:
+  contents: read
 
 jobs:
   test-and-deploy:
@@ -41,8 +45,19 @@ jobs:
       - name: Run tests with coverage gate
         run: npx vitest run --coverage
 
+      # A red gate names no file; the HTML report in this artifact does (coverage/index.html)
+      - name: Upload coverage report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+
       - name: Type check
         run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx next lint
 
       - name: Build application
         run: npm run build:worker
@@ -52,9 +67,11 @@ jobs:
           NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY }}
           NEXT_PUBLIC_CF_ANALYTICS_TOKEN: ${{ secrets.NEXT_PUBLIC_CF_ANALYTICS_TOKEN }}
 
+      # Every deploy step below MUST carry `if: github.event_name == 'push'`. A step without it would
+      # run wrangler from a pull request. The steps above are safe to run on a PR; these are not.
       - name: Deploy consumer worker
         if: github.event_name == 'push'
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           command: deploy --config wrangler-consumer.toml
@@ -66,7 +83,7 @@ jobs:
 
       - name: Deploy cron worker
         if: github.event_name == 'push'
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           command: deploy --config wrangler-cron.toml
@@ -78,7 +95,7 @@ jobs:
       # (wrangler secret put) and persist; this env block is for parity with the other steps.
       - name: Deploy relay orchestrator worker
         if: github.event_name == 'push'
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           command: deploy --config wrangler-relay-orchestrator.toml
@@ -90,7 +107,7 @@ jobs:
 
       - name: Deploy main application
         if: github.event_name == 'push'
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           command: deploy
@@ -111,7 +128,7 @@ jobs:
       # `research` tool's grounded search; without it that tool fails closed to degraded.
       - name: Deploy relay bridge worker
         if: github.event_name == 'push'
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           command: deploy --config wrangler-relay-bridge.toml
