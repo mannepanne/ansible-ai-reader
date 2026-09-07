@@ -106,6 +106,51 @@ describe('readSession', () => {
     ];
     expect(readSession(events).degraded).toBe('summary_only,research_unavailable');
   });
+
+  it('tolerates an agent message with no content and tool results with no content or textless blocks', () => {
+    const events = [
+      { type: 'agent.message' },
+      { type: 'agent.mcp_tool_result' },
+      { type: 'agent.mcp_tool_result', content: [{ type: 'text' }] },
+    ];
+    expect(readSession(events)).toEqual({ closingText: null, degraded: null, sources: [] });
+  });
+
+  it.each([
+    ['plain text that is not JSON', 'the full article body, not json'],
+    ['a JSON null', 'null'],
+    ['a JSON object whose findings is not an array', '{"findings":"nope"}'],
+    ['a JSON object with no findings key', '{"ok":true}'],
+  ])('yields no sources from a tool result carrying %s (never throws)', (_label, text) => {
+    const events = [{ type: 'agent.mcp_tool_result', content: [{ type: 'text', text }] }];
+    expect(readSession(events).sources).toEqual([]);
+  });
+
+  it('coerces partial findings to empty strings and drops null findings or ones without a URL', () => {
+    const events = [
+      {
+        type: 'agent.mcp_tool_result',
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              findings: [
+                null,
+                {},
+                { quote: 'no url here', source_title: 'orphan' },
+                { source_url: 'https://c.example' },
+                { quote: 1, source_url: 'https://d.example', source_title: null },
+              ],
+            }),
+          },
+        ],
+      },
+    ];
+    expect(readSession(events).sources).toEqual([
+      { quote: '', source_url: 'https://c.example', source_title: '' },
+      { quote: '1', source_url: 'https://d.example', source_title: '' },
+    ]);
+  });
 });
 
 describe('readUsage', () => {
@@ -213,5 +258,82 @@ describe('renderTrace', () => {
 
   it('returns an empty string for no events', () => {
     expect(renderTrace([])).toBe('');
+  });
+
+  it('tolerates a missing events array', () => {
+    expect(renderTrace(undefined as never)).toBe('');
+  });
+
+  it('renders a recall with no input as an empty query without a k suffix', () => {
+    expect(renderTrace([{ type: 'agent.mcp_tool_use', name: 'recall' }])).toBe('  → recall   ""');
+  });
+
+  it('truncates a long recall query with an ellipsis and collapses its whitespace', () => {
+    const stimulus = `${'word '.repeat(40)}\n\nmore`;
+    const out = renderTrace([{ type: 'agent.mcp_tool_use', name: 'recall', input: { stimulus_text: stimulus } }]);
+    expect(out).toMatch(/^ {2}→ recall {3}"(word ){22}…"$/);
+  });
+
+  it('renders a fetch with no input as an empty id', () => {
+    expect(renderTrace([{ type: 'agent.mcp_tool_use', name: 'fetch' }])).toBe('  → fetch    ');
+  });
+
+  it.each([
+    ['no input at all', undefined],
+    ['a whitespace-only body (no first line to pick)', { body: '   \n\n  ' }],
+  ])('renders a write_pending with %s as an empty title', (_label, input) => {
+    expect(renderTrace([{ type: 'agent.mcp_tool_use', name: 'write_pending', input }])).toBe('  → write_pending   ""');
+  });
+
+  it('truncates a long write_pending first line to 80 characters', () => {
+    const body = `${'a'.repeat(100)}\nsecond line`;
+    const out = renderTrace([{ type: 'agent.mcp_tool_use', name: 'write_pending', input: { body } }]);
+    expect(out).toBe(`  → write_pending   "${'a'.repeat(80)}…"`);
+  });
+
+  it('renders any other tool by name with its JSON input, and a nameless tool as "?"', () => {
+    const events = [
+      { type: 'agent.mcp_tool_use', name: 'research', input: { query: 'fines' } },
+      { type: 'agent.mcp_tool_use' },
+    ];
+    expect(renderTrace(events)).toBe('  → research   {"query":"fines"}\n  → ?   {}');
+  });
+
+  it('labels recall neighbours by kind:id when the title is missing, and "?:" when the row is null', () => {
+    const events = [
+      { type: 'agent.mcp_tool_result', content: [{ type: 'text', text: '[null,{},{"kind":"reference"},{"id":"abcdefghijkl"}]' }] },
+    ];
+    expect(renderTrace(events)).toBe('    ← 4 neighbour(s): ?:; ?:; reference:; ?:abcdefgh');
+  });
+
+  it('renders a non-recall, non-ok tool result verbatim (truncated to 120 chars)', () => {
+    const events = [
+      { type: 'agent.mcp_tool_result', content: [{ type: 'text', text: '{"id":"x","kind":"reference","text":"body"}' }] },
+      { type: 'agent.mcp_tool_result', content: [{ type: 'text', text: `{"text":"${'b'.repeat(200)}"}` }] },
+    ];
+    const lines = renderTrace(events).split('\n');
+    expect(lines[0]).toBe('    ← {"id":"x","kind":"reference","text":"body"}');
+    expect(lines[1]).toHaveLength('    ← '.length + 121); // 120 chars + ellipsis
+    expect(lines[1].endsWith('…')).toBe(true);
+  });
+
+  it.each([
+    ['no content', { type: 'agent.mcp_tool_result' }],
+    ['an empty content list', { type: 'agent.mcp_tool_result', content: [] }],
+    ['a textless block', { type: 'agent.mcp_tool_result', content: [{ type: 'text' }] }],
+  ])('renders nothing for a tool result with %s', (_label, event) => {
+    expect(renderTrace([event])).toBe('');
+  });
+
+  it.each([
+    ['no content', { type: 'agent.message' }],
+    ['only non-text blocks', { type: 'agent.message', content: [{ type: 'thinking', text: 'hmm' }] }],
+  ])('renders nothing for an agent message with %s', (_label, event) => {
+    expect(renderTrace([event])).toBe('');
+  });
+
+  it('ignores event types outside the traced set (status, span, and unknown events)', () => {
+    const events = [{ type: 'session.status_idle' }, { type: 'span.model_request_end' }, { type: 'something.new' }];
+    expect(renderTrace(events)).toBe('');
   });
 });

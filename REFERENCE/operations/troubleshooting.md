@@ -390,6 +390,8 @@ WHERE sync_interval > 0;
 
 **Cause:** the suite passed but a threshold in `vitest.config.ts` was missed (95% lines, functions, statements; 90% branches). Branch coverage carries the least headroom, so a new file with a few untested `if` branches is the usual trigger.
 
+A red gate right after a Vitest major upgrade with no product code touched is the measurement changing, not the suite: see "Keeping Dependencies Patched" in [deployment.md](./deployment.md).
+
 **Fix:**
 1. Run `npx vitest run --coverage` locally and open `coverage/index.html`; the CI run also uploads that directory as the `coverage` artifact when the gate fails
 2. Sort by uncovered branches and add tests for the files you touched first; the largest pre-existing gaps are listed in [testing-strategy.md](../development/testing-strategy.md#pull-request-checks)

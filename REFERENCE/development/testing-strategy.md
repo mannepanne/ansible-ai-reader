@@ -246,7 +246,7 @@ export function createMockReaderAPI() {
 **Allowed Exceptions:**
 - Type definition files (no executable code)
 - Configuration files
-- Explicitly marked `/* istanbul ignore */` with explanation
+- Explicitly marked `/* v8 ignore next */` with explanation (the v8 provider ignores `istanbul ignore` comments)
 
 ### Coverage Reporting
 
@@ -272,12 +272,12 @@ npx tsc --noEmit   # Type check must pass
 
 The deploy workflow runs on every pull request against `main` (deploy steps skipped) and enforces, in this order:
 1. All tests pass on Node 22 (`npx vitest run --coverage`)
-2. Coverage thresholds from `vitest.config.ts` hold: 95% lines, functions, and statements, 90% branches. Vitest's default excludes (test files, type declarations, config files) plus build output, scripts, and `SCRATCH/` are excluded, so the number is product code only; the full list is in `vitest.config.ts`
+2. Coverage thresholds from `vitest.config.ts` hold: 95% lines, functions, and statements, 90% branches. Every file under `src/` and `workers/` is measured (`coverage.include`), so a module no test imports counts at 0% instead of disappearing from the report, and a new top-level product directory must be added to that list or it is invisible to the gate; test files, setup, type declarations, config files, and CSS are excluded, so the number is product code only
 3. TypeScript compiles (`npx tsc --noEmit`)
 4. Lint passes (`npx next lint`)
 5. The worker build succeeds (`npm run build:worker`)
 
-Branch coverage has the least headroom, well under a point above the 90% floor. The largest pre-existing gaps are `src/components/admin/RelayAgent.tsx`, `src/app/admin/page.tsx`, and `src/lib/relay/session-readout.ts`, each with twenty to thirty uncovered branches; a PR touching any of them should bring tests for it, and a red gate on an unrelated PR is usually cheapest to clear there.
+Branch coverage has the least headroom, a few points above the 90% floor. The files with the most uncovered branches are `workers/consumer.ts`, `src/lib/reader-api.ts`, and `src/lib/sync-operations.ts`, each with fourteen to twenty; a PR touching any of them should bring tests for it, and a red gate on an unrelated PR is usually cheapest to clear there. Coverage is remapped from the AST, which counts callbacks and short-circuit branches; figures recorded before Vitest 4 are not comparable.
 
 ---
 

@@ -54,8 +54,33 @@ beforeEach(() => {
 
 afterEach(() => {
   clearTrackingStorage();
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
+
+// Simulate SSR (no window) for the duration of `fn`; localStorage itself stays reachable so the
+// tests can assert nothing was written to it.
+function withoutWindow(fn: () => void) {
+  const windowSpy = vi.spyOn(global, 'window', 'get');
+  // @ts-expect-error — simulate SSR
+  windowSpy.mockReturnValue(undefined);
+  try {
+    fn();
+  } finally {
+    windowSpy.mockRestore();
+  }
+}
+
+// The heartbeat runs on setInterval; only fake that so RTL's own timers stay real.
+const fakeIntervals = () => vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+const tick = (ms: number) =>
+  act(async () => {
+    await vi.advanceTimersByTimeAsync(ms);
+  });
+
+// Make crypto.randomUUID yield an empty string so the identity helpers "fail" to mint an ID — the
+// hooks then carry empty refs, which is the only way to reach their defensive early-return paths.
+const stubEmptyUuid = () => vi.spyOn(crypto, 'randomUUID').mockReturnValue('' as never);
 
 // ── getSessionId ─────────────────────────────────────────────────────────────
 
@@ -167,6 +192,22 @@ describe('getStoredEmail / setSessionEmail / clearStoredEmail', () => {
     setSessionEmail('alice@example.com');
     clearStoredEmail();
     expect(getStoredEmail()).toBeNull();
+  });
+
+  it('getStoredEmail returns null in SSR environment even when an email is stored', () => {
+    localStorage.setItem('ansible_email', 'alice@example.com');
+    withoutWindow(() => expect(getStoredEmail()).toBeNull());
+  });
+
+  it('setSessionEmail is a no-op in SSR environment (nothing written)', () => {
+    withoutWindow(() => setSessionEmail('alice@example.com'));
+    expect(localStorage.getItem('ansible_email')).toBeNull();
+  });
+
+  it('clearStoredEmail is a no-op in SSR environment (stored email survives)', () => {
+    localStorage.setItem('ansible_email', 'alice@example.com');
+    withoutWindow(() => clearStoredEmail());
+    expect(localStorage.getItem('ansible_email')).toBe('alice@example.com');
   });
 });
 
@@ -281,6 +322,110 @@ describe('useTracking', () => {
     expect(mockRpc).toHaveBeenCalledWith('increment_session_events', expect.objectContaining({ sid: expect.any(String) }));
   });
 
+  it('bumps the existing session via heartbeat RPC when the demo_session insert is rejected', async () => {
+    // A duplicate session_id (page reload within 30 min) makes the insert fail — that is expected,
+    // and the hook must fall back to touching last_active_at on the existing row.
+    mockInsert.mockResolvedValue({ data: null, error: { message: 'duplicate key' } });
+    renderHook(() => useTracking());
+    await act(async () => {});
+
+    const sid = localStorage.getItem('ansible_session_id');
+    expect(mockRpc).toHaveBeenCalledWith('update_session_heartbeat', { sid });
+  });
+
+  it('does not send a heartbeat RPC on mount when the session insert succeeds', async () => {
+    renderHook(() => useTracking());
+    await act(async () => {});
+    expect(mockRpc).not.toHaveBeenCalledWith('update_session_heartbeat', expect.anything());
+  });
+
+  it('initialises the session row only once when effects are double-invoked (StrictMode)', async () => {
+    renderHook(() => useTracking(), { reactStrictMode: true });
+    await act(async () => {});
+    const sessionInserts = mockFrom.mock.calls.filter(([table]) => table === 'demo_sessions');
+    expect(sessionInserts).toHaveLength(1);
+  });
+
+  it('sends a heartbeat RPC every 30 seconds and refreshes last_active', async () => {
+    fakeIntervals();
+    renderHook(() => useTracking());
+    await act(async () => {});
+    mockRpc.mockClear();
+    localStorage.setItem('ansible_last_active', '0');
+
+    await tick(30000);
+
+    const sid = localStorage.getItem('ansible_session_id');
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    expect(mockRpc).toHaveBeenCalledWith('update_session_heartbeat', { sid });
+    expect(Number(localStorage.getItem('ansible_last_active'))).toBeGreaterThan(0);
+
+    await tick(30000);
+    expect(mockRpc).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops the heartbeat when the hook unmounts', async () => {
+    fakeIntervals();
+    const { unmount } = renderHook(() => useTracking());
+    await act(async () => {});
+    mockRpc.mockClear();
+
+    unmount();
+    await tick(60000);
+
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('skips the heartbeat RPC when no session ID could be minted (still touches last_active)', async () => {
+    stubEmptyUuid();
+    fakeIntervals();
+    renderHook(() => useTracking());
+    await act(async () => {});
+    mockRpc.mockClear();
+    localStorage.setItem('ansible_last_active', '0');
+
+    await tick(30000);
+
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(Number(localStorage.getItem('ansible_last_active'))).toBeGreaterThan(0);
+  });
+
+  it('trackEvent records nothing when no session ID could be minted', async () => {
+    stubEmptyUuid();
+    const { result } = renderHook(() => useTracking());
+    await act(async () => {});
+    vi.clearAllMocks();
+    mockFrom.mockReturnValue({ insert: mockInsert });
+
+    act(() => {
+      result.current.trackEvent('expand');
+    });
+    await act(async () => {});
+
+    expect(mockFrom).not.toHaveBeenCalledWith('demo_events');
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('trackEvent still records the event in SSR environment, without touching localStorage', async () => {
+    const { result } = renderHook(() => useTracking());
+    await act(async () => {});
+    vi.clearAllMocks();
+    mockFrom.mockReturnValue({ insert: mockInsert });
+    localStorage.setItem('ansible_last_active', '0');
+    localStorage.setItem('ansible_email', 'alice@example.com');
+
+    withoutWindow(() => {
+      act(() => {
+        result.current.trackEvent('expand');
+      });
+    });
+    await act(async () => {});
+
+    expect(localStorage.getItem('ansible_last_active')).toBe('0'); // touchLastActive skipped
+    expect(mockFrom).toHaveBeenCalledWith('demo_events');
+    // The stored email is unreadable without a window, so the event carries none.
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({ event_type: 'expand', email: null }));
+  });
 });
 
 // ── usePageTracking hook ──────────────────────────────────────────────────────
@@ -349,5 +494,28 @@ describe('usePageTracking', () => {
     await act(async () => {});
     const calls = mockInsert.mock.calls as Array<[{ visitor_id: string }]>;
     expect(calls[0][0].visitor_id).toBe(calls[1][0].visitor_id);
+  });
+
+  it('trackPageEvent mints fresh identities when the mount-time refs are empty', async () => {
+    // Mount with an ID generator that yields nothing, so both refs stay empty…
+    const uuid = stubEmptyUuid();
+    const { result } = renderHook(() => usePageTracking());
+    await act(async () => {});
+    // …then let the generator work again: the event must fall back to minting IDs on demand.
+    uuid.mockRestore();
+    vi.clearAllMocks();
+    mockFrom.mockReturnValue({ insert: mockInsert });
+
+    act(() => {
+      result.current.trackPageEvent('landing_page_view');
+    });
+    await act(async () => {});
+
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        visitor_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+        session_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      })
+    );
   });
 });

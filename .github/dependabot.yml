@@ -1,0 +1,40 @@
+# ABOUT: Dependabot schedule for npm packages and GitHub Actions
+# ABOUT: Monthly grouped pull requests for minor and patch updates; major updates arrive as their own PRs
+# See REFERENCE/operations/deployment.md, "Keeping Dependencies Patched"
+
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+    groups:
+      production-dependencies:
+        dependency-type: production
+        update-types: [minor, patch]
+      development-dependencies:
+        dependency-type: development
+        update-types: [minor, patch]
+    ignore:
+      # The OpenNext adapter supports one Next.js minor at a time; Next bumps are done by hand
+      # with the adapter's peer range in view (see "Keeping Dependencies Patched")
+      - dependency-name: next
+        update-types: [version-update:semver-major, version-update:semver-minor]
+      - dependency-name: eslint-config-next
+        update-types: [version-update:semver-major, version-update:semver-minor]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [dependencies]
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions:
+        patterns: ["*"]
