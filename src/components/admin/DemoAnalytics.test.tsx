@@ -16,6 +16,8 @@ global.fetch = vi.fn();
 // avg after delete = (180+270)/2 = 225s = "3m 45s" — unique, no collision with session table values
 const mockStats: DemoStats = {
   emailCaptureCount: 7,
+  captureWindow: 100,
+  sessionWindow: 200,
   sessionCount: 13,
   totalInteractions: 42,
   avgDurationSeconds: 263,  // Math.round((360+240+180+270)/4) = 263s → "4m 23s"
@@ -128,5 +130,14 @@ describe('DemoAnalytics', () => {
 
     expect(screen.getByText(/via hero · —/)).toBeInTheDocument();
     expect(screen.queryByText(/Invalid Date/)).not.toBeInTheDocument();
+  });
+
+  it('labels the capture and session figures with the windows they were computed over', () => {
+    render(<DemoAnalytics stats={mockStats} />);
+
+    expect(screen.getByText('Unique Emails (last 100 captures)')).toBeInTheDocument();
+    expect(screen.getByText('Avg Engagement (last 200 sessions)')).toBeInTheDocument();
+    expect(screen.getByText('Email Captures (last 100 captures)')).toBeInTheDocument();
+    expect(screen.getByText('Recent Sessions (last 200 sessions)')).toBeInTheDocument();
   });
 });

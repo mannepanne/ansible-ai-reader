@@ -82,17 +82,17 @@ export default function DemoAnalytics({ stats }: DemoAnalyticsProps) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Key metrics */}
       <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
-        <StatCard icon="✉" label="Unique Emails" value={emailCaptureCount} />
+        <StatCard icon="✉" label={`Unique Emails (last ${stats.captureWindow} captures)`} value={emailCaptureCount} />
         <StatCard icon="🖥" label="Demo Sessions" value={sessionCount} />
         <StatCard icon="⚡" label="Interactions" value={totalInteractions} />
-        <StatCard icon="⏱" label="Avg Engagement" value={formatDuration(avgDurationSeconds)} />
+        <StatCard icon="⏱" label={`Avg Engagement (last ${stats.sessionWindow} sessions)`} value={formatDuration(avgDurationSeconds)} />
       </div>
 
       {/* Two-column middle section */}
       <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         {/* Email Captures */}
         <div style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '8px', padding: '20px 24px', flex: '1 1 300px' }}>
-          <div style={SECTION_HEADING}>Email Captures</div>
+          <div style={SECTION_HEADING}>Email Captures (last {stats.captureWindow} captures)</div>
 
           {deleteError && (
             <p style={{ color: '#dc3545', fontSize: '0.8em', marginBottom: '10px' }}>{deleteError}</p>
@@ -176,7 +176,7 @@ export default function DemoAnalytics({ stats }: DemoAnalyticsProps) {
 
       {/* Session table */}
       <div style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '8px', padding: '20px 24px' }}>
-        <div style={SECTION_HEADING}>Recent Sessions</div>
+        <div style={SECTION_HEADING}>Recent Sessions (last {stats.sessionWindow} sessions)</div>
 
         {sessions.length === 0 ? (
           <p style={{ color: '#6c757d', fontSize: '0.85em' }}>No demo sessions recorded yet.</p>

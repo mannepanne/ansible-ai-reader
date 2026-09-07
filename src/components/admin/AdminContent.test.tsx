@@ -25,6 +25,7 @@ vi.mock('@/components/Header', () => ({
 }));
 
 const mockLandingStats: LandingStats = {
+  captureWindow: 100,
   totalVisits: 120,
   uniqueVisitors: 85,
   privacyPageViews: 18,
@@ -42,6 +43,8 @@ const mockLandingStats: LandingStats = {
 
 const mockDemoStats: DemoStats = {
   emailCaptureCount: 15,
+  captureWindow: 100,
+  sessionWindow: 200,
   sessionCount: 22,
   totalInteractions: 187,
   avgDurationSeconds: 240,

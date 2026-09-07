@@ -380,6 +380,7 @@ describe('AdminPage', () => {
         totalSignups: 0,
         navClicks: [],
         signupSources: [],
+        captureWindow: 100,
       });
     });
 
@@ -388,6 +389,8 @@ describe('AdminPage', () => {
 
       expect(demoStats).toEqual({
         emailCaptureCount: 0,
+        captureWindow: 100,
+        sessionWindow: 200,
         sessionCount: 0,
         totalInteractions: 0,
         avgDurationSeconds: 0,
@@ -467,14 +470,14 @@ describe('AdminPage', () => {
       expect(demoStats.totalInteractions).toBe(187);
     });
 
-    // Known cap: the email-capture count, signup sources, and average duration are derived from row
-    // fetches limited to the most recent 100 and 200 rows, so past those caps they describe the
-    // recent window, not all time. Pinned here so a change in either direction is a visible decision.
-    it('derives email-capture and session aggregates from row fetches capped at 100 and 200', async () => {
-      await renderAdminPage();
+    // The email-capture and session aggregates describe the most recent rows, not all time; the
+    // window the query used is what the dashboard labels them with, so the two must agree.
+    it('reports the row windows the capture and session aggregates were computed over', async () => {
+      const { landingStats, demoStats } = await renderAdminPage();
 
-      expect(queriesFor('email_captures').map((q) => q.limit)).toEqual([100]);
-      expect(queriesFor('demo_sessions').filter((q) => !q.head).map((q) => q.limit)).toEqual([200]);
+      expect(queriesFor('email_captures').map((q) => q.limit)).toEqual([demoStats.captureWindow]);
+      expect(queriesFor('demo_sessions').filter((q) => !q.head).map((q) => q.limit)).toEqual([demoStats.sessionWindow]);
+      expect(landingStats.captureWindow).toBe(demoStats.captureWindow);
     });
 
     it('derives session duration from start/last-active, clamping negative durations to 0', async () => {

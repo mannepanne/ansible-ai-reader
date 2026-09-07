@@ -10,6 +10,11 @@ import { mergeActivity } from '@/components/admin/activity-log';
 import type { LandingStats, DemoStats, RelayStats, RelayPieceRow, PieceLink, DecisionSource, RelayActivityRow } from '@/components/admin/types';
 import type { Json } from '@/types/database.types';
 
+// The email-capture and session figures are computed from the most recent rows, not the whole table,
+// so the dashboard labels them with the window instead of presenting them as all-time totals.
+const CAPTURE_WINDOW = 100;
+const SESSION_WINDOW = 200;
+
 // event_data is free-form JSON; only an object with a string label counts, anything else is 'unknown'
 const jsonLabel = (value: Json): string => {
   if (value && typeof value === 'object' && !Array.isArray(value) && typeof value.label === 'string') return value.label;
@@ -67,13 +72,13 @@ export default async function AdminPage() {
     db.from('page_events').select('*', { count: 'exact', head: true }).eq('event_type', 'privacy_page_view'),
     db.from('page_events').select('*', { count: 'exact', head: true }).eq('event_type', 'demo_signup'),
     db.from('page_events').select('event_data').eq('event_type', 'nav_click'),
-    db.from('email_captures').select('id, email, source, created_at').order('created_at', { ascending: false }).limit(100),
+    db.from('email_captures').select('id, email, source, created_at').order('created_at', { ascending: false }).limit(CAPTURE_WINDOW),
     db.from('demo_sessions').select('*', { count: 'exact', head: true }),
     db.from('demo_events').select('*', { count: 'exact', head: true }),
     db.from('demo_sessions')
       .select('session_id, email, started_at, last_active_at, total_events')
       .order('started_at', { ascending: false })
-      .limit(200),
+      .limit(SESSION_WINDOW),
     db.from('demo_events').select('event_type'),
     db
       .from('relay_pieces')
@@ -144,6 +149,7 @@ export default async function AdminPage() {
       .sort((a, b) => b.count - a.count),
     signupSources: Object.entries(sourceCounts)
       .map(([source, count]) => ({ source, count })),
+    captureWindow: CAPTURE_WINDOW,
   };
 
   // Build demo stats
@@ -179,6 +185,8 @@ export default async function AdminPage() {
 
   const demoStats: DemoStats = {
     emailCaptureCount: capturedEmails.size,
+    captureWindow: CAPTURE_WINDOW,
+    sessionWindow: SESSION_WINDOW,
     sessionCount: sessionCountResult.count ?? 0,
     totalInteractions: interactionsResult.count ?? 0,
     avgDurationSeconds,

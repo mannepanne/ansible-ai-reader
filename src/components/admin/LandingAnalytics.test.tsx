@@ -8,6 +8,7 @@ import { formatDuration } from './ui';
 import type { LandingStats } from './types';
 
 const mockStats: LandingStats = {
+  captureWindow: 100,
   totalVisits: 120,
   uniqueVisitors: 85,
   privacyPageViews: 18,
@@ -24,6 +25,7 @@ const mockStats: LandingStats = {
 };
 
 const emptyStats: LandingStats = {
+  captureWindow: 100,
   totalVisits: 0,
   uniqueVisitors: 0,
   privacyPageViews: 0,
@@ -89,7 +91,13 @@ describe('LandingAnalytics', () => {
   it('does not render signup sources section when empty', () => {
     render(<LandingAnalytics stats={{ ...mockStats, signupSources: [] }} />);
     expect(screen.queryByText('hero')).toBeNull();
-    expect(screen.queryByText('Signup sources')).toBeNull();
+    expect(screen.queryByText(/Signup sources/)).toBeNull();
+  });
+
+  it('labels the signup sources with the capture window they were counted over', () => {
+    render(<LandingAnalytics stats={mockStats} />);
+
+    expect(screen.getByText('Signup sources (last 100 captures)')).toBeInTheDocument();
   });
 });
 

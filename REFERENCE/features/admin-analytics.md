@@ -117,7 +117,7 @@ The `max(0, ...)` guard handles edge cases where clock skew or a page crash coul
 
 ### Unique Email Count
 
-`emailCaptureCount` (shown in the stat card as "Unique Emails") is derived from a `Set` of email values in the captures list:
+`emailCaptureCount` (shown in the stat card as "Unique Emails (last 100 captures)") is derived from a `Set` of email values in the captures list, which is the most recent `captureWindow` (100) rows, not the whole table:
 
 ```typescript
 const capturedEmails = new Set<string>();
@@ -125,7 +125,7 @@ emailCapturesResult.data?.forEach((e) => capturedEmails.add(e.email));
 // emailCaptureCount = capturedEmails.size
 ```
 
-Note: `emailCaptureCount` reflects **unique email addresses**, while `emailCaptures` (the array) contains all rows — a user who submitted from both hero and CTA sections appears once in the count but twice in the list. This is intentional: the stat card answers "how many people signed up?" and the list shows the full audit trail.
+Note: `emailCaptureCount` reflects **unique email addresses**, while `emailCaptures` (the array) contains all rows in the window — a user who submitted from both hero and CTA sections appears once in the count but twice in the list. This is intentional: the stat card answers "how many people signed up?" and the list shows the full audit trail.
 
 ---
 
@@ -138,7 +138,7 @@ Note: `emailCaptureCount` reflects **unique email addresses**, while `emailCaptu
 | Card | Value | Source |
 |---|---|---|
 | Total Visits | `landingVisitsResult.count` | COUNT of `landing_page_view` events |
-| Unique Visitors | `capturedEmails.size`... wait, no | `new Set(visitor_ids).size` |
+| Unique Visitors | `uniqueVisitors` | `new Set(visitor_ids).size` over every `landing_page_view` row |
 | Privacy Page Views | `privacyViewsResult.count` | COUNT of `privacy_page_view` events |
 | Demo Sessions | `sessionCountResult.count` | COUNT of `demo_sessions` rows |
 
@@ -178,10 +178,10 @@ Horizontal bar chart showing which nav links users click most. Bars are proporti
 
 | Card | Value |
 |---|---|
-| Unique Emails | Unique email addresses captured |
+| Unique Emails (last 100 captures) | Distinct email addresses among the most recent 100 captures |
 | Demo Sessions | Total `demo_sessions` rows |
 | Interactions | Total `demo_events` rows |
-| Avg Engagement | Average session duration, formatted |
+| Avg Engagement (last 200 sessions) | Average duration of the most recent 200 sessions, formatted |
 
 ### Email Captures List
 
@@ -281,10 +281,13 @@ interface LandingStats {
   totalSignups: number;
   navClicks: { label: string; count: number }[];
   signupSources: { source: string; count: number }[];
+  captureWindow: number;          // signupSources cover the most recent N captures
 }
 
 interface DemoStats {
-  emailCaptureCount: number;      // unique email addresses
+  emailCaptureCount: number;      // distinct email addresses among the most recent captureWindow captures
+  captureWindow: number;
+  sessionWindow: number;          // avgDurationSeconds and sessions cover the most recent N sessions
   sessionCount: number;
   totalInteractions: number;
   avgDurationSeconds: number;
@@ -306,8 +309,8 @@ Fetching all visitor IDs to compute unique count in JavaScript works now but bec
 ### Email ↔ Session Backfill
 Sessions started before email capture have `email: null`. The session is linkable via `session_id` but there's no automated backfill that updates historical session rows when an email is captured mid-session. Tracked as a [GitHub issue with `technical-debt` label](https://github.com/mannepanne/ansible-ai-reader/issues?q=is%3Aissue+label%3Atechnical-debt+is%3Aopen).
 
-### Static 200-session limit
-The dashboard shows the most recent 200 sessions. Long-term this could truncate meaningful historical data. A date-range filter would be the right solution.
+### Fixed row windows
+The email-capture figures (unique emails, signup sources, the captures list) come from the most recent 100 captures and the session figures (average engagement, the sessions list) from the most recent 200 sessions; the page passes those windows as `captureWindow` and `sessionWindow` and every affected label names them, so nothing reads as an all-time total; `CAPTURE_WINDOW` and `SESSION_WINDOW` in `src/app/admin/page.tsx` are the source of truth for the numbers, and a test asserts the query limit equals the window the stats report. The other cards are all-time figures. One consequence to know about rather than report as a bug: on the Landing tab the conversion line (`N signups from M visits`, exact, from `page_events`) sits above the signup-source badges (windowed, from `email_captures`), and past 100 captures the two will not add up. A date-range filter would be the right long-term answer if history past the window matters.
 
 ---
 
@@ -315,4 +318,4 @@ The dashboard shows the most recent 200 sessions. Long-term this could truncate 
 
 - [Landing Page & Demo](./landing-page-and-demo.md) — How the tracking data is generated
 - [Patterns: Service Role Client](../patterns/service-role-client.md) — Why and how the service role client is used for analytics queries
-- [Architecture Overview](../architecture/overview.md) — Where the admin page fits in the 3-worker setup
+- [Architecture Overview](../architecture/overview.md) — Where the admin page fits in the five-worker setup
