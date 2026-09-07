@@ -444,10 +444,12 @@ GitHub's Dependabot alerts on this repository are the inventory; `npm audit --om
 | Package | Where | Why it is accepted | Revisit when |
 |---|---|---|---|
 | `postcss` 8.4.31 nested under `next` | Build pipeline only | The advisories need attacker-controlled CSS or source maps; the build processes first-party Tailwind and nothing at runtime | Next 16, which drops the nested pin |
-| `ws` 8.18.0 under `wrangler` → `miniflare` | Local development | Not deployed; the runtime copy under `@supabase/realtime-js` is patched | The development-dependency PR (wrangler upgrade) |
-| `sharp` 0.34.x | `devOptional` | `next/image` is not used, and native `sharp` cannot run on Workers; `miniflare` pins `^0.34.5`, so it cannot move anyway | The development-dependency PR |
+| `esbuild` 0.25.x under `@opennextjs/aws` and 0.27.x under `tsx` | Build and script tooling | The advisory is an arbitrary file read by the esbuild development server on Windows; neither package starts that server here | Either parent moves to esbuild 0.28 |
 
-**Deferred batch:** Vitest 3 (the UI-server advisory, development only), wrangler/miniflare, and the remaining development-only alerts. A `dependabot.yml` with grouped monthly updates belongs in that PR so the backlog does not rebuild.
+**Dependabot** (`.github/dependabot.yml`) opens grouped pull requests monthly: one for production packages, one for development packages, one for GitHub Actions, each limited to minor and patch updates. A major update arrives as its own PR. `next` and `eslint-config-next` are excluded from minor updates because of the adapter peer range above. Two majors need a hand on them:
+
+- **Vitest.** A major changes how coverage is measured (Vitest 4 switched to AST-based remapping and counted about five points less on the same suite), so the gate can go red with no code change. Compare per-file numbers with the previous run and add tests where the measurement uncovered real gaps; do not lower the thresholds.
+- **wrangler.** Its `miniflare` dependency carries an `-alpha` tag on every stable wrangler release; that is Cloudflare's versioning, not a pre-release install. Check the `@opennextjs/cloudflare` peer range for wrangler and update `@cloudflare/workers-types` in the same PR, since wrangler declares a matching major for it.
 
 **After a runtime dependency deploy**, exercise the one thing unit tests cannot: logged out, request `/summaries` and expect a redirect to `/login?returnTo=%2Fsummaries`; log in; load one page and one API route.
 

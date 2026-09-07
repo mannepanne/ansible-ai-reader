@@ -1,12 +1,15 @@
 // ABOUT: Vitest configuration for Ansible AI Reader
 // ABOUT: Configures TypeScript path aliases and coverage thresholds
 
-import { defineConfig, coverageConfigDefaults } from 'vitest/config';
+import { defineConfig } from 'vitest/config';
 import path from 'path';
 
 export default defineConfig({
-  esbuild: {
-    jsx: 'automatic',
+  // tsconfig keeps `jsx: preserve` for Next.js; Vite's transformer must compile JSX for the test runner
+  oxc: {
+    jsx: {
+      runtime: 'automatic',
+    },
   },
   test: {
     globals: true,
@@ -15,20 +18,15 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      // A bare `exclude` replaces Vitest's defaults (test files, *.d.ts, config files, __tests__/ ...),
-      // which is how test files once ended up counted as product code. Spread the defaults, then add ours.
+      // Without `include`, only files some test imports are measured, so an untested module would not
+      // lower the number at all. Listing the product directories keeps untested files counted at 0%.
+      include: ['src/**', 'workers/**'],
+      // Test files, setup files, and type declarations are excluded automatically; these are not product code
       exclude: [
-        ...coverageConfigDefaults.exclude,
-        // The defaults only cover named tools (vite, jest, ...); tailwind/next/open-next configs need this
         '**/*.config.{ts,js,mjs,cjs}',
-        '.next/**',
-        '.open-next/**',
-        // Build output, one-off operator scripts, and scratch files are not product code
-        '.vercel/**',
-        '.wrangler/**',
-        'scripts/**',
+        '**/*.d.ts',
+        '**/*.css',
         'SCRATCH/**',
-        'vitest.setup.ts',
       ],
       thresholds: {
         lines: 95,

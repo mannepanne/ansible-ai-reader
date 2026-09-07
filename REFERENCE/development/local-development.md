@@ -44,7 +44,7 @@ npm run dev
 
 ### Required Software
 
-- **Node.js 20+** (LTS recommended)
+- **Node.js 22** (the version CI runs; `.nvmrc` pins it for `nvm use`)
 - **npm** (comes with Node.js)
 - **Git**
 
