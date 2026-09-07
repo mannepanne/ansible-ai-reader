@@ -18,9 +18,9 @@ const jsonLabel = (value: Json): string => {
 
 export default async function AdminPage() {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     redirect('/');
   }
 
@@ -28,7 +28,7 @@ export default async function AdminPage() {
   const { data: userData } = await supabase
     .from('users')
     .select('is_admin')
-    .eq('id', session.user.id)
+    .eq('id', user.id)
     .single();
 
   if (!userData?.is_admin) {
@@ -350,7 +350,7 @@ export default async function AdminPage() {
 
   return (
     <AdminContent
-      userEmail={session.user.email ?? ''}
+      userEmail={user.email ?? ''}
       landingStats={landingStats}
       demoStats={demoStats}
       relayStats={relayStats}

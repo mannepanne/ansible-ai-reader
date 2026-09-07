@@ -14,14 +14,14 @@ vi.mock('next/navigation', () => ({
 }));
 
 // Mock Supabase server client
-const mockGetSession = vi.fn();
+const mockGetUser = vi.fn();
 const mockSingle = vi.fn();
 const mockEq = vi.fn();
 
 vi.mock('@/utils/supabase/server', () => ({
   createClient: vi.fn(async () => ({
     auth: {
-      getSession: mockGetSession,
+      getUser: mockGetUser,
     },
     from: () => ({
       select: () => ({
@@ -49,8 +49,8 @@ describe('SettingsPage', () => {
   });
 
   it('renders SettingsContent with the session email when authenticated', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: { user: { id: 'user-1', email: 'test@example.com' } } },
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'user-1', email: 'test@example.com' } },
     });
 
     const component = await SettingsPage();
@@ -62,8 +62,8 @@ describe('SettingsPage', () => {
   });
 
   it('passes isAdmin true when the users row says so', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: { user: { id: 'admin-1', email: 'admin@example.com' } } },
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'admin-1', email: 'admin@example.com' } },
     });
     mockSingle.mockResolvedValue({ data: { is_admin: true }, error: null });
 
@@ -74,8 +74,8 @@ describe('SettingsPage', () => {
   });
 
   it('falls back to empty email and non-admin when data is missing', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: { user: { id: 'user-2' } } },
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'user-2' } },
     });
     mockSingle.mockResolvedValue({ data: null, error: null });
 
@@ -87,7 +87,7 @@ describe('SettingsPage', () => {
   });
 
   it('redirects to home page when user is not authenticated', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: null } });
+    mockGetUser.mockResolvedValue({ data: { user: null } });
 
     await expect(SettingsPage()).rejects.toThrow('NEXT_REDIRECT');
     expect(redirect).toHaveBeenCalledWith('/');

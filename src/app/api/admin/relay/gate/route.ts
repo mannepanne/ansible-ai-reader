@@ -9,14 +9,14 @@ import { createClient, createServiceRoleClient } from '@/utils/supabase/server';
 async function adminGuard(): Promise<NextResponse | null> {
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: userData } = await supabase
     .from('users')
     .select('is_admin')
-    .eq('id', session.user.id)
+    .eq('id', user.id)
     .single();
   if (!userData?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   return null;

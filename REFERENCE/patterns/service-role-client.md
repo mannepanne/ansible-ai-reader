@@ -35,9 +35,9 @@ When using Supabase with cookie-based authentication (SSR):
 // API route with RLS-enabled client
 export async function POST(req: NextRequest) {
   const supabase = createServerClient(req);
-  const session = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   const { error } = await supabase
     .from('users')
     .upsert({
-      id: session.user.id,
+      id: user.id,
       sync_interval: 2,
     });
 
@@ -91,11 +91,11 @@ A Supabase client that uses the **service role key** instead of the user's JWT:
 import { createServiceRoleClient } from '@/lib/supabase/service-role-client';
 
 export async function POST(req: NextRequest) {
-  // 1. Verify session with normal client
+  // 1. Verify the caller with the normal client (getUser, never getSession)
   const supabase = createServerClient(req);
-  const { data: { session }, error } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
   const { error: updateError } = await serviceClient
     .from('users')
     .upsert({
-      id: session.user.id,  // ← Explicitly use session user ID
+      id: user.id,  // ← Explicitly use the verified user's ID
       sync_interval: 2,
     });
 
@@ -173,9 +173,9 @@ const settingsSchema = z.object({
 export async function PATCH(req: NextRequest) {
   // 1. Verify authentication
   const supabase = createServerClient(req);
-  const { data: { session }, error: authError } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -193,12 +193,12 @@ export async function PATCH(req: NextRequest) {
   // 3. Use service role client to bypass RLS
   const serviceClient = createServiceRoleClient();
 
-  // 4. Update user settings (explicitly scoped to session user)
+  // 4. Update user settings (explicitly scoped to the verified user)
   const { error: updateError } = await serviceClient
     .from('users')
     .upsert({
-      id: session.user.id,  // ← User from verified session
-      email: session.user.email,
+      id: user.id,  // ← The verified user
+      email: user.email,
       ...validated.data,
     });
 
@@ -220,14 +220,14 @@ export async function PATCH(req: NextRequest) {
 
 ### Why This Is Safe
 
-1. **Session verified first** - User authenticated before service client used
-2. **Explicitly scoped** - Only affecting `session.user.id` (authenticated user)
+1. **Caller verified with `getUser()` first** - User authenticated before service client used
+2. **Explicitly scoped** - Only affecting `user.id` (authenticated user)
 3. **Server-side only** - Service role key never exposed to client
 4. **Minimal scope** - Only used for specific, necessary operations
 
 ### Why This Would Be Unsafe
 
-**❌ Bad: No session verification**
+**❌ Bad: No caller verification**
 ```typescript
 export async function POST(req: NextRequest) {
   const serviceClient = createServiceRoleClient();
@@ -247,7 +247,7 @@ const serviceClient = createServiceRoleClient();  // ← Secret key exposed!
 **❌ Bad: Accessing other users' data**
 ```typescript
 export async function GET(req: NextRequest) {
-  const session = await verifySession(req);
+  const { data: { user } } = await supabase.auth.getUser();
   const serviceClient = createServiceRoleClient();
 
   // DANGEROUS: Accessing all users, not just authenticated user
@@ -258,9 +258,9 @@ export async function GET(req: NextRequest) {
 ### Security Checklist
 
 Before using service role client:
-- [ ] Session verified with normal Supabase client
+- [ ] Caller verified with `getUser()` on the normal Supabase client
 - [ ] Running in server-side code (API route, server action, worker)
-- [ ] Operation scoped to `session.user.id`
+- [ ] Operation scoped to `user.id`
 - [ ] No user-provided IDs used without verification
 - [ ] Service role key never exposed to client
 - [ ] Alternative using normal client considered and rejected
@@ -278,7 +278,7 @@ const supabase = createBrowserClient();
 const { data } = await supabase
   .from('reader_items')
   .select('*')
-  .eq('user_id', session.user.id);  // RLS handles this automatically
+  .eq('user_id', user.id);  // RLS handles this automatically
 ```
 
 **2. JWT-based auth:**
@@ -325,8 +325,8 @@ export async function POST(req: NextRequest) {
 
 // GOOD: Always verify first
 export async function POST(req: NextRequest) {
-  const session = await verifySession(req);
-  if (!session) return unauthorized();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return unauthorized();
 
   const serviceClient = createServiceRoleClient();
   // ... safe to use now
@@ -340,8 +340,7 @@ export async function POST(req: NextRequest) {
 const { userId } = await req.json();
 await serviceClient.from('users').update(...).eq('id', userId);
 
-// GOOD: Use session user ID
-const { user } = session;
+// GOOD: Use the verified user's ID
 await serviceClient.from('users').update(...).eq('id', user.id);
 ```
 
@@ -405,14 +404,14 @@ SELECT * FROM users WHERE auth.uid() = id;
 ```typescript
 // src/app/api/settings/route.ts
 export async function PATCH(req: NextRequest) {
-  // Verify session
-  const session = await verifySession(req);
-  if (!session) return unauthorized();
+  // Verify the caller
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return unauthorized();
 
   // Use service role client
   const serviceClient = createServiceRoleClient();
   await serviceClient.from('users').upsert({
-    id: session.user.id,  // ← Session user only
+    id: user.id,  // ← The verified user only
     ...settings,
   });
 }

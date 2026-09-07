@@ -6,13 +6,13 @@ import { middleware, SECURITY_HEADERS } from './middleware';
 import { NextRequest, NextResponse } from 'next/server';
 
 // Mock middleware client
-const mockGetSession = vi.fn();
+const mockGetUser = vi.fn();
 
 vi.mock('@/utils/supabase/middleware', () => ({
   createClient: vi.fn(() => ({
     supabase: {
       auth: {
-        getSession: mockGetSession,
+        getUser: mockGetUser,
       },
     },
     response: NextResponse.next(),
@@ -26,7 +26,7 @@ describe('middleware', () => {
 
   describe('protected routes', () => {
     it('redirects unauthenticated user from /summaries to /login', async () => {
-      mockGetSession.mockResolvedValue({ data: { session: null } });
+      mockGetUser.mockResolvedValue({ data: { user: null } });
 
       const request = new NextRequest(new URL('http://localhost:3000/summaries'));
       const response = await middleware(request);
@@ -37,7 +37,7 @@ describe('middleware', () => {
     });
 
     it('redirects unauthenticated user from /settings to /login', async () => {
-      mockGetSession.mockResolvedValue({ data: { session: null } });
+      mockGetUser.mockResolvedValue({ data: { user: null } });
 
       const request = new NextRequest(new URL('http://localhost:3000/settings'));
       const response = await middleware(request);
@@ -48,12 +48,9 @@ describe('middleware', () => {
     });
 
     it('allows authenticated user to access /summaries', async () => {
-      mockGetSession.mockResolvedValue({
+      mockGetUser.mockResolvedValue({
         data: {
-          session: {
-            user: { id: 'test-user-id', email: 'test@example.com' },
-            access_token: 'test-token',
-          },
+          user: { id: 'test-user-id', email: 'test@example.com' },
         },
       });
 
@@ -64,12 +61,9 @@ describe('middleware', () => {
     });
 
     it('allows authenticated user to access /settings', async () => {
-      mockGetSession.mockResolvedValue({
+      mockGetUser.mockResolvedValue({
         data: {
-          session: {
-            user: { id: 'test-user-id', email: 'test@example.com' },
-            access_token: 'test-token',
-          },
+          user: { id: 'test-user-id', email: 'test@example.com' },
         },
       });
 
@@ -82,12 +76,9 @@ describe('middleware', () => {
 
   describe('login route', () => {
     it('redirects authenticated user from /login to /summaries', async () => {
-      mockGetSession.mockResolvedValue({
+      mockGetUser.mockResolvedValue({
         data: {
-          session: {
-            user: { id: 'test-user-id', email: 'test@example.com' },
-            access_token: 'test-token',
-          },
+          user: { id: 'test-user-id', email: 'test@example.com' },
         },
       });
 
@@ -99,7 +90,7 @@ describe('middleware', () => {
     });
 
     it('allows unauthenticated user to access /login', async () => {
-      mockGetSession.mockResolvedValue({ data: { session: null } });
+      mockGetUser.mockResolvedValue({ data: { user: null } });
 
       const request = new NextRequest(new URL('http://localhost:3000/login'));
       const response = await middleware(request);
@@ -110,7 +101,7 @@ describe('middleware', () => {
 
   describe('public routes', () => {
     it('allows access to root path', async () => {
-      mockGetSession.mockResolvedValue({ data: { session: null } });
+      mockGetUser.mockResolvedValue({ data: { user: null } });
 
       const request = new NextRequest(new URL('http://localhost:3000/'));
       const response = await middleware(request);
@@ -119,7 +110,7 @@ describe('middleware', () => {
     });
 
     it('allows access to API routes', async () => {
-      mockGetSession.mockResolvedValue({ data: { session: null } });
+      mockGetUser.mockResolvedValue({ data: { user: null } });
 
       const request = new NextRequest(new URL('http://localhost:3000/api/jobs'));
       const response = await middleware(request);
@@ -130,7 +121,7 @@ describe('middleware', () => {
 
   describe('security headers', () => {
     it('sets all baseline security headers on a served page', async () => {
-      mockGetSession.mockResolvedValue({ data: { session: null } });
+      mockGetUser.mockResolvedValue({ data: { user: null } });
 
       const request = new NextRequest(new URL('http://localhost:3000/'));
       const response = await middleware(request);
@@ -141,7 +132,7 @@ describe('middleware', () => {
     });
 
     it('sets X-Frame-Options to DENY to prevent clickjacking', async () => {
-      mockGetSession.mockResolvedValue({ data: { session: null } });
+      mockGetUser.mockResolvedValue({ data: { user: null } });
 
       const request = new NextRequest(new URL('http://localhost:3000/'));
       const response = await middleware(request);
@@ -151,7 +142,7 @@ describe('middleware', () => {
     });
 
     it('does NOT set Strict-Transport-Security (owned by the Cloudflare edge)', async () => {
-      mockGetSession.mockResolvedValue({ data: { session: null } });
+      mockGetUser.mockResolvedValue({ data: { user: null } });
 
       const request = new NextRequest(new URL('http://localhost:3000/'));
       const response = await middleware(request);
@@ -161,13 +152,45 @@ describe('middleware', () => {
   });
 
   describe('session management', () => {
-    it('calls getSession to refresh session', async () => {
-      mockGetSession.mockResolvedValue({ data: { session: null } });
+    it('verifies the user with getUser on every page request', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: null } });
 
       const request = new NextRequest(new URL('http://localhost:3000/'));
       await middleware(request);
 
-      expect(mockGetSession).toHaveBeenCalled();
+      expect(mockGetUser).toHaveBeenCalled();
+    });
+
+    it('skips the auth round trip on API routes, which verify and refresh for themselves, but still sets the headers', async () => {
+      const request = new NextRequest(new URL('http://localhost:3000/api/reader/status?syncId=x'));
+      const response = await middleware(request);
+
+      expect(mockGetUser).not.toHaveBeenCalled();
+      expect(response.headers.get('X-Frame-Options')).toBe('DENY');
+    });
+
+    it('logs an auth-server failure and still denies, so an outage is not mistaken for a logout', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const error = Object.assign(new Error('fetch failed'), { name: 'AuthRetryableFetchError' });
+      mockGetUser.mockResolvedValue({ data: { user: null }, error });
+
+      const request = new NextRequest(new URL('http://localhost:3000/summaries'));
+      const response = await middleware(request);
+
+      expect(response.status).toBe(302);
+      expect(errorSpy).toHaveBeenCalledWith('[Auth] getUser failed: fetch failed', error);
+      errorSpy.mockRestore();
+    });
+
+    it('does not log the ordinary no-cookie case', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const error = Object.assign(new Error('Auth session missing!'), { name: 'AuthSessionMissingError' });
+      mockGetUser.mockResolvedValue({ data: { user: null }, error });
+
+      await middleware(new NextRequest(new URL('http://localhost:3000/summaries')));
+
+      expect(errorSpy).not.toHaveBeenCalled();
+      errorSpy.mockRestore();
     });
   });
 });

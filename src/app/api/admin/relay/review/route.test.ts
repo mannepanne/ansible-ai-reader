@@ -4,14 +4,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from './route';
 
-const mockGetSession = vi.fn();
+const mockGetUser = vi.fn();
 const mockAdminSelect = vi.fn();
 const mockEq = vi.fn();
 const mockSingle = vi.fn();
 
 vi.mock('@/utils/supabase/server', () => ({
   createClient: vi.fn(async () => ({
-    auth: { getSession: mockGetSession },
+    auth: { getUser: mockGetUser },
     from: () => ({ select: mockAdminSelect }),
   })),
 }));
@@ -24,7 +24,7 @@ const makeReq = (body: unknown) =>
   });
 
 const asAdmin = () => {
-  mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'admin-1' } } } });
+  mockGetUser.mockResolvedValue({ data: { user: { id: 'admin-1' } } });
   mockSingle.mockResolvedValue({ data: { is_admin: true }, error: null });
 };
 
@@ -39,13 +39,13 @@ describe('POST /api/admin/relay/review', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: null } });
+    mockGetUser.mockResolvedValue({ data: { user: null } });
     expect((await POST(makeReq({ id: 'p1', action: 'approve' }))).status).toBe(401);
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it('returns 403 when authenticated but not admin', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'u' } } } });
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u' } } });
     mockSingle.mockResolvedValue({ data: { is_admin: false }, error: null });
     expect((await POST(makeReq({ id: 'p1', action: 'approve' }))).status).toBe(403);
     expect(fetch).not.toHaveBeenCalled();

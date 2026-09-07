@@ -13,13 +13,13 @@ vi.mock('next/navigation', () => ({
 }));
 
 // Mock Supabase server client
-const mockGetSession = vi.fn();
+const mockGetUser = vi.fn();
 const mockSingle = vi.fn();
 
 vi.mock('@/utils/supabase/server', () => ({
   createClient: vi.fn(async () => ({
     auth: {
-      getSession: mockGetSession,
+      getUser: mockGetUser,
     },
     from: () => ({
       select: () => ({
@@ -46,15 +46,8 @@ describe('SummariesPage', () => {
   });
 
   it('renders summaries page when user is authenticated', async () => {
-    mockGetSession.mockResolvedValue({
-      data: {
-        session: {
-          user: {
-            id: 'test-user-id',
-            email: 'test@example.com',
-          },
-        },
-      },
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'test-user-id', email: 'test@example.com' } },
     });
 
     const component = await SummariesPage();
@@ -68,15 +61,8 @@ describe('SummariesPage', () => {
   });
 
   it('displays sync button', async () => {
-    mockGetSession.mockResolvedValue({
-      data: {
-        session: {
-          user: {
-            id: 'test-user-id',
-            email: 'test@example.com',
-          },
-        },
-      },
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'test-user-id', email: 'test@example.com' } },
     });
 
     const component = await SummariesPage();
@@ -90,15 +76,8 @@ describe('SummariesPage', () => {
   });
 
   it('displays empty state when no items', async () => {
-    mockGetSession.mockResolvedValue({
-      data: {
-        session: {
-          user: {
-            id: 'test-user-id',
-            email: 'test@example.com',
-          },
-        },
-      },
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'test-user-id', email: 'test@example.com' } },
     });
 
     const component = await SummariesPage();
@@ -118,15 +97,8 @@ describe('SummariesPage', () => {
   });
 
   it('hides empty state when items exist', async () => {
-    mockGetSession.mockResolvedValue({
-      data: {
-        session: {
-          user: {
-            id: 'test-user-id',
-            email: 'test@example.com',
-          },
-        },
-      },
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'test-user-id', email: 'test@example.com' } },
     });
 
     // Mock fetch to return items
@@ -168,8 +140,8 @@ describe('SummariesPage', () => {
   });
 
   it('scrolls to the card named in the URL hash once items have loaded', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: { user: { id: 'test-user-id', email: 'test@example.com' } } },
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'test-user-id', email: 'test@example.com' } },
     });
     (global.fetch as any).mockResolvedValue({
       ok: true,
@@ -198,15 +170,8 @@ describe('SummariesPage', () => {
   });
 
   it('displays logout button', async () => {
-    mockGetSession.mockResolvedValue({
-      data: {
-        session: {
-          user: {
-            id: 'test-user-id',
-            email: 'test@example.com',
-          },
-        },
-      },
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'test-user-id', email: 'test@example.com' } },
     });
 
     const component = await SummariesPage();
@@ -219,9 +184,9 @@ describe('SummariesPage', () => {
   });
 
   it('redirects to home page when user is not authenticated', async () => {
-    mockGetSession.mockResolvedValue({
+    mockGetUser.mockResolvedValue({
       data: {
-        session: null,
+        user: null,
       },
     });
 
@@ -231,15 +196,8 @@ describe('SummariesPage', () => {
   });
 
   it('handles different user emails', async () => {
-    mockGetSession.mockResolvedValue({
-      data: {
-        session: {
-          user: {
-            id: 'another-user-id',
-            email: 'another@example.com',
-          },
-        },
-      },
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'another-user-id', email: 'another@example.com' } },
     });
 
     const component = await SummariesPage();

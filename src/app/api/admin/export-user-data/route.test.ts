@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GET } from './route';
 
-const mockGetSession = vi.fn();
+const mockGetUser = vi.fn();
 const mockAdminSelect = vi.fn();
 const mockEq = vi.fn();
 const mockSingle = vi.fn();
@@ -12,7 +12,7 @@ const mockFrom = vi.fn();
 
 vi.mock('@/utils/supabase/server', () => ({
   createClient: vi.fn(async () => ({
-    auth: { getSession: mockGetSession },
+    auth: { getUser: mockGetUser },
     from: () => ({
       select: mockAdminSelect,
     }),
@@ -36,14 +36,14 @@ describe('GET /api/admin/export-user-data', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: null } });
+    mockGetUser.mockResolvedValue({ data: { user: null } });
     const res = await GET(makeRequest('user@example.com'));
     expect(res.status).toBe(401);
   });
 
   it('returns 403 when authenticated but not admin', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: { user: { id: 'user-1', email: 'user@example.com' } } },
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'user-1', email: 'user@example.com' } },
     });
     mockSingle.mockResolvedValue({ data: { is_admin: false }, error: null });
     const res = await GET(makeRequest('other@example.com'));
@@ -51,8 +51,8 @@ describe('GET /api/admin/export-user-data', () => {
   });
 
   it('returns 400 when email param is missing', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: { user: { id: 'admin-1', email: 'admin@example.com' } } },
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'admin-1', email: 'admin@example.com' } },
     });
     mockSingle.mockResolvedValue({ data: { is_admin: true }, error: null });
     const res = await GET(makeRequest());
@@ -60,8 +60,8 @@ describe('GET /api/admin/export-user-data', () => {
   });
 
   it('returns 500 when a Supabase query fails', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: { user: { id: 'admin-1', email: 'admin@example.com' } } },
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'admin-1', email: 'admin@example.com' } },
     });
     mockSingle.mockResolvedValue({ data: { is_admin: true }, error: null });
 
@@ -76,8 +76,8 @@ describe('GET /api/admin/export-user-data', () => {
   });
 
   it('returns JSON file download with all data for the given email', async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: { user: { id: 'admin-1', email: 'admin@example.com' } } },
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'admin-1', email: 'admin@example.com' } },
     });
     mockSingle.mockResolvedValue({ data: { is_admin: true }, error: null });
 

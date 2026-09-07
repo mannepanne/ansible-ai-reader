@@ -9,13 +9,13 @@ const DEFAULT_BRIDGE_URL = 'https://ansible-relay-bridge.herrings.workers.dev';
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data: userData } = await supabase.from('users').select('is_admin').eq('id', session.user.id).single();
+  const { data: userData } = await supabase.from('users').select('is_admin').eq('id', user.id).single();
   if (!userData?.is_admin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }

@@ -112,9 +112,9 @@ export async function createClient() {
 **Example:**
 ```typescript
 const supabase = await createClient();
-const { data: { session } } = await supabase.auth.getSession();
+const { data: { user } } = await supabase.auth.getUser();
 
-if (!session) {
+if (!user) {
   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 }
 ```
@@ -149,17 +149,17 @@ export function createServiceRoleClient() {
 **Example:**
 ```typescript
 const supabase = await createClient();
-const { data: { session } } = await supabase.auth.getSession();
+const { data: { user } } = await supabase.auth.getUser();
 
-if (!session) {
+if (!user) {
   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 }
 
 // Auth verified, safe to use service role
 const serviceClient = createServiceRoleClient();
 await serviceClient.from('users').upsert({
-  id: session.user.id,
-  email: session.user.email,
+  id: user.id,
+  email: user.email,
   ...settings,
 });
 ```
@@ -177,43 +177,43 @@ The daily Fika email carries buttons that must work from an inbox with no sessio
 
 ## Middleware (`src/middleware.ts`)
 
-Protects routes by checking for valid session.
+Verifies the caller on every page request, redirects the unauthenticated away from the app pages, and sets the baseline security headers on everything it serves.
 
 ```typescript
-import { createServerClient } from '@supabase/ssr';
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-
 export async function middleware(request: NextRequest) {
-  const supabase = createServerClient(/* ... */);
+  const { supabase, response } = createClient(request);
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  // Protected routes require authentication
-  if (!session && request.nextUrl.pathname !== '/') {
-    return NextResponse.redirect(new URL('/', request.url));
+  // Route handlers verify and refresh for themselves; one auth round trip per API call, not two
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    return applySecurityHeaders(response);
   }
 
-  return response;
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error && error.name !== 'AuthSessionMissingError') {
+    console.error(`[Auth] getUser failed: ${error.message}`, error);
+  }
+
+  if (!user && (request.nextUrl.pathname.startsWith('/summaries') || request.nextUrl.pathname.startsWith('/settings'))) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('returnTo', request.nextUrl.pathname);
+    return Response.redirect(loginUrl);
+  }
+  if (user && request.nextUrl.pathname === '/login') {
+    return Response.redirect(new URL('/summaries', request.url));
+  }
+
+  return applySecurityHeaders(response);
 }
 
 export const config = {
-  matcher: ['/summaries', '/settings', '/api/reader/:path*', '/api/settings'],
+  // Everything except static assets, the image optimiser, the favicon, and the auth callback
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/auth).*)'],
 };
 ```
 
-**Protected routes:**
-- `/summaries` - Main app page
-- `/settings` - User settings
-- `/api/reader/*` - Reader operations
-- `/api/settings` - Settings API
+**What it costs.** A page load by a signed-in user is two auth round trips: this call and the page's own `getUser()`, since the two clients share nothing. An API call is one, the route's own. A request with no session cookie makes no network call at all (`getUser()` fails locally), so anonymous landing-page traffic and the Fika email links are free.
 
-**Public routes:**
-- `/` - Login page
-- `/api/auth/*` - Auth endpoints
-- `/api/cron/*` - Cron endpoints (protected by CRON_SECRET)
+**Redirected:** `/summaries*` and `/settings*` go to `/login?returnTo=<path>` without a user; `/login` goes to `/summaries` with one. Every other page renders and does its own check (the admin page redirects non-admins to `/summaries`).
 
 ## Session Management
 
@@ -234,7 +234,7 @@ Supabase SSR automatically handles token refresh when:
 - User makes authenticated request
 - Refresh token is still valid
 
-**Middleware refreshes session** on every protected route request.
+**Middleware verifies the user** (`getUser()`) on every matched request, which also refreshes an expiring session.
 
 ## API Route Authentication Pattern
 
@@ -244,14 +244,14 @@ Standard pattern for all protected API routes:
 export async function GET() {
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Route logic with session.user.id
+  // Route logic with user.id
 }
 ```
 
@@ -274,6 +274,9 @@ export async function GET() {
 - **Domain validation**: Redirect only to configured Site URL
 
 ### Session Security
+
+Server code verifies the caller with `supabase.auth.getUser()`, never `getSession()`. `getSession()` decodes the cookie without checking it against the auth server, so a forged or revoked token would still read as a session; `getUser()` sends the token to Supabase Auth on each call and returns null for anything it does not accept. The extra round trip on pages is the price of trusting nothing the browser sent; a request with no cookie makes no network call. If Supabase Auth is unreachable, `getUser()` returns no user and the caller is denied exactly as if logged out, while the cookie stays intact, so the next request after the outage signs them straight back in; the middleware logs the failure so "everyone appears logged out" can be told apart from expired sessions. (The database would reject a forged token anyway, since PostgREST verifies the JWT on every query, so this closes the window between "looked logged in" and "first query failed", not a data exposure.)
+
 - **httpOnly cookies**: Not accessible via JavaScript
 - **Secure flag**: Cookies only sent over HTTPS
 - **SameSite**: CSRF protection

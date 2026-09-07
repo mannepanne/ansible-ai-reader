@@ -43,14 +43,14 @@ REST API conventions, error handling patterns, and validation strategies.
 
 ## Authentication
 
-Protected routes require a valid session, with one exception: the Fika email's action links, where a signed token is the credential (see [authentication.md](./authentication.md#4-signed-action-token-fika-email)).
+Protected routes require a verified user (`supabase.auth.getUser()`), with one exception: the Fika email's action links, where a signed token is the credential (see [authentication.md](./authentication.md#4-signed-action-token-fika-email)).
 
 **Pattern:**
 ```typescript
 const supabase = await createClient();
-const { data: { session } } = await supabase.auth.getSession();
+const { data: { user } } = await supabase.auth.getUser();
 
-if (!session) {
+if (!user) {
   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 }
 ```
@@ -293,16 +293,16 @@ function parsePerplexityResponse(markdown: string) {
 ```typescript
 export async function GET() {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const { data, error } = await supabase
     .from('reader_items')
     .select('*')
-    .eq('user_id', session.user.id)
+    .eq('user_id', user.id)
     .eq('archived', false);
 
   if (error) {
@@ -321,9 +321,9 @@ export async function GET() {
 ```typescript
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -346,9 +346,9 @@ export async function POST(request: NextRequest) {
 ```typescript
 export async function PATCH(request: NextRequest) {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -365,7 +365,7 @@ export async function PATCH(request: NextRequest) {
   // Use service role client if RLS bypass needed
   const serviceClient = createServiceRoleClient();
   const { error } = await serviceClient.from('users').upsert({
-    id: session.user.id,
+    id: user.id,
     ...validated.data,
   });
 

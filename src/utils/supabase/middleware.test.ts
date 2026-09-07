@@ -52,10 +52,10 @@ describe('createClient (middleware Supabase client)', () => {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = 'anon-key';
   });
 
-  it('writes cookies set during getSession to the response the caller already holds', () => {
+  it('writes cookies set during getUser to the response the caller already holds', () => {
     const { response } = createClient(makeRequest() as never);
 
-    // The caller destructures `response` BEFORE getSession() runs; a session refresh
+    // The caller destructures `response` BEFORE getUser() runs; a session refresh
     // then invokes this callback. If createClient reassigned `response` to a fresh
     // object here, the cookie would land on an orphan the caller never returns.
     (captured.cookies.set as (n: string, v: string, o: object) => void)(
