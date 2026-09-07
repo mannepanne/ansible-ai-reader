@@ -56,12 +56,12 @@ export async function listFikaUsers(db: SupabaseClient<Database>): Promise<FikaU
   return (data ?? [])
     .filter((row): row is typeof row & { fika_hour: number } => row.fika_hour !== null)
     .map((row) => ({
-    id: row.id,
-    email: row.email,
-    fikaHour: row.fika_hour,
-    timeZone: row.timezone ?? 'Europe/London',
-    weeklyTarget: row.weekly_target ?? 5,
-  }));
+      id: row.id,
+      email: row.email,
+      fikaHour: row.fika_hour,
+      timeZone: row.timezone ?? 'Europe/London',
+      weeklyTarget: row.weekly_target ?? 5,
+    }));
 }
 
 export async function getUserFikaSettings(
@@ -139,8 +139,10 @@ export async function listCandidates(db: SupabaseClient<Database>, userId: strin
   if (oldest.error) fail('listCandidates oldest', oldest.error);
   if (newest.error) fail('listCandidates newest', newest.error);
   const byId = new Map<string, BatchCandidate>();
+  // A candidate without created_at cannot be ordered, so it is dropped rather than given a placeholder date
   for (const row of [...(oldest.data ?? []), ...(newest.data ?? [])]) {
-    byId.set(row.id, { id: row.id, createdAt: row.created_at ?? '' });
+    if (row.created_at === null) continue;
+    byId.set(row.id, { id: row.id, createdAt: row.created_at });
   }
   return [...byId.values()];
 }
@@ -193,7 +195,7 @@ export async function loadEmailItems(db: SupabaseClient<Database>, userId: strin
   const byId = new Map((data ?? []).map((row) => [row.id, row]));
   return itemIds
     .map((id) => byId.get(id))
-    .filter((row): row is NonNullable<typeof row> => Boolean(row))
+    .filter((row): row is NonNullable<typeof row> & { created_at: string } => Boolean(row) && row!.created_at !== null)
     .map((row) => ({
       id: row.id,
       title: row.title,
@@ -201,7 +203,7 @@ export async function loadEmailItems(db: SupabaseClient<Database>, userId: strin
       author: row.author ?? null,
       source: row.source ?? null,
       wordCount: row.word_count ?? null,
-      createdAt: row.created_at ?? '',
+      createdAt: row.created_at,
       shortSummary: row.short_summary ?? null,
       tags: Array.isArray(row.tags) ? row.tags : [],
     }));

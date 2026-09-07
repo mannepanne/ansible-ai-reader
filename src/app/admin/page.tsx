@@ -10,6 +10,12 @@ import { mergeActivity } from '@/components/admin/activity-log';
 import type { LandingStats, DemoStats, RelayStats, RelayPieceRow, PieceLink, DecisionSource, RelayActivityRow } from '@/components/admin/types';
 import type { Json } from '@/types/database.types';
 
+// event_data is free-form JSON; only an object with a string label counts, anything else is 'unknown'
+const jsonLabel = (value: Json): string => {
+  if (value && typeof value === 'object' && !Array.isArray(value) && typeof value.label === 'string') return value.label;
+  return 'unknown';
+};
+
 export default async function AdminPage() {
   const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
@@ -109,15 +115,9 @@ export default async function AdminPage() {
       .limit(200),
   ]);
 
-  // event_data is free-form JSON; only an object with a string label counts, anything else is 'unknown'
-  const jsonLabel = (value: Json): string => {
-    if (value && typeof value === 'object' && !Array.isArray(value) && typeof value.label === 'string') return value.label;
-    return 'unknown';
-  };
-
   // Build landing stats
   const uniqueVisitors = new Set(
-    (visitorIdsResult.data ?? []).map((r: { visitor_id: string }) => r.visitor_id)
+    (visitorIdsResult.data ?? []).map((r) => r.visitor_id)
   ).size;
 
   const navClickCounts: Record<string, number> = {};
@@ -148,18 +148,20 @@ export default async function AdminPage() {
 
   // Build demo stats
   const eventTypeCounts: Record<string, number> = {};
-  (eventTypesResult.data ?? []).forEach((e: { event_type: string }) => {
+  (eventTypesResult.data ?? []).forEach((e) => {
     eventTypeCounts[e.event_type] = (eventTypeCounts[e.event_type] ?? 0) + 1;
   });
 
   const sessions = (sessionsResult.data ?? []).map((s) => {
-    const startedMs = s.started_at ? new Date(s.started_at).getTime() : 0;
-    const lastActiveMs = s.last_active_at ? new Date(s.last_active_at).getTime() : startedMs;
+    // Either timestamp missing (nullable columns) means no duration can be derived, not a huge one
+    const durationMs = s.started_at && s.last_active_at
+      ? new Date(s.last_active_at).getTime() - new Date(s.started_at).getTime()
+      : 0;
     return {
       sessionId: s.session_id,
       email: s.email,
       startedAt: s.started_at ?? '',
-      durationSeconds: Math.max(0, Math.round((lastActiveMs - startedMs) / 1000)),
+      durationSeconds: Math.max(0, Math.round(durationMs / 1000)),
       totalEvents: s.total_events ?? 0,
     };
   });

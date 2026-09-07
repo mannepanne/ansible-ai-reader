@@ -789,7 +789,13 @@ describe('AdminPage', () => {
 
     it('tolerates null timestamps and counts on older session and capture rows', async () => {
       respond((q) => (q.table === 'demo_sessions' && !q.head
-        ? { data: [{ session_id: 'sess-old', email: null, started_at: null, last_active_at: null, total_events: null }] }
+        ? {
+            data: [
+              { session_id: 'sess-old', email: null, started_at: null, last_active_at: null, total_events: null },
+              // Only one timestamp present: no duration can be derived, and it must not become a huge number
+              { session_id: 'sess-half', email: null, started_at: null, last_active_at: '2026-04-02T14:00:00Z', total_events: 3 },
+            ],
+          }
         : undefined));
       respond((q) => (q.table === 'email_captures'
         ? { data: [{ id: 'cap-old', email: 'old@example.com', source: 'hero', created_at: null }] }
@@ -799,7 +805,9 @@ describe('AdminPage', () => {
 
       expect(demoStats.sessions).toEqual([
         { sessionId: 'sess-old', email: null, startedAt: '', durationSeconds: 0, totalEvents: 0 },
+        { sessionId: 'sess-half', email: null, startedAt: '', durationSeconds: 0, totalEvents: 3 },
       ]);
+      expect(demoStats.avgDurationSeconds).toBe(0);
       expect(demoStats.emailCaptures).toEqual([{ id: 'cap-old', email: 'old@example.com', source: 'hero', createdAt: '' }]);
     });
 

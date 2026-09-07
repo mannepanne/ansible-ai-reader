@@ -5,11 +5,12 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import type { Database, Json } from '@/types/database.types';
 
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 // Direct anon client for public tracking — bypasses SSR cookie management
-const supabase = createClient(
+const supabase = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 );
@@ -148,7 +149,7 @@ export function useTracking() {
           session_id: sid,
           email,
           event_type: eventType,
-          event_data: eventData,
+          event_data: eventData as Json,
         })
         .then(() => {});
 
@@ -184,7 +185,7 @@ export function usePageTracking() {
           visitor_id: vid,
           session_id: sid,
           event_type: eventType,
-          event_data: eventData,
+          event_data: eventData as Json,
         })
         .then(() => {});
     },

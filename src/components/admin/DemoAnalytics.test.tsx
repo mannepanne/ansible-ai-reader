@@ -122,4 +122,11 @@ describe('DemoAnalytics', () => {
     expect(screen.getByText('13')).toBeDefined();  // sessionCount unchanged
     expect(screen.getByText('42')).toBeDefined();  // totalInteractions unchanged
   });
+
+  it('shows a dash for a capture with no timestamp instead of "Invalid Date"', () => {
+    render(<DemoAnalytics stats={{ ...mockStats, emailCaptures: [{ id: 'cap-old', email: 'old@example.com', source: 'hero', createdAt: '' }] }} />);
+
+    expect(screen.getByText(/via hero · —/)).toBeInTheDocument();
+    expect(screen.queryByText(/Invalid Date/)).not.toBeInTheDocument();
+  });
 });

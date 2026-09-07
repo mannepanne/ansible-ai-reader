@@ -10,6 +10,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '../src/types/database.types';
 import { assembleSystemPrompt, PERSONA_FILES } from '../src/lib/relay/persona';
 import { selectExemplar, renderExemplarSection } from '../src/lib/relay/exemplars';
 import { formatStimulus, type StimulusMode } from '../src/lib/relay/session-run';
@@ -139,7 +140,7 @@ async function ensureResources(system: string): Promise<Ids> {
 }
 
 async function fetchStimulus(readerId: string, mode: StimulusMode): Promise<string> {
-  const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
+  const supabase = createClient<Database>(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const { data, error } = await supabase

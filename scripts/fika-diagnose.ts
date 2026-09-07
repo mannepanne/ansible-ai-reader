@@ -2,6 +2,7 @@
 // ABOUT: Usage: npm run fika:diagnose [user-id] — the check unit tests cannot make: does PostgREST accept our queries?
 
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '../src/types/database.types';
 import { loadDevVars } from './relay-env';
 // Read functions only, imported by name: a write path added here would show up as a new import in review
 import {
@@ -19,7 +20,7 @@ import { selectBatch } from '../src/lib/fika/select-batch';
 import { weekLowerBound } from '../src/lib/fika/reading-days';
 
 const vars = loadDevVars();
-const db = createClient(vars.NEXT_PUBLIC_SUPABASE_URL, vars.SUPABASE_SECRET_KEY, {
+const db = createClient<Database>(vars.NEXT_PUBLIC_SUPABASE_URL, vars.SUPABASE_SECRET_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 const now = new Date();

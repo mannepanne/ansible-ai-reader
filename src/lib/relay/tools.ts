@@ -3,7 +3,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Json } from '@/types/database.types';
-import { embed, type AiBinding } from './embed';
+import { embed, toVectorParam, type AiBinding } from './embed';
 import { fetchArticleContent } from '../reader-api';
 import { groundedSearch, RESEARCH_UNAVAILABLE, type GroundedSearchResult } from './grounded-search';
 import { TRUSTED_SOURCES } from './trusted-sources';
@@ -85,8 +85,7 @@ export async function recall(
   const embedding = await embed(deps.ai, text);
 
   const { data, error } = await deps.supabase.rpc('relay_recall', {
-    // pgvector arguments are typed as string by the generator; supabase-js serialises the array and PostgREST casts it
-    query_embedding: embedding as unknown as string,
+    query_embedding: toVectorParam(embedding),
     match_count: matchCount,
   });
   if (error) {
@@ -267,7 +266,7 @@ export async function ingestReference(
       source_ref,
       title: args.title ?? null,
       content,
-      embedding: embedding as unknown as string,
+      embedding: toVectorParam(embedding),
     },
     { onConflict: 'origin,source_ref' },
   );

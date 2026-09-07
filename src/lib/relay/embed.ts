@@ -40,3 +40,12 @@ export async function embed(ai: AiBinding, text: string): Promise<number[]> {
   }
   return vector;
 }
+
+/**
+ * The generated Database types have no vector type, so pgvector columns and RPC arguments are typed
+ * as string. supabase-js serialises the array and PostgREST casts it, so the value on the wire is
+ * unchanged; this is the single place the type gap is bridged.
+ */
+export function toVectorParam(embedding: number[]): string {
+  return embedding as unknown as string;
+}

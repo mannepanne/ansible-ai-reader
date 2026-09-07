@@ -3,6 +3,7 @@
 // Usage: NODE_OPTIONS="--max-old-space-size=4096" npx tsx scripts/relay-acceptance-check.ts <reader_id...>
 
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '../src/types/database.types';
 import { loadDevVars } from './relay-env';
 
 (async () => {
@@ -12,7 +13,7 @@ import { loadDevVars } from './relay-env';
     process.exit(1);
   }
   const env = loadDevVars();
-  const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
+  const supabase = createClient<Database>(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const { data, error } = await supabase

@@ -129,6 +129,12 @@ describe('store', () => {
     expect(newest.calls).toContainEqual(['order', ['created_at', { ascending: false }]]);
   });
 
+  it('listCandidates drops a row with no created_at rather than giving it a placeholder date', async () => {
+    const oldest = chain({ data: [{ id: 'dated', created_at: '2026-06-01T00:00:00Z' }, { id: 'undated', created_at: null }] });
+    const result = await listCandidates(db({ reader_items: [oldest, chain({})] }), 'u1');
+    expect(result.map((r) => r.id)).toEqual(['dated']);
+  });
+
   it('listCandidates surfaces an error from either end', async () => {
     await expect(listCandidates(db({ reader_items: [chain({}), chain({ error: { message: 'newest broke' } })] }), 'u1')).rejects.toThrow('newest broke');
   });
@@ -186,6 +192,13 @@ describe('store', () => {
     expect(result[0]).toEqual({ id: 'a', title: 'A', url: 'u', author: 'x', source: null, wordCount: null, createdAt: 'c', shortSummary: '- p', tags: ['t'] });
     expect(result[1].tags).toEqual([]);
     expect(await loadEmailItems(db({}), 'u1', [])).toEqual([]);
+  });
+
+  it('loadEmailItems drops a row with no created_at so the email never formats an invalid date', async () => {
+    const rows = chain({
+      data: [{ id: 'a', title: 'A', url: 'u', author: null, source: null, word_count: null, created_at: null, short_summary: null, tags: null }],
+    });
+    expect(await loadEmailItems(db({ reader_items: rows }), 'u1', ['a'])).toEqual([]);
   });
 
   it('countUnread uses the same filter as the summaries list', async () => {

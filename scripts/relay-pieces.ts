@@ -4,17 +4,19 @@
 //           npx tsx scripts/relay-pieces.ts --all     (every piece, bodies included)
 
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '../src/types/database.types';
 import { loadDevVars } from './relay-env';
 
 const env = loadDevVars();
 const showAll = process.argv.includes('--all');
 
-function fmtDate(s: string): string {
+function fmtDate(s: string | null): string {
+  if (!s) return '—';
   return s?.replace('T', ' ').replace(/\..*$/, ' UTC') ?? '';
 }
 
 async function main() {
-  const sb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
+  const sb = createClient<Database>(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
@@ -44,7 +46,7 @@ async function main() {
     if (p.slug) console.log(`slug: ${p.slug}${p.deployed_at ? `   deployed: ${fmtDate(p.deployed_at)}` : ''}`);
     console.log(`summary: ${p.summary ?? '(none)'}`);
     console.log(`concepts: ${(p.concepts ?? []).join(' · ') || '(none)'}`);
-    console.log(`recalled: ${(p.links ?? []).length} memory id(s)`);
+    console.log(`recalled: ${Array.isArray(p.links) ? p.links.length : 0} memory id(s)`);
     console.log('─'.repeat(78));
     console.log(p.body);
   }

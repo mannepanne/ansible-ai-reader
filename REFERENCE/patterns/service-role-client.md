@@ -125,9 +125,10 @@ export async function POST(req: NextRequest) {
 ### Service Role Client Factory
 
 ```typescript
-// src/lib/supabase/service-role-client.ts
+// src/utils/supabase/server.ts
 
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database.types';
 
 /**
  * Creates a Supabase client with service role access (bypasses RLS).
@@ -145,7 +146,7 @@ export function createServiceRoleClient() {
     throw new Error('Missing Supabase service role credentials');
   }
 
-  return createClient(supabaseUrl, serviceRoleKey, {
+  return createClient<Database>(supabaseUrl, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
