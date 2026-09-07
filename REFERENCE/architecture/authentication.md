@@ -112,9 +112,9 @@ export async function createClient() {
 **Example:**
 ```typescript
 const supabase = await createClient();
-const { data: { session } } = await supabase.auth.getSession();
+const { data: { user } } = await supabase.auth.getUser();
 
-if (!session) {
+if (!user) {
   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 }
 ```
@@ -149,17 +149,17 @@ export function createServiceRoleClient() {
 **Example:**
 ```typescript
 const supabase = await createClient();
-const { data: { session } } = await supabase.auth.getSession();
+const { data: { user } } = await supabase.auth.getUser();
 
-if (!session) {
+if (!user) {
   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 }
 
 // Auth verified, safe to use service role
 const serviceClient = createServiceRoleClient();
 await serviceClient.from('users').upsert({
-  id: session.user.id,
-  email: session.user.email,
+  id: user.id,
+  email: user.email,
   ...settings,
 });
 ```
@@ -188,11 +188,11 @@ export async function middleware(request: NextRequest) {
   const supabase = createServerClient(/* ... */);
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // Protected routes require authentication
-  if (!session && request.nextUrl.pathname !== '/') {
+  if (!user && request.nextUrl.pathname !== '/') {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
@@ -234,7 +234,7 @@ Supabase SSR automatically handles token refresh when:
 - User makes authenticated request
 - Refresh token is still valid
 
-**Middleware refreshes session** on every protected route request.
+**Middleware verifies the user** (`getUser()`) on every matched request, which also refreshes an expiring session.
 
 ## API Route Authentication Pattern
 
@@ -244,14 +244,14 @@ Standard pattern for all protected API routes:
 export async function GET() {
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Route logic with session.user.id
+  // Route logic with user.id
 }
 ```
 
@@ -274,6 +274,9 @@ export async function GET() {
 - **Domain validation**: Redirect only to configured Site URL
 
 ### Session Security
+
+Server code verifies the caller with `supabase.auth.getUser()`, never `getSession()`. `getSession()` decodes the cookie without checking it against the auth server, so a forged or revoked token would still read as a session; `getUser()` sends the token to Supabase Auth on each call and returns null for anything it does not accept. The extra round trip on protected pages is the price of trusting nothing the browser sent. (The database would reject a forged token anyway, since PostgREST verifies the JWT on every query, so this closes the window between "looked logged in" and "first query failed", not a data exposure.)
+
 - **httpOnly cookies**: Not accessible via JavaScript
 - **Secure flag**: Cookies only sent over HTTPS
 - **SameSite**: CSRF protection

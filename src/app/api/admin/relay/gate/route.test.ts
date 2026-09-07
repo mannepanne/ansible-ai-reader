@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { PATCH } from './route';
 
-const mockGetSession = vi.fn();
+const mockGetUser = vi.fn();
 const mockAdminSelect = vi.fn();
 const mockEq = vi.fn();
 const mockSingle = vi.fn();
@@ -18,7 +18,7 @@ const mockStampUpdate = vi.fn(() => ({ eq: () => ({ eq: () => ({ is: mockStampIs
 
 vi.mock('@/utils/supabase/server', () => ({
   createClient: vi.fn(async () => ({
-    auth: { getSession: mockGetSession },
+    auth: { getUser: mockGetUser },
     from: () => ({ select: mockAdminSelect }),
   })),
   createServiceRoleClient: vi.fn(() => ({
@@ -36,7 +36,7 @@ vi.mock('@/utils/supabase/server', () => ({
 }));
 
 const asAdmin = () => {
-  mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'admin-1' } } } });
+  mockGetUser.mockResolvedValue({ data: { user: { id: 'admin-1' } } });
   mockSingle.mockResolvedValue({ data: { is_admin: true }, error: null });
 };
 
@@ -70,13 +70,13 @@ afterEach(() => {
 
 describe('PATCH /api/admin/relay/gate', () => {
   it('returns 401 when unauthenticated', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: null } });
+    mockGetUser.mockResolvedValue({ data: { user: null } });
     expect((await PATCH(patchReq({ enabled: true }))).status).toBe(401);
     expect(mockUsersUpdate).not.toHaveBeenCalled();
   });
 
   it('returns 403 when not admin', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'u' } } } });
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u' } } });
     mockSingle.mockResolvedValue({ data: { is_admin: false }, error: null });
     expect((await PATCH(patchReq({ enabled: true }))).status).toBe(403);
   });

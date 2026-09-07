@@ -26,17 +26,17 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
 export async function middleware(request: NextRequest) {
   const { supabase, response } = createClient(request);
 
-  // Refresh session if expired - required for Server Components
+  // getUser() verifies the token with the auth server; reading the cookie alone would trust an unverified claim
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // Note: the early-return redirects below are intentionally NOT decorated with
   // security headers. A 3xx carries no body to MIME-sniff or frame, and the
   // redirect target re-enters this middleware and gets the headers when rendered.
   // Protect routes that start with /summaries or /settings
   if (
-    !session &&
+    !user &&
     (request.nextUrl.pathname.startsWith('/summaries') ||
       request.nextUrl.pathname.startsWith('/settings'))
   ) {
@@ -47,7 +47,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // If user is authenticated and tries to access /login, redirect to /summaries
-  if (session && request.nextUrl.pathname === '/login') {
+  if (user && request.nextUrl.pathname === '/login') {
     const summariesUrl = new URL('/summaries', request.url);
     return Response.redirect(summariesUrl);
   }

@@ -12,10 +12,10 @@ vi.mock('next/navigation', () => ({
 }));
 
 // Mock Supabase server client
-const mockGetSession = vi.fn();
+const mockGetUser = vi.fn();
 vi.mock('@/utils/supabase/server', () => ({
   createClient: vi.fn(async () => ({
-    auth: { getSession: mockGetSession },
+    auth: { getUser: mockGetUser },
   })),
 }));
 
@@ -34,7 +34,7 @@ describe('LoginPage', () => {
   });
 
   it('renders login form for unauthenticated users', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: null } });
+    mockGetUser.mockResolvedValue({ data: { user: null } });
 
     const component = await LoginPage();
     const { render: renderComponent } = await import('@testing-library/react');
@@ -46,10 +46,8 @@ describe('LoginPage', () => {
   });
 
   it('redirects authenticated users to /summaries', async () => {
-    mockGetSession.mockResolvedValue({
-      data: {
-        session: { user: { id: 'test-user', email: 'test@example.com' } },
-      },
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'test-user', email: 'test@example.com' } },
     });
 
     await LoginPage();
@@ -58,7 +56,7 @@ describe('LoginPage', () => {
   });
 
   it('submits login form and shows success message', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: null } });
+    mockGetUser.mockResolvedValue({ data: { user: null } });
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ message: 'Magic link sent' }),
@@ -80,7 +78,7 @@ describe('LoginPage', () => {
   });
 
   it('shows back to home link', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: null } });
+    mockGetUser.mockResolvedValue({ data: { user: null } });
 
     const component = await LoginPage();
     const { render: renderComponent } = await import('@testing-library/react');

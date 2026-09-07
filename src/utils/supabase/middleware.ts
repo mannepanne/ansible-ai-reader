@@ -7,7 +7,7 @@ import type { Database } from '@/types/database.types';
 
 export function createClient(request: NextRequest) {
   // A single, stable response object. The caller destructures this reference
-  // BEFORE supabase.auth.getSession() runs, and getSession() is what triggers the
+  // BEFORE supabase.auth.getUser() runs, and getUser() is what triggers the
   // cookie set/remove callbacks (on session refresh). The callbacks must therefore
   // mutate THIS object in place — reassigning `response` to a fresh NextResponse
   // would orphan the caller's reference and silently drop refreshed-session cookies,

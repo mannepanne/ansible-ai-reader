@@ -104,14 +104,14 @@ vi.mock('next/navigation', () => ({
 }));
 
 // Mock Supabase server client
-const mockGetSession = vi.fn();
+const mockGetUser = vi.fn();
 const mockSelect = vi.fn();
 const mockEq = vi.fn();
 const mockSingle = vi.fn();
 
 vi.mock('@/utils/supabase/server', () => ({
   createClient: vi.fn(async () => ({
-    auth: { getSession: mockGetSession },
+    auth: { getUser: mockGetUser },
     from: () => ({ select: mockSelect }),
   })),
   createServiceRoleClient: vi.fn(() => ({
@@ -140,8 +140,8 @@ import AdminPage from './page';
 
 /** Sign in as an admin; pass `null` for a session whose user has no email. */
 function signInAsAdmin(email: string | null = 'admin@example.com') {
-  mockGetSession.mockResolvedValue({
-    data: { session: { user: { id: 'admin-1', email: email ?? undefined } } },
+  mockGetUser.mockResolvedValue({
+    data: { user: { id: 'admin-1', email: email ?? undefined } },
   });
   mockSingle.mockResolvedValue({ data: { is_admin: true }, error: null });
 }
@@ -322,15 +322,15 @@ describe('AdminPage', () => {
 
   describe('access guards', () => {
     it('redirects to / when unauthenticated', async () => {
-      mockGetSession.mockResolvedValue({ data: { session: null } });
+      mockGetUser.mockResolvedValue({ data: { user: null } });
 
       await expect(AdminPage()).rejects.toThrow('redirect:/');
       expect(mockRedirect).toHaveBeenCalledWith('/');
     });
 
     it('redirects to /summaries when authenticated but not admin', async () => {
-      mockGetSession.mockResolvedValue({
-        data: { session: { user: { id: 'user-1', email: 'user@example.com' } } },
+      mockGetUser.mockResolvedValue({
+        data: { user: { id: 'user-1', email: 'user@example.com' } },
       });
       mockSingle.mockResolvedValue({ data: { is_admin: false }, error: null });
 
@@ -339,8 +339,8 @@ describe('AdminPage', () => {
     });
 
     it('redirects to /summaries when the user row is missing', async () => {
-      mockGetSession.mockResolvedValue({
-        data: { session: { user: { id: 'user-1', email: 'user@example.com' } } },
+      mockGetUser.mockResolvedValue({
+        data: { user: { id: 'user-1', email: 'user@example.com' } },
       });
       mockSingle.mockResolvedValue({ data: null, error: null });
 

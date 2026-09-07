@@ -8,10 +8,10 @@ import LoginContent from './LoginContent';
 export default async function LoginPage() {
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (session) {
+  if (user) {
     redirect('/summaries');
   }
 

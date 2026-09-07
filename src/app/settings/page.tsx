@@ -7,21 +7,21 @@ import SettingsContent from './SettingsContent';
 
 export default async function SettingsPage() {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     redirect('/');
   }
 
   const { data: userData } = await supabase
     .from('users')
     .select('is_admin')
-    .eq('id', session.user.id)
+    .eq('id', user.id)
     .single();
 
   return (
     <SettingsContent
-      userEmail={session.user.email || ''}
+      userEmail={user.email || ''}
       isAdmin={userData?.is_admin ?? false}
     />
   );

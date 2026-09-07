@@ -29,11 +29,11 @@ Two-layer guard, both server-side:
 ```
 
 ```typescript
-const { data: { session } } = await supabase.auth.getSession();
-if (!session) redirect('/');
+const { data: { user } } = await supabase.auth.getUser();
+if (!user) redirect('/');
 
 const { data: userData } = await supabase
-  .from('users').select('is_admin').eq('id', session.user.id).single();
+  .from('users').select('is_admin').eq('id', user.id).single();
 if (!userData?.is_admin) redirect('/summaries');
 ```
 
