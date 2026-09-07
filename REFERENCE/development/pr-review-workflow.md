@@ -274,13 +274,16 @@ The skill will:
 
 **Pre-commit checklist:**
 ```bash
-npm test                  # All tests pass
-npx tsc --noEmit         # Type check passes
-git status               # Verify what's included
-git diff                 # Review your own changes first
+npx vitest run --coverage   # All tests pass and the coverage gate holds (the CI command)
+npx tsc --noEmit            # Type check passes
+npx next lint               # Lint passes
+git status                  # Verify what's included
+git diff                    # Review your own changes first
 ```
 
 Any new Supabase embed, filter syntax, or column name also gets one run against the real schema before the PR is opened; mocked tests cannot catch a query PostgREST rejects. See [testing-strategy.md](./testing-strategy.md#when-tests-are-not-enough).
+
+Opening the PR triggers the same workflow that deploys `main`, minus the deploy steps: tests with the coverage gate, type check, and the worker build, on Node 22. A red check on the PR is the earliest signal that a merge would fail to deploy.
 
 **PR description should include:**
 - What changed and why

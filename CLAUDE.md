@@ -112,8 +112,8 @@ Documentation is organized by **function** (what you're trying to do), not build
 2. Write or review spec in `SPECIFICATIONS/`
 3. Run `/review-spec <spec-file>` for new specs (catches bad assumptions before code)
 4. Implement with tests: `npm test && npx tsc --noEmit`
-5. Run `/review-pr` (smart triage) or `/review-pr-team` (force four-perspective review)
-6. Wait for approval, then merge (auto-deploys via CI/CD)
+5. Run `/review-pr` (smart triage) or `/review-pr-team` (force four-perspective review); CI runs tests, the coverage gate, type check, and the worker build on the PR
+6. Wait for approval and a green check, then merge (auto-deploys via CI/CD)
 
 ## Testing
 

@@ -1,7 +1,7 @@
 // ABOUT: Tests for SummaryCard component
 // ABOUT: Validates rendering, tabs, expand/collapse, commentariat, tags, metadata, actions
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import SummaryCard from './SummaryCard';
 
@@ -739,6 +739,245 @@ describe('SummaryCard', () => {
       fireEvent.click(screen.getByRole('button', { name: /refresh summary/i }));
 
       expect(onRegenerateSummary).toHaveBeenCalledWith('item-1');
+    });
+
+    it('shows an error when regeneration fails and clears it on tab switch', async () => {
+      const onRegenerateSummary = vi.fn().mockRejectedValue(new Error('boom'));
+      render(<SummaryCard {...defaultProps} onRegenerateSummary={onRegenerateSummary} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /refresh summary/i }));
+
+      expect(await screen.findByText('Refresh failed — try again')).toBeInTheDocument();
+
+      // Switching tabs clears the error
+      fireEvent.click(screen.getByRole('button', { name: /commentary/i }));
+      fireEvent.click(screen.getByRole('button', { name: /^summary$/i }));
+      expect(screen.queryByText('Refresh failed — try again')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Markdown headings', () => {
+    it('renders h2 and h3 markdown headings', () => {
+      const { container } = render(
+        <SummaryCard {...defaultProps} summary={'## Main point\n### Sub point\nBody'} />
+      );
+
+      const markdown = container.querySelector('.summary-markdown') as HTMLElement;
+      expect(markdown.querySelector('h2')?.textContent).toBe('Main point');
+      expect(markdown.querySelector('h3')?.textContent).toBe('Sub point');
+    });
+  });
+
+  describe('Hover shadow', () => {
+    it('raises the shadow on mouse enter and restores it on leave', () => {
+      const { container } = render(<SummaryCard {...defaultProps} />);
+      const card = container.querySelector('#item-1') as HTMLElement;
+
+      fireEvent.mouseEnter(card);
+      expect(card.style.boxShadow).toBe('0 4px 12px rgba(0,0,0,.15)');
+
+      fireEvent.mouseLeave(card);
+      expect(card.style.boxShadow).toBe('0 1px 3px rgba(0,0,0,.1)');
+    });
+  });
+
+  describe('Notes', () => {
+    const placeholder = 'Add your thoughts about this article...';
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('opens an empty editor from Add note and hides the controls row', () => {
+      render(<SummaryCard {...defaultProps} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /add note/i }));
+
+      const textarea = screen.getByPlaceholderText(placeholder) as HTMLTextAreaElement;
+      expect(textarea.value).toBe('');
+      expect(screen.getByText('0 / 10,000 characters')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /add note/i })).not.toBeInTheDocument();
+      expect(screen.queryByTitle('Interesting')).not.toBeInTheDocument();
+    });
+
+    it('shows a saved note with Edit note and pre-fills the editor', () => {
+      render(<SummaryCard {...defaultProps} documentNote="Existing thoughts" />);
+
+      expect(screen.getByText('📝 Your note:')).toBeInTheDocument();
+      expect(screen.getByText('Existing thoughts')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /edit note/i }));
+
+      const textarea = screen.getByPlaceholderText(placeholder) as HTMLTextAreaElement;
+      expect(textarea.value).toBe('Existing thoughts');
+    });
+
+    it('saves a trimmed note and displays it', async () => {
+      const onSaveNote = vi.fn().mockResolvedValue(undefined);
+      render(<SummaryCard {...defaultProps} onSaveNote={onSaveNote} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /add note/i }));
+      fireEvent.change(screen.getByPlaceholderText(placeholder), {
+        target: { value: '  My note  ' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /save note/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('My note')).toBeInTheDocument();
+      });
+      expect(onSaveNote).toHaveBeenCalledWith('item-1', 'My note');
+      expect(screen.queryByPlaceholderText(placeholder)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /edit note/i })).toBeInTheDocument();
+    });
+
+    it('shows Saving... and disables buttons while the save is in flight', async () => {
+      let resolveSave: () => void = () => {};
+      const onSaveNote = vi.fn(
+        () => new Promise<void>((resolve) => { resolveSave = resolve; })
+      );
+      render(<SummaryCard {...defaultProps} onSaveNote={onSaveNote} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /add note/i }));
+      fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value: 'Note' } });
+      fireEvent.click(screen.getByRole('button', { name: /save note/i }));
+
+      expect(await screen.findByText('Saving...')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /saving/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
+
+      resolveSave();
+      await waitFor(() => {
+        expect(screen.queryByText('Saving...')).not.toBeInTheDocument();
+      });
+    });
+
+    it('rejects an empty note without calling onSaveNote', () => {
+      const onSaveNote = vi.fn();
+      render(<SummaryCard {...defaultProps} onSaveNote={onSaveNote} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /add note/i }));
+      fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value: '   ' } });
+      fireEvent.click(screen.getByRole('button', { name: /save note/i }));
+
+      expect(screen.getByText('Note cannot be empty')).toBeInTheDocument();
+      expect(onSaveNote).not.toHaveBeenCalled();
+    });
+
+    it('rejects a note over the maximum length and warns in the counter', () => {
+      const onSaveNote = vi.fn();
+      render(<SummaryCard {...defaultProps} onSaveNote={onSaveNote} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /add note/i }));
+      fireEvent.change(screen.getByPlaceholderText(placeholder), {
+        target: { value: 'x'.repeat(10001) },
+      });
+
+      const counter = screen.getByText('10001 / 10,000 characters');
+      expect(counter).toHaveStyle({ color: '#e65100' });
+
+      fireEvent.click(screen.getByRole('button', { name: /save note/i }));
+
+      expect(screen.getByText('Note must be under 10,000 characters')).toBeInTheDocument();
+      expect(onSaveNote).not.toHaveBeenCalled();
+    });
+
+    it('shows the error message when saving fails with an Error', async () => {
+      const onSaveNote = vi.fn().mockRejectedValue(new Error('Server exploded'));
+      render(<SummaryCard {...defaultProps} onSaveNote={onSaveNote} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /add note/i }));
+      fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value: 'Note' } });
+      fireEvent.click(screen.getByRole('button', { name: /save note/i }));
+
+      expect(await screen.findByText('Server exploded')).toBeInTheDocument();
+      // Editor stays open so the user can retry
+      expect(screen.getByPlaceholderText(placeholder)).toBeInTheDocument();
+    });
+
+    it('shows a generic message when saving fails with a non-Error', async () => {
+      const onSaveNote = vi.fn().mockRejectedValue('nope');
+      render(<SummaryCard {...defaultProps} onSaveNote={onSaveNote} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /add note/i }));
+      fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value: 'Note' } });
+      fireEvent.click(screen.getByRole('button', { name: /save note/i }));
+
+      expect(await screen.findByText('Failed to save note')).toBeInTheDocument();
+    });
+
+    it('cancels without confirmation when nothing changed', () => {
+      const confirmSpy = vi.spyOn(window, 'confirm');
+      render(<SummaryCard {...defaultProps} documentNote="Existing" />);
+
+      fireEvent.click(screen.getByRole('button', { name: /edit note/i }));
+      fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+
+      expect(confirmSpy).not.toHaveBeenCalled();
+      expect(screen.queryByPlaceholderText(placeholder)).not.toBeInTheDocument();
+      expect(screen.getByText('Existing')).toBeInTheDocument();
+    });
+
+    it('keeps editing when the user declines the unsaved-changes confirmation', () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(false);
+      render(<SummaryCard {...defaultProps} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /add note/i }));
+      fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value: 'Draft' } });
+      fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+
+      expect(window.confirm).toHaveBeenCalled();
+      expect(screen.getByPlaceholderText(placeholder)).toBeInTheDocument();
+    });
+
+    it('discards changes when the user accepts the unsaved-changes confirmation', () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      render(<SummaryCard {...defaultProps} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /add note/i }));
+      fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value: 'Draft' } });
+      fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+
+      expect(screen.queryByPlaceholderText(placeholder)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /add note/i })).toBeInTheDocument();
+    });
+
+    it('saves on Cmd+Enter and Ctrl+Enter', async () => {
+      const onSaveNote = vi.fn().mockResolvedValue(undefined);
+      render(<SummaryCard {...defaultProps} onSaveNote={onSaveNote} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /add note/i }));
+      const textarea = screen.getByPlaceholderText(placeholder);
+      fireEvent.change(textarea, { target: { value: 'Keyboard note' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', metaKey: true });
+
+      await waitFor(() => {
+        expect(onSaveNote).toHaveBeenCalledWith('item-1', 'Keyboard note');
+      });
+
+      // Re-open and save via Ctrl+Enter
+      fireEvent.click(screen.getByRole('button', { name: /edit note/i }));
+      const textarea2 = screen.getByPlaceholderText(placeholder);
+      fireEvent.change(textarea2, { target: { value: 'Second note' } });
+      fireEvent.keyDown(textarea2, { key: 'Enter', ctrlKey: true });
+
+      await waitFor(() => {
+        expect(onSaveNote).toHaveBeenCalledWith('item-1', 'Second note');
+      });
+    });
+
+    it('cancels on Escape and ignores other keys', () => {
+      render(<SummaryCard {...defaultProps} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /add note/i }));
+      const textarea = screen.getByPlaceholderText(placeholder);
+
+      // Plain Enter and an unrelated key do nothing
+      fireEvent.keyDown(textarea, { key: 'Enter' });
+      fireEvent.keyDown(textarea, { key: 'a' });
+      expect(screen.getByPlaceholderText(placeholder)).toBeInTheDocument();
+
+      fireEvent.keyDown(textarea, { key: 'Escape' });
+      expect(screen.queryByPlaceholderText(placeholder)).not.toBeInTheDocument();
     });
   });
 });

@@ -243,12 +243,12 @@ npm run test:watch
 ### Single Run
 
 ```bash
-npm test
+npx vitest run --coverage
 ```
 
-- Runs all tests once
-- Used in CI/CD
-- Exit code indicates pass/fail
+- Runs all tests once with the coverage gate; this is the command CI runs
+- Exit code indicates pass/fail, including a missed coverage threshold
+- `npm test` alone starts vitest in watch mode in a terminal
 
 ### Coverage Report
 

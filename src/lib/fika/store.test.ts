@@ -213,4 +213,50 @@ describe('store', () => {
     await expect(listFikaUsers(db({ users: chain({ error: { message: 'boom' } }) }))).rejects.toThrow('[Fika store] listFikaUsers: boom');
     await expect(countUnread(db({ reader_items: chain({ error: {} as never }) }), 'u')).rejects.toThrow('unknown error');
   });
+
+  const failing = () => chain({ error: { message: 'pg' } });
+  it.each<[string, () => Promise<unknown>]>([
+    ['getUserFikaSettings', () => getUserFikaSettings(db({ users: failing() }), 'u')],
+    ['getBatchByDate', () => getBatchByDate(db({ fika_batches: failing() }), 'u', 'd')],
+    ['getMostRecentBatch', () => getMostRecentBatch(db({ fika_batches: failing() }), 'u')],
+    ['listCandidates oldest', () => listCandidates(db({ reader_items: [failing(), chain({})] }), 'u')],
+    ['listRecentlyBatchedIds', () => listRecentlyBatchedIds(db({ fika_batches: failing() }), 'u', 'd')],
+    ['loadEmailItems', () => loadEmailItems(db({ reader_items: failing() }), 'u', ['a'])],
+    ['listReadingEvents signals', () => listReadingEvents(db({ item_signals: failing(), reader_items: chain({}) }), 'u', 's')],
+    ['listReadingEvents archives', () => listReadingEvents(db({ item_signals: chain({}), reader_items: failing() }), 'u', 's')],
+    ['recordSendAttempt', () => recordSendAttempt(db({ fika_batches: failing() }), 'b', 1)],
+  ])('%s surfaces a query error with its name as context', async (context, run) => {
+    await expect(run()).rejects.toThrow(`[Fika store] ${context}: pg`);
+  });
+
+  const empty = () => chain({ data: null });
+  it.each<[string, () => Promise<unknown>, unknown]>([
+    ['listFikaUsers', () => listFikaUsers(db({ users: empty() })), []],
+    ['listCandidates', () => listCandidates(db({ reader_items: [empty(), empty()] }), 'u'), []],
+    ['listRecentlyBatchedIds', () => listRecentlyBatchedIds(db({ fika_batches: empty() }), 'u', 'd'), new Set()],
+    [
+      'listRecentlyBatchedIds with a batch that has no items',
+      () => listRecentlyBatchedIds(db({ fika_batches: chain({ data: [{ fika_batch_items: null }] }) }), 'u', 'd'),
+      new Set(),
+    ],
+    ['loadEmailItems', () => loadEmailItems(db({ reader_items: empty() }), 'u', ['a']), []],
+    ['listReadingEvents', () => listReadingEvents(db({ item_signals: empty(), reader_items: empty() }), 'u', 's'), []],
+    [
+      'getUserFikaSettings with null columns',
+      () => getUserFikaSettings(db({ users: chain({ data: { timezone: null, weekly_target: null } }) }), 'u'),
+      { timeZone: 'Europe/London', weeklyTarget: 5 },
+    ],
+    [
+      'getBatchByDate with null columns and no embedded items',
+      () => getBatchByDate(db({ fika_batches: chain({ data: { id: 'b', sent_at: null, send_attempts: null, fika_batch_items: null } }) }), 'u', 'd'),
+      { id: 'b', sentAt: null, sendAttempts: 0, itemIds: [] },
+    ],
+    [
+      'getMostRecentBatch with no embedded items',
+      () => getMostRecentBatch(db({ fika_batches: chain({ data: { id: 'b', fika_batch_items: null } }) }), 'u'),
+      { id: 'b', items: [] },
+    ],
+  ])('%s treats a missing payload as empty', async (_name, run, expected) => {
+    expect(await run()).toEqual(expected);
+  });
 });

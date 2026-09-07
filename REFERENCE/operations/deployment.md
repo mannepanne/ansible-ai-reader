@@ -66,15 +66,16 @@ OpenNext (the Next.js → Cloudflare adapter) deploys to **Cloudflare Workers**,
 
 ### GitHub Actions Workflow
 
-Every push to the `main` branch automatically:
-1. Runs all tests (`npm test -- --run`)
+One workflow serves both pull requests and `main`. Every pull request against `main`, and every push to `main`:
+1. Runs the full test suite with the coverage gate (`npx vitest run --coverage`); the thresholds in `vitest.config.ts` fail the run when missed
 2. Runs type checking (`npx tsc --noEmit`)
 3. Builds the application (`npm run build:worker`)
-4. Deploys cron worker (`wrangler deploy --config wrangler-cron.toml`)
-5. Deploys consumer worker (`wrangler deploy --config wrangler-consumer.toml`)
-6. Deploys main application (`wrangler deploy`)
+
+A push to `main` then continues and deploys all five workers, in order: consumer, cron, relay orchestrator, main application, relay bridge. On a pull request the deploy steps are skipped, so a green check on a PR means "tests, coverage, types, and the worker build all pass on Node 22", nothing has been deployed, and merging is what deploys. A newer push to the same PR cancels the older run.
 
 **Workflow file:** `.github/workflows/deploy.yml`
+
+**The PR check is advisory unless `main` is protected.** Without branch protection a red pull request can still be merged and deployed. To make the check binding, protect `main` in the repository settings with `Test and Deploy to Cloudflare` as a required status check and "require branches to be up to date", so a check computed against a stale `main` cannot merge. Required checks also block direct pushes to `main`, including the documentation-only pushes the branch rules allow, unless the rule leaves administrators exempt.
 
 ### Required GitHub Secrets
 
@@ -109,8 +110,8 @@ https://github.com/mannepanne/ansible-ai-reader/settings/secrets/actions
 ### Testing the Workflow
 
 After setting up secrets:
-1. Make any small change to the codebase
-2. Commit and push to `main` branch
+1. Make any small change on a branch and open a pull request; the workflow runs the test, type check, and build steps and skips the deploys
+2. Merge the pull request
 3. Go to Actions tab in GitHub to watch the deployment
 4. All five workers are automatically deployed on success, in order: consumer → cron → relay orchestrator → main app → relay bridge (the orchestrator precedes the app for the DO binding; the bridge is last — see `.github/workflows/deploy.yml`)
 
@@ -406,7 +407,7 @@ See [troubleshooting.md](./troubleshooting.md) for more common issues.
 
 Before deploying to production:
 
-- [ ] All tests pass locally: `npm test -- --run`
+- [ ] Tests and the coverage gate pass locally: `npx vitest run --coverage`
 - [ ] Type checking passes: `npx tsc --noEmit`
 - [ ] Build succeeds: `npm run build:worker`
 - [ ] Database migrations applied in Supabase

@@ -269,10 +269,15 @@ npx tsc --noEmit   # Type check must pass
 ```
 
 ### Pull Request Checks
-1. All tests pass
-2. Coverage maintained or improved
-3. TypeScript compiles
-4. Linting passes
+
+The deploy workflow runs on every pull request against `main` (deploy steps skipped) and enforces, in this order:
+1. All tests pass on Node 22 (`npx vitest run --coverage`)
+2. Coverage thresholds from `vitest.config.ts` hold: 95% lines, functions, and statements, 90% branches. Vitest's default excludes (test files, type declarations, config files) plus build output, scripts, and `SCRATCH/` are excluded, so the number is product code only; the full list is in `vitest.config.ts`
+3. TypeScript compiles (`npx tsc --noEmit`)
+4. Lint passes (`npx next lint`)
+5. The worker build succeeds (`npm run build:worker`)
+
+Branch coverage has the least headroom, well under a point above the 90% floor. The largest pre-existing gaps are `src/components/admin/RelayAgent.tsx`, `src/app/admin/page.tsx`, and `src/lib/relay/session-readout.ts`, each with twenty to thirty uncovered branches; a PR touching any of them should bring tests for it, and a red gate on an unrelated PR is usually cheapest to clear there.
 
 ---
 

@@ -21,11 +21,14 @@ vi.mock('next/link', () => ({
 
 // Mock tracking hook
 const mockTrackPageEvent = vi.fn();
+const mockCaptureEmail = vi.fn();
+const mockSetSessionEmail = vi.fn();
+let mockStoredEmail: string | null = null;
 vi.mock('@/hooks/useTracking', () => ({
   usePageTracking: vi.fn(() => ({ trackPageEvent: mockTrackPageEvent, visitorId: 'test-visitor' })),
-  captureEmail: vi.fn(),
-  setSessionEmail: vi.fn(),
-  getStoredEmail: vi.fn(() => null),
+  captureEmail: (...args: unknown[]) => mockCaptureEmail(...args),
+  setSessionEmail: (...args: unknown[]) => mockSetSessionEmail(...args),
+  getStoredEmail: vi.fn(() => mockStoredEmail),
 }));
 
 // Mock Lucide icons
@@ -48,6 +51,7 @@ vi.mock('lucide-react', () => ({
 describe('LandingPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockStoredEmail = null;
     // jsdom doesn't implement scrollIntoView — mock it so scroll-based nav tests don't throw
     window.HTMLElement.prototype.scrollIntoView = vi.fn();
   });
@@ -191,6 +195,207 @@ describe('LandingPage', () => {
       render(<LandingPage />);
       const summaryTabs = screen.getAllByRole('tab', { name: /summary/i });
       expect(summaryTabs.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Email submission', () => {
+    // Hero form is the first email input on the page; the final CTA form is the second
+    const heroForm = () => screen.getAllByPlaceholderText(/your@email.com/i)[0].closest('form')!;
+
+    it('captures a valid hero email, tracks the signup, and routes to the demo', async () => {
+      const user = userEvent.setup();
+      render(<LandingPage />);
+
+      await user.type(screen.getAllByPlaceholderText(/your@email.com/i)[0], '  manne@example.com  ');
+      await user.click(screen.getAllByRole('checkbox')[0]);
+      await user.click(screen.getAllByRole('button', { name: /try it yourself/i })[0]);
+
+      expect(mockCaptureEmail).toHaveBeenCalledWith('manne@example.com', 'hero', true);
+      expect(mockSetSessionEmail).toHaveBeenCalledWith('manne@example.com');
+      expect(mockTrackPageEvent).toHaveBeenCalledWith('demo_signup', { source: 'hero' });
+      expect(mockPush).toHaveBeenCalledWith('/demo');
+      // Hero swaps the form for the go-to-demo button once submitted
+      expect(screen.getAllByRole('button', { name: /see ansible in action/i }).length).toBe(1);
+    });
+
+    it('captures a valid final-CTA email with the cta source', async () => {
+      const user = userEvent.setup();
+      render(<LandingPage />);
+
+      await user.type(screen.getAllByPlaceholderText(/your@email.com/i)[1], 'cta@example.com');
+      await user.click(screen.getAllByRole('checkbox')[1]);
+      await user.click(screen.getAllByRole('button', { name: /try it yourself/i })[1]);
+
+      expect(mockCaptureEmail).toHaveBeenCalledWith('cta@example.com', 'cta', true);
+      expect(mockTrackPageEvent).toHaveBeenCalledWith('demo_signup', { source: 'cta' });
+      expect(mockPush).toHaveBeenCalledWith('/demo');
+    });
+
+    it('ignores a submit with a malformed email even when consented', async () => {
+      const user = userEvent.setup();
+      render(<LandingPage />);
+
+      await user.type(screen.getAllByPlaceholderText(/your@email.com/i)[0], 'not-an-email');
+      await user.click(screen.getAllByRole('checkbox')[0]);
+      // Bypass native constraint validation to reach the component's own guard
+      fireEvent.submit(heroForm());
+
+      expect(mockCaptureEmail).not.toHaveBeenCalled();
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    it('ignores a submit without consent', () => {
+      render(<LandingPage />);
+      fireEvent.change(screen.getAllByPlaceholderText(/your@email.com/i)[0], { target: { value: 'a@b.co' } });
+      fireEvent.submit(heroForm());
+      expect(mockCaptureEmail).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Returning visitor (email already stored)', () => {
+    beforeEach(() => {
+      mockStoredEmail = 'stored@example.com';
+    });
+
+    it('shows go-to-demo buttons instead of forms and tracks the click', async () => {
+      const user = userEvent.setup();
+      render(<LandingPage />);
+
+      expect(screen.queryAllByPlaceholderText(/your@email.com/i).length).toBe(0);
+      const demoButtons = screen.getAllByRole('button', { name: /see ansible in action/i });
+      expect(demoButtons.length).toBe(2);
+
+      await user.click(demoButtons[0]);
+      await user.click(demoButtons[1]);
+
+      expect(mockTrackPageEvent).toHaveBeenCalledWith('nav_click', { label: 'go_to_demo' });
+      expect(mockPush).toHaveBeenCalledTimes(2);
+      expect(mockPush).toHaveBeenCalledWith('/demo');
+    });
+
+    it('navbar Try the demo routes straight to /demo', async () => {
+      const user = userEvent.setup();
+      render(<LandingPage />);
+      await user.click(screen.getByRole('button', { name: /try the demo/i }));
+      expect(mockPush).toHaveBeenCalledWith('/demo');
+    });
+
+    it('navbar Try the demo scrolls to the CTA when no email is stored', async () => {
+      mockStoredEmail = null;
+      const user = userEvent.setup();
+      render(<LandingPage />);
+      await user.click(screen.getByRole('button', { name: /try the demo/i }));
+      expect(mockPush).not.toHaveBeenCalled();
+      expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
+    });
+  });
+
+  describe('Preview card interactions', () => {
+    it('expands and collapses the summary', async () => {
+      const user = userEvent.setup();
+      render(<LandingPage />);
+
+      expect(screen.queryByText(/survey of 340 European enterprises/i)).toBeNull();
+      await user.click(screen.getAllByRole('button', { name: /expand/i })[0]);
+      expect(screen.getByText(/survey of 340 European enterprises/i)).toBeDefined();
+
+      await user.click(screen.getAllByRole('button', { name: /collapse/i })[0]);
+      expect(screen.queryByText(/survey of 340 European enterprises/i)).toBeNull();
+    });
+
+    it('switches to commentary, shows a teaser, and resets expansion on tab change', async () => {
+      const user = userEvent.setup();
+      render(<LandingPage />);
+
+      await user.click(screen.getAllByRole('button', { name: /expand/i })[0]);
+      await user.click(screen.getAllByRole('tab', { name: /commentary/i })[0]);
+
+      // Tab change collapses again, so only the first paragraph + ellipsis shows
+      expect(screen.getByText(/classification ambiguities.*\.\.\.$/i)).toBeDefined();
+      expect(screen.queryByText(/Methodological caveat/i)).toBeNull();
+
+      await user.click(screen.getAllByRole('button', { name: /expand/i })[0]);
+      expect(screen.getByText(/Methodological caveat/i)).toBeDefined();
+    });
+
+    it('adds, edits, and cancels a note', async () => {
+      const user = userEvent.setup();
+      render(<LandingPage />);
+
+      await user.click(screen.getAllByRole('button', { name: /add note/i })[0]);
+      const textarea = screen.getByPlaceholderText(/add your thoughts/i);
+      const save = screen.getByRole('button', { name: /save note/i });
+      expect((save as HTMLButtonElement).disabled).toBe(true);
+
+      await user.type(textarea, '  worth a read  ');
+      expect(screen.getByText('16 / 10,000')).toBeDefined();
+      await user.click(save);
+
+      expect(screen.getByText('worth a read')).toBeDefined();
+      expect(screen.queryByPlaceholderText(/add your thoughts/i)).toBeNull();
+
+      // Edit note clears the saved note and reopens the form
+      await user.click(screen.getByRole('button', { name: /edit note/i }));
+      expect(screen.queryByText('worth a read')).toBeNull();
+      expect(screen.getByPlaceholderText(/add your thoughts/i)).toBeDefined();
+
+      await user.click(screen.getByRole('button', { name: /cancel/i }));
+      expect(screen.queryByPlaceholderText(/add your thoughts/i)).toBeNull();
+
+      // Add note toggles the form open and closed again
+      await user.click(screen.getAllByRole('button', { name: /add note/i })[0]);
+      expect(screen.getByPlaceholderText(/add your thoughts/i)).toBeDefined();
+      await user.click(screen.getAllByRole('button', { name: /add note/i })[0]);
+      expect(screen.queryByPlaceholderText(/add your thoughts/i)).toBeNull();
+    });
+
+    it('toggles interesting and not-interesting reactions', async () => {
+      const user = userEvent.setup();
+      render(<LandingPage />);
+
+      const interesting = screen.getAllByTitle('Interesting')[0];
+      const notInteresting = screen.getAllByTitle('Not interesting')[0];
+
+      await user.click(interesting);
+      expect(interesting.className).toContain('bg-yellow-100');
+      await user.click(interesting);
+      expect(interesting.className).not.toContain('bg-yellow-100');
+
+      await user.click(notInteresting);
+      expect(notInteresting.className).toContain('bg-red-100');
+      await user.click(notInteresting);
+      expect(notInteresting.className).not.toContain('bg-red-100');
+    });
+
+    it('opens the Reader popup and closes it via the backdrop or the button', async () => {
+      const user = userEvent.setup();
+      render(<LandingPage />);
+
+      await user.click(screen.getAllByRole('button', { name: /open in reader/i })[0]);
+      expect(screen.getByText(/piqued your interest/i)).toBeDefined();
+
+      await user.click(document.querySelector('.fixed.inset-0')!);
+      expect(screen.queryByText(/piqued your interest/i)).toBeNull();
+
+      const openButton = screen.getAllByRole('button', { name: /open in reader/i })[0];
+      await user.click(openButton);
+      await user.click(openButton);
+      expect(screen.queryByText(/piqued your interest/i)).toBeNull();
+    });
+
+    it('archives a card and Sync restores it with a popup', async () => {
+      const user = userEvent.setup();
+      render(<LandingPage />);
+
+      await user.click(screen.getAllByRole('button', { name: /archive/i })[0]);
+      expect(screen.queryByText(/EU's AI Act Enforcement/i)).toBeNull();
+
+      await user.click(screen.getByRole('button', { name: /^sync$/i }));
+      expect(screen.getByText(/EU's AI Act Enforcement/i)).toBeDefined();
+      expect(screen.getByText(/unread items are synced/i)).toBeDefined();
+
+      await user.click(document.querySelector('.fixed.inset-0')!);
+      expect(screen.queryByText(/unread items are synced/i)).toBeNull();
     });
   });
 });
