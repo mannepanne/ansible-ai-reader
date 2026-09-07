@@ -62,7 +62,7 @@
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "~4.1.11",
     "autoprefixer": "^10.4.27",
-    "dotenv": "^16.6.1",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "~15.5.25",
     "jsdom": "^28.1.0",
