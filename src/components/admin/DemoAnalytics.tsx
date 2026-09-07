@@ -68,10 +68,13 @@ export default function DemoAnalytics({ stats }: DemoAnalyticsProps) {
     }
   };
 
+  // A capture with no timestamp (nullable column) shows a dash rather than "Invalid Date"
   const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString('en-GB', {
-      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-    });
+    Number.isNaN(Date.parse(iso))
+      ? '—'
+      : new Date(iso).toLocaleDateString('en-GB', {
+          day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+        });
 
   const maxEventCount = stats.eventTypeBreakdown[0]?.count ?? 0;
 

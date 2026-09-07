@@ -6,6 +6,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockEmbed = vi.fn();
 vi.mock('./embed', () => ({
   embed: (...args: unknown[]) => mockEmbed(...args),
+  // Real helper is a type-only bridge (the array goes over the wire unchanged), so identity keeps assertions on the raw vector
+  toVectorParam: (v: number[]) => v,
   EMBEDDING_DIM: 1024,
 }));
 

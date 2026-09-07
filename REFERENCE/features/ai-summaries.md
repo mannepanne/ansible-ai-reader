@@ -338,7 +338,7 @@ Response: { "retriedCount": number }
 
 **Process:**
 1. Auth check (`syncId`/`regenerateId` must belong to the calling user)
-2. Look up failed `processing_jobs` rows for that operation
+2. Look up failed `processing_jobs` rows for that operation; a row with no `reader_item_id` (the column is nullable) is logged and skipped, and does not count toward `retriedCount`
 3. Reset their status to `pending` and re-enqueue to `PROCESSING_QUEUE`
 4. Consumer picks them up and runs the same path as the original job (`summary_generation` re-fetches Reader content; `tags_generation` reads existing summary)
 

@@ -25,6 +25,17 @@ supabase link --project-ref <your-project-ref>
 supabase db push
 ```
 
+## After Every Migration
+
+Regenerate the TypeScript schema types and commit the result in the same PR. This needs the Supabase CLI installed (`brew install supabase/tap/supabase` or `npm install -g supabase`) and logged in (`supabase login`), even if the migration itself was run in the Dashboard:
+
+```bash
+npm run db:types
+npx tsc --noEmit
+```
+
+The type check shows every call site the schema change touches. See [database-schema.md](../../REFERENCE/architecture/database-schema.md#generated-types).
+
 ## Migration Files
 
 Migrations are named with format: `YYYYMMDD_description.sql`

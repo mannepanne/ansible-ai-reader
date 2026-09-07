@@ -2,12 +2,13 @@
 // ABOUT: Usage: NODE_OPTIONS="--max-old-space-size=4096" npx tsx scripts/relay-runs.ts [limit]
 
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '../src/types/database.types';
 import { loadDevVars } from './relay-env';
 
 (async () => {
   const limit = Number(process.argv[2] ?? 10);
   const env = loadDevVars();
-  const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
+  const db = createClient<Database>(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const { data, error } = await db

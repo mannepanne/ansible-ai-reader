@@ -830,4 +830,11 @@ describe('RelayAgent', () => {
       await waitFor(() => expect(screen.getByText('offline')).toBeDefined());
     });
   });
+
+  it('shows a dash for a piece with no timestamp instead of throwing on an invalid date', () => {
+    render(<RelayAgent stats={{ ...stats, pending: [piece('p-old', 'Undated Piece', 'summary', { createdAt: '' })] }} />);
+
+    expect(screen.getByText('Undated Piece')).toBeDefined();
+    expect(screen.getByText(/— UTC · recalled/)).toBeDefined();
+  });
 });

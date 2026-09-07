@@ -2,6 +2,7 @@
 // ABOUT: Thin functions over a Supabase client so the orchestration in run.ts stays testable
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database.types';
 import type { BatchCandidate, PreviousBatchItem, SelectedItem } from './select-batch';
 import type { ReadingEvent } from './reading-days';
 
@@ -45,23 +46,26 @@ function fail(context: string, error: { message?: string } | null): never {
 }
 
 /** Users with Fika switched on */
-export async function listFikaUsers(db: SupabaseClient): Promise<FikaUser[]> {
+export async function listFikaUsers(db: SupabaseClient<Database>): Promise<FikaUser[]> {
   const { data, error } = await db
     .from('users')
     .select('id, email, fika_hour, timezone, weekly_target')
     .not('fika_hour', 'is', null);
   if (error) fail('listFikaUsers', error);
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    email: row.email,
-    fikaHour: row.fika_hour,
-    timeZone: row.timezone ?? 'Europe/London',
-    weeklyTarget: row.weekly_target ?? 5,
-  }));
+  // The query excludes null fika_hour; the column type does not know that
+  return (data ?? [])
+    .filter((row): row is typeof row & { fika_hour: number } => row.fika_hour !== null)
+    .map((row) => ({
+      id: row.id,
+      email: row.email,
+      fikaHour: row.fika_hour,
+      timeZone: row.timezone ?? 'Europe/London',
+      weeklyTarget: row.weekly_target ?? 5,
+    }));
 }
 
 export async function getUserFikaSettings(
-  db: SupabaseClient,
+  db: SupabaseClient<Database>,
   userId: string
 ): Promise<{ timeZone: string; weeklyTarget: number } | null> {
   const { data, error } = await db.from('users').select('timezone, weekly_target').eq('id', userId).maybeSingle();
@@ -71,7 +75,7 @@ export async function getUserFikaSettings(
 }
 
 /** The batch for a given local date, with its item ids in slot order */
-export async function getBatchByDate(db: SupabaseClient, userId: string, batchDate: string): Promise<BatchRow | null> {
+export async function getBatchByDate(db: SupabaseClient<Database>, userId: string, batchDate: string): Promise<BatchRow | null> {
   const { data, error } = await db
     .from('fika_batches')
     .select(`id, sent_at, send_attempts, ${BATCH_ITEMS}(item_id, slot)`)
@@ -86,7 +90,7 @@ export async function getBatchByDate(db: SupabaseClient, userId: string, batchDa
 
 /** The most recent batch of any date, with the current archived/deleted state of each item */
 export async function getMostRecentBatch(
-  db: SupabaseClient,
+  db: SupabaseClient<Database>,
   userId: string
 ): Promise<{ id: string; items: PreviousBatchItem[] } | null> {
   const { data, error } = await db
@@ -120,7 +124,7 @@ export async function getMostRecentBatch(
 export const CANDIDATE_LIMIT = 30;
 
 /** Eligible items: unread, not deleted in Reader, and summarised. Bounded: oldest and newest ends only. */
-export async function listCandidates(db: SupabaseClient, userId: string): Promise<BatchCandidate[]> {
+export async function listCandidates(db: SupabaseClient<Database>, userId: string): Promise<BatchCandidate[]> {
   const eligible = (ascending: boolean) =>
     db
       .from('reader_items')
@@ -135,14 +139,16 @@ export async function listCandidates(db: SupabaseClient, userId: string): Promis
   if (oldest.error) fail('listCandidates oldest', oldest.error);
   if (newest.error) fail('listCandidates newest', newest.error);
   const byId = new Map<string, BatchCandidate>();
+  // A candidate without created_at cannot be ordered, so it is dropped rather than given a placeholder date
   for (const row of [...(oldest.data ?? []), ...(newest.data ?? [])]) {
+    if (row.created_at === null) continue;
     byId.set(row.id, { id: row.id, createdAt: row.created_at });
   }
   return [...byId.values()];
 }
 
 /** Item ids that appeared in any batch on or after the given local date */
-export async function listRecentlyBatchedIds(db: SupabaseClient, userId: string, sinceDate: string): Promise<Set<string>> {
+export async function listRecentlyBatchedIds(db: SupabaseClient<Database>, userId: string, sinceDate: string): Promise<Set<string>> {
   const { data, error } = await db
     .from('fika_batches')
     .select(`${BATCH_ITEMS}(item_id)`)
@@ -159,7 +165,7 @@ export async function listRecentlyBatchedIds(db: SupabaseClient, userId: string,
 /** Creates the batch row, then its items. If the second write fails, the batch is left empty and
  *  `runFikaForUser` re-selects into it on the next tick rather than reporting a false "empty". */
 export async function createBatch(
-  db: SupabaseClient,
+  db: SupabaseClient<Database>,
   userId: string,
   batchDate: string,
   items: SelectedItem[]
@@ -174,7 +180,7 @@ export async function createBatch(
   return data.id;
 }
 
-export async function addBatchItems(db: SupabaseClient, batchId: string, items: SelectedItem[]): Promise<void> {
+export async function addBatchItems(db: SupabaseClient<Database>, batchId: string, items: SelectedItem[]): Promise<void> {
   const { error } = await db.from('fika_batch_items').insert(
     items.map((item) => ({ batch_id: batchId, item_id: item.itemId, slot: item.slot, carried_from: item.carriedFrom }))
   );
@@ -182,14 +188,14 @@ export async function addBatchItems(db: SupabaseClient, batchId: string, items: 
 }
 
 /** Loads the items for the email, in the order of the given ids */
-export async function loadEmailItems(db: SupabaseClient, userId: string, itemIds: string[]): Promise<StoredItem[]> {
+export async function loadEmailItems(db: SupabaseClient<Database>, userId: string, itemIds: string[]): Promise<StoredItem[]> {
   if (itemIds.length === 0) return [];
   const { data, error } = await db.from('reader_items').select(EMAIL_ITEM_COLUMNS).eq('user_id', userId).in('id', itemIds);
   if (error) fail('loadEmailItems', error);
   const byId = new Map((data ?? []).map((row) => [row.id, row]));
   return itemIds
     .map((id) => byId.get(id))
-    .filter((row): row is NonNullable<typeof row> => Boolean(row))
+    .filter((row): row is NonNullable<typeof row> & { created_at: string } => Boolean(row) && row!.created_at !== null)
     .map((row) => ({
       id: row.id,
       title: row.title,
@@ -204,7 +210,7 @@ export async function loadEmailItems(db: SupabaseClient, userId: string, itemIds
 }
 
 /** Same definition of unread as the summaries list */
-export async function countUnread(db: SupabaseClient, userId: string): Promise<number> {
+export async function countUnread(db: SupabaseClient<Database>, userId: string): Promise<number> {
   const { count, error } = await db
     .from('reader_items')
     .select('id', { count: 'exact', head: true })
@@ -215,7 +221,7 @@ export async function countUnread(db: SupabaseClient, userId: string): Promise<n
 }
 
 /** User actions since an instant: signals of any type, plus archives that were not drift */
-export async function listReadingEvents(db: SupabaseClient, userId: string, sinceIso: string): Promise<ReadingEvent[]> {
+export async function listReadingEvents(db: SupabaseClient<Database>, userId: string, sinceIso: string): Promise<ReadingEvent[]> {
   const [signals, archives] = await Promise.all([
     db.from('item_signals').select('created_at').eq('user_id', userId).gte('created_at', sinceIso),
     db
@@ -233,12 +239,12 @@ export async function listReadingEvents(db: SupabaseClient, userId: string, sinc
   ];
 }
 
-export async function recordSendAttempt(db: SupabaseClient, batchId: string, attempts: number): Promise<void> {
+export async function recordSendAttempt(db: SupabaseClient<Database>, batchId: string, attempts: number): Promise<void> {
   const { error } = await db.from('fika_batches').update({ send_attempts: attempts }).eq('id', batchId);
   if (error) fail('recordSendAttempt', error);
 }
 
-export async function markSent(db: SupabaseClient, batchId: string, sentAt: string, resendId: string | null): Promise<void> {
+export async function markSent(db: SupabaseClient<Database>, batchId: string, sentAt: string, resendId: string | null): Promise<void> {
   const { error } = await db
     .from('fika_batches')
     .update({ sent_at: sentAt, resend_message_id: resendId })

@@ -133,6 +133,10 @@ export async function POST(request: NextRequest) {
 
     // Retry each failed job
     for (const job of failedJobs) {
+      if (!job.reader_item_id) {
+        console.error('[Retry] Job has no reader item:', job.id);
+        continue;
+      }
       try {
         // Get reader_id for fetching content from Reader API in Phase 4
         const { data: readerItem } = await supabase

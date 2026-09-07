@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database.types';
 import { performSyncForUser } from '@/lib/sync-operations';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 
@@ -63,7 +64,8 @@ export async function GET(request: NextRequest) {
     }
 
     // 3. Create service-role Supabase client (bypasses RLS)
-    const supabase = createClient(supabaseUrl, supabaseSecretKey);
+    const supabase = createClient<Database>(
+supabaseUrl, supabaseSecretKey);
 
     // 4. Get Cloudflare context (queue binding)
     let cloudflareEnv: { PROCESSING_QUEUE?: any; RELAY_ORCHESTRATOR?: any } | undefined;
@@ -118,7 +120,7 @@ export async function GET(request: NextRequest) {
           : Infinity; // First sync - treat as elapsed
 
         // Check if sync needed
-        if (hoursSinceSync >= user.sync_interval) {
+        if (hoursSinceSync >= (user.sync_interval ?? Infinity)) {
           console.log(
             `[Cron] Syncing user ${user.id} (${user.email}) - ` +
             `interval: ${user.sync_interval}h, last sync: ${lastSync ? lastSync.toISOString() : 'never'}`

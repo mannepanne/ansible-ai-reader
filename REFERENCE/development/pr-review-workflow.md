@@ -281,7 +281,7 @@ git status                  # Verify what's included
 git diff                    # Review your own changes first
 ```
 
-Any new Supabase embed, filter syntax, or column name also gets one run against the real schema before the PR is opened; mocked tests cannot catch a query PostgREST rejects. See [testing-strategy.md](./testing-strategy.md#when-tests-are-not-enough).
+Every Supabase client is typed (`SupabaseClient<Database>`, see [database-schema.md](../architecture/database-schema.md#generated-types)); a function that takes the bare `SupabaseClient` opts out of every schema check and should not pass review. A migration in the PR means `npm run db:types` in the same PR. Any new Supabase filter syntax, RPC call, or query whose result shape matters also gets one run against the real schema before the PR is opened; the types check names, nullability, and embed relationships, but not what a filter returns. See [testing-strategy.md](./testing-strategy.md#when-tests-are-not-enough).
 
 Opening the PR triggers the same workflow that deploys `main`, minus the deploy steps: tests with the coverage gate, type check, and the worker build, on Node 22. A red check on the PR is the earliest signal that a merge would fail to deploy.
 

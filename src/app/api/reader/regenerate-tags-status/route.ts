@@ -113,7 +113,8 @@ export async function GET(request: NextRequest) {
     if (failedJobs > 0) {
       const failedJobIds = jobs
         .filter((j) => j.status === 'failed')
-        .map((j) => j.reader_item_id);
+        .map((j) => j.reader_item_id)
+        .filter((id): id is string => id !== null);
 
       if (failedJobIds.length > 0) {
         const { data: items } = await supabase

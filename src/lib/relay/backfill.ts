@@ -2,7 +2,8 @@
 // ABOUT: Embeds each item's stored summary + commentary and upserts into relay_references (idempotent)
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { embed, type AiBinding } from './embed';
+import type { Database } from '@/types/database.types';
+import { embed, toVectorParam, type AiBinding } from './embed';
 
 export const BACKFILL_ORIGIN = 'ansible_backfill';
 
@@ -42,7 +43,7 @@ export function buildReferenceContent(item: ReaderItemRow): string | null {
  * PostgREST/pgvector accepting the array for the `vector(1024)` column — confirm on a live run.
  */
 export async function runBackfill(deps: {
-  supabase: SupabaseClient;
+  supabase: SupabaseClient<Database>;
   ai: AiBinding;
 }): Promise<BackfillResult> {
   const { supabase, ai } = deps;
@@ -73,7 +74,7 @@ export async function runBackfill(deps: {
           source_ref: item.reader_id,
           title: item.title,
           content,
-          embedding,
+          embedding: toVectorParam(embedding),
         },
         { onConflict: 'origin,source_ref' },
       );

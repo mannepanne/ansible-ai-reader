@@ -2,6 +2,7 @@
 // ABOUT: Summary path fetches Reader content + Perplexity; tags path reuses existing summary
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '../src/types/database.types';
 import { generateSummary, generateTags } from '../src/lib/perplexity-api';
 import { fetchUnreadItems } from '../src/lib/reader-api';
 import { stripHtml } from '../src/lib/html-utils';
@@ -71,7 +72,7 @@ class RecoverableContentError extends TransientError {
  * the item is already gone, or irrelevant, because it has no readable content).
  */
 async function autoArchiveUnsummarizable(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient<Database>,
   readerItemId: string,
   readerDeleted: boolean,
   reason: string
@@ -535,7 +536,7 @@ export default {
     batch: MessageBatch<QueueMessage>,
     env: Env
   ): Promise<void> {
-    const supabase = createClient(
+    const supabase = createClient<Database>(
       env.NEXT_PUBLIC_SUPABASE_URL,
       env.SUPABASE_SECRET_KEY,
       {

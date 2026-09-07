@@ -3,6 +3,7 @@
 // ABOUT: DO's single-threadedness IS the serialization, its alarms ARE the polling (no held invocation).
 
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '../src/types/database.types';
 import { enqueue, onAlarm, type RunStore, type CurrentRun, type OrchestratorDeps, type FinalizeFn } from '../src/lib/relay/orchestrator';
 import type { MaClient, RunResourceIds } from '../src/lib/relay/session-run';
 import type { DurableObjectState } from '@cloudflare/workers-types';
@@ -57,7 +58,7 @@ export class RelayOrchestrator {
       setCurrent: (c) => storage.put('current', c),
       setAlarm: (at) => storage.setAlarm(at),
     };
-    const supabase = createClient(this.env.NEXT_PUBLIC_SUPABASE_URL, this.env.SUPABASE_SECRET_KEY, {
+    const supabase = createClient<Database>(this.env.NEXT_PUBLIC_SUPABASE_URL, this.env.SUPABASE_SECRET_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
     const base = this.env.RELAY_BRIDGE_URL || DEFAULT_BRIDGE_URL;

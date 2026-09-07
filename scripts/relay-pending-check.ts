@@ -2,11 +2,12 @@
 // ABOUT: (written mid-session but never linked to a decision). Usage: tsx scripts/relay-pending-check.ts
 
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '../src/types/database.types';
 import { loadDevVars } from './relay-env';
 
 (async () => {
   const env = loadDevVars();
-  const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
+  const db = createClient<Database>(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const { data } = await db

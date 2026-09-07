@@ -2,6 +2,7 @@
 // ABOUT: Fetches unread items from Reader API, creates processing jobs, enqueues to Cloudflare Queue, and mirrors archive state
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database.types';
 import { fetchUnreadItems, fetchRecentlyArchivedItems } from './reader-api';
 import { evaluateRelayTriggers, type RelayOrchestratorLike } from './relay/engagement-trigger';
 
@@ -29,7 +30,7 @@ export interface PerformSyncResult {
  * @returns Sync result with counts and syncId for status polling
  */
 export async function performSyncForUser(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient<Database>,
   options: PerformSyncOptions
 ): Promise<PerformSyncResult> {
   const { userId, triggeredBy, readerApiToken, cloudflareEnv } = options;

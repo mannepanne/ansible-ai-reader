@@ -9,7 +9,11 @@ import ReactMarkdown from 'react-markdown';
 import { StatCard } from './ui';
 import type { RelayStats, RelayPieceRow, RelayActivityRow } from './types';
 
-const fmt = (iso: string) => new Date(iso).toISOString().slice(0, 16).replace('T', ' ');
+// A row with no timestamp (nullable column) shows a dash rather than throwing on an invalid date
+const fmt = (iso: string) => {
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? '—' : new Date(t).toISOString().slice(0, 16).replace('T', ' ');
+};
 const excerpt = (s: string, n = 280) => (s.length > n ? `${s.slice(0, n)}…` : s);
 const LOG_PAGE_SIZE = 10;
 

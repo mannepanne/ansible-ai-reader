@@ -2,6 +2,7 @@
 // ABOUT: Polls database for pending jobs instead of using Cloudflare Queue
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '../src/types/database.types';
 import { generateSummary } from '../src/lib/perplexity-api';
 import { stripHtml } from '../src/lib/html-utils';
 import dotenv from 'dotenv';
@@ -90,7 +91,7 @@ async function fetchReaderContent(
 /**
  * Process a single summary generation job
  */
-async function processJob(job: ProcessingJob, supabase: SupabaseClient): Promise<void> {
+async function processJob(job: ProcessingJob, supabase: SupabaseClient<Database>): Promise<void> {
   const { id: jobId, user_id: userId, reader_item_id: readerItemId } = job;
   const readerId = job.reader_items.reader_id;
 
@@ -206,7 +207,7 @@ async function processJob(job: ProcessingJob, supabase: SupabaseClient): Promise
 /**
  * Poll for pending jobs and process them
  */
-async function pollAndProcess(supabase: SupabaseClient): Promise<void> {
+async function pollAndProcess(supabase: SupabaseClient<Database>): Promise<void> {
   try {
     // Fetch pending jobs with reader_item details
     const { data: jobs, error } = await supabase
@@ -245,8 +246,17 @@ async function pollAndProcess(supabase: SupabaseClient): Promise<void> {
     // Process jobs sequentially to avoid rate limiting
     for (const job of jobs) {
       // Transform Supabase response (array) to ProcessingJob (single object)
+      // The typed row allows nulls the queue never produces; skip anything malformed rather than crash the loop
+      if (!job.user_id || !job.reader_item_id) {
+        console.error(`[Consumer] Skipping malformed job `);
+        continue;
+      }
       const processableJob: ProcessingJob = {
-        ...job,
+        id: job.id,
+        user_id: job.user_id,
+        reader_item_id: job.reader_item_id,
+        attempts: job.attempts ?? 0,
+        max_attempts: job.max_attempts ?? 3,
         reader_items: Array.isArray(job.reader_items) ? job.reader_items[0] : job.reader_items,
       };
 
@@ -283,7 +293,7 @@ async function main() {
   }
 
   // Create Supabase client with service role key (bypasses RLS)
-  const supabase = createClient(
+  const supabase = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.SUPABASE_SECRET_KEY,
     {
