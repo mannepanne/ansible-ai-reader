@@ -1,6 +1,6 @@
 # 13 — Fika: a reading habit for Ansible
 
-**Status:** Slice 1a merged (PR #143, 2026-09-06) and in a three-week owner trial. Slice 1b not started. Implementation reference: [REFERENCE/features/fika.md](../REFERENCE/features/fika.md).
+**Status:** Slice 1a live. Merged 2026-09-06 (PR #143); the first email went out 2026-09-07 after PR #146 fixed an ambiguous batch-items embed that had failed every earlier tick. Three-week owner trial runs from 2026-09-07. Slice 1b not started. Implementation reference: [REFERENCE/features/fika.md](../REFERENCE/features/fika.md).
 **Last updated:** 2026-09-06
 **Depends on:** nothing for slice 1a; [14-prose-summary.md](./14-prose-summary.md) improves the email but is not required
 **Related:** [relay/restraint-and-prose-tuning.md](./relay/restraint-and-prose-tuning.md)
@@ -49,7 +49,7 @@ The Swedish coffee break. A fixed daily pause, something small, no rush. It name
 
 | Slice | Contents | Status |
 |---|---|---|
-| **1a (this spec)** | Fika email with in-inbox actions, weekly dots in the header, settings, cron | Specified below |
+| **1a (this spec)** | Fika email with in-inbox actions, weekly dots in the header, settings, cron | Live since 2026-09-07, in trial |
 | **1b (this spec)** | River mode: drift to archive, Relay skip, drifted filter | Specified below, built after 1a has run for three weeks |
 | 2 | Fika section in the web view (today's two, backlog as a number, hide the rest); Relay excerpt in the email | Outline only |
 | 3 | Audio: the two prose summaries as a private podcast feed | Outline only |
@@ -252,21 +252,21 @@ Modified
 
 ### 10. Acceptance criteria (1a)
 
-- [ ] With two unactioned items in the most recent batch, today's batch is identical (idempotence). Holds when the most recent batch is older than yesterday.
-- [ ] Archiving one item, by any of the three paths, replaces exactly that item at the next selection; the other carries forward.
-- [ ] Rating or clicking through an item does not change the rotation.
-- [ ] Empty eligible set sends nothing and records nothing.
-- [ ] A GET on an action link performs no write. Only the POST does. 📖 redirects; the others confirm.
-- [ ] A tampered or expired token, or a deleted item, returns a friendly page and performs no write.
-- [ ] Repeating archive or rating is a no-op with a 200. Repeating click-through records again.
-- [ ] Every signal from the email carries `source = 'fika'`; every signal from the web carries `source = 'web'`.
-- [ ] The web archive route and the sync mirror write `archive_reason = 'user'`.
-- [ ] The send predicate sends once per local day inside the window, retries a failed send on the next tick, stops after three attempts, and handles DST in both directions and a user at `fika_hour = 23`.
-- [ ] Weekly dots count a reading day from any of the three user actions, in the user's timezone, and reset on Monday.
-- [ ] All rendered fields are escaped. Snapshot tests cover one-item and two-item batches, with and without prose, with and without `word_count`.
-- [ ] Manual: email renders in Gmail web, Gmail Android, and Apple Mail, light and dark. This is unverifiable in CI and is a manual step on every template change.
-- [ ] Tests first, coverage targets hold, `npx tsc --noEmit` clean.
-- [ ] REFERENCE docs: new `features/fika.md`, `authentication.md` fourth client type, `automated-sync.md` cron additions, `database-schema.md`, `interest-signals.md` source column, the archive helper in `reader-sync.md`.
+- [x] With two unactioned items in the most recent batch, today's batch is identical (idempotence). Holds when the most recent batch is older than yesterday.
+- [x] Archiving one item, by any of the three paths, replaces exactly that item at the next selection; the other carries forward.
+- [x] Rating or clicking through an item does not change the rotation.
+- [x] Empty eligible set sends nothing and records nothing.
+- [x] A GET on an action link performs no write. Only the POST does. 📖 redirects; the others confirm.
+- [x] A tampered or expired token, or a deleted item, returns a friendly page and performs no write.
+- [x] Repeating archive or rating is a no-op with a 200. Repeating click-through records again.
+- [x] Every signal from the email carries `source = 'fika'`; every signal from the web carries `source = 'web'`.
+- [x] The web archive route and the sync mirror write `archive_reason = 'user'`.
+- [x] The send predicate sends once per local day inside the window, retries a failed send on the next tick, stops after three attempts, and handles DST in both directions and a user at `fika_hour = 23`.
+- [x] Weekly dots count a reading day from any of the three user actions, in the user's timezone, and reset on Monday.
+- [x] All rendered fields are escaped. Snapshot tests cover one-item and two-item batches, with and without prose, with and without `word_count`.
+- [x] Manual: email renders in Gmail web, Gmail Android, and Apple Mail, light and dark. Checked on the first live email (2026-09-07). This is unverifiable in CI and is a manual step on every template change.
+- [ ] Tests first, coverage targets hold, `npx tsc --noEmit` clean. Tests and `tsc` hold; every Fika module is above the coverage threshold, but the global number sits below 95% because of pre-existing files (see the coverage note on PR #143). Left open until that is resolved.
+- [x] REFERENCE docs: new `features/fika.md`, `authentication.md` fourth client type, `automated-sync.md` cron additions, `database-schema.md`, `interest-signals.md` source column, the archive helper in `reader-sync.md`.
 
 ### 11. Testing strategy (1a)
 
