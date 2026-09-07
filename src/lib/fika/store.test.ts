@@ -51,6 +51,11 @@ function db(tables: Record<string, ReturnType<typeof chain> | Array<ReturnType<t
 }
 
 describe('store', () => {
+  it('listFikaUsers drops a row whose fika_hour is null even when the query returns one', async () => {
+    const users = chain({ data: [{ id: 'u1', email: 'a@b.c', fika_hour: null, timezone: null, weekly_target: null }] });
+    expect(await listFikaUsers(db({ users }))).toEqual([]);
+  });
+
   it('listFikaUsers maps rows and defaults', async () => {
     const users = chain({ data: [{ id: 'u1', email: 'a@b.c', fika_hour: 7, timezone: null, weekly_target: null }] });
     expect(await listFikaUsers(db({ users }))).toEqual([

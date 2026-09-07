@@ -134,6 +134,7 @@ npm run test:coverage     # Coverage report
 - Path alias: `@/` maps to `./src/` (Next.js convention)
 - React 19 and Next.js 15 types included
 - Configured with the OpenNext adapter (`@opennextjs/cloudflare`)
+- Supabase schema types are generated into `src/types/database.types.ts` (`npm run db:types`, rerun after every migration); every Supabase client carries the `Database` generic
 
 ## Implementation History
 

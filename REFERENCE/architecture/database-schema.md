@@ -275,6 +275,10 @@ CREATE TABLE fika_batch_items (
 
 ---
 
+## Generated Types
+
+`src/types/database.types.ts` is generated from the live schema by `npm run db:types` and committed. Every Supabase client is constructed with `createClient<Database>(...)` (or the `@supabase/ssr` equivalents), and functions that receive a client take `SupabaseClient<Database>`. The compiler then checks table and column names, nullability, insert and update shapes, and embed relationships against the schema; an ambiguous embed such as `fika_batch_items(...)` without the `!batch_id` hint is a compile error. Regenerate the file after every migration, in the same PR; nothing in CI checks it against the live schema. Decision record: [2026-09-07-typed-supabase-client.md](../decisions/2026-09-07-typed-supabase-client.md).
+
 ## Relationships
 
 ```

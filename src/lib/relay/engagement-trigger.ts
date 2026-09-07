@@ -11,6 +11,7 @@
 // guarantee holds by construction, not by convention.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database.types';
 
 // ── The pure filter ────────────────────────────────────────────────────────
 
@@ -91,7 +92,7 @@ export interface RelayOrchestratorLike {
 }
 
 export interface EvaluateRelayTriggersDeps {
-  supabase: SupabaseClient;
+  supabase: SupabaseClient<Database>;
   /** The user this sync ran for. */
   userId: string;
   /** Relay's configured owner (RELAY_OWNER_USER_ID). undefined ⟹ unconfigured ⟹ never triggers. */
@@ -208,7 +209,7 @@ export async function evaluateRelayTriggers(
 /** Stamp relay_triggered_at (mark an item done) AND record the gate outcome in the same UPDATE (2.3c).
  *  A stamp failure is logged, not thrown — the standing scan self-heals it next sync. */
 async function stamp(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient<Database>,
   id: string,
   ts: string,
   code: EngagementDecision['code'],

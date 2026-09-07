@@ -2,6 +2,7 @@
 // ABOUT: recall (ANN), fetch (full text), write_pending, ingest_reference, research (grounded facts)
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database, Json } from '@/types/database.types';
 import { embed, type AiBinding } from './embed';
 import { fetchArticleContent } from '../reader-api';
 import { groundedSearch, RESEARCH_UNAVAILABLE, type GroundedSearchResult } from './grounded-search';
@@ -23,7 +24,7 @@ export interface PieceLink {
 }
 
 export interface ToolDeps {
-  supabase: SupabaseClient;
+  supabase: SupabaseClient<Database>;
   ai: AiBinding;
   // The bridge's own Reader API token, used by `fetch` to pull full article bodies on demand.
   // Optional: without it, `fetch` returns the stored reference content rather than the full body.
@@ -84,7 +85,8 @@ export async function recall(
   const embedding = await embed(deps.ai, text);
 
   const { data, error } = await deps.supabase.rpc('relay_recall', {
-    query_embedding: embedding,
+    // pgvector arguments are typed as string by the generator; supabase-js serialises the array and PostgREST casts it
+    query_embedding: embedding as unknown as string,
     match_count: matchCount,
   });
   if (error) {
@@ -225,7 +227,7 @@ export async function writePending(
       body,
       summary: args.summary ?? null,
       concepts,
-      links,
+      links: links as Json,
       verification_status: hasSourceLink(links) ? 'sourced' : 'unverified',
     })
     .select('id')
@@ -265,7 +267,7 @@ export async function ingestReference(
       source_ref,
       title: args.title ?? null,
       content,
-      embedding,
+      embedding: embedding as unknown as string,
     },
     { onConflict: 'origin,source_ref' },
   );

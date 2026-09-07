@@ -335,7 +335,7 @@ Tests validate **correctness**, but don't guarantee:
 - Performance profiling for large datasets
 - A read-only replay against the real database for any new Supabase embed, filter syntax, or column name
 
-**Limit of mocking Supabase:** a mocked query builder proves we sent the select string we meant to, not that PostgREST accepts it, and a mocked response proves only the shape we assumed. A new embed (`parent(child(...))`), filter syntax, or column name needs one run against the real schema before merge. `npm run fika:diagnose` is the model: a read-only script that replays the production read path, checks result shapes, and exits non-zero on any failure.
+**Limit of mocking Supabase:** a mocked query builder proves we sent the select string we meant to, not that PostgREST accepts it, and a mocked response proves only the shape we assumed. The typed client (`SupabaseClient<Database>`, generated from the schema) closes part of that gap at compile time: table and column names, nullability, and embed relationships, including the ambiguous-embed error behind PR #146. Filter syntax, RPC arguments, and what a query actually returns still need one run against the real schema before merge. `npm run fika:diagnose` is the model: a read-only script that replays the production read path, checks result shapes, and exits non-zero on any failure.
 
 ---
 

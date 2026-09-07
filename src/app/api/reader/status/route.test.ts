@@ -323,6 +323,68 @@ describe('GET /api/reader/status', () => {
     });
   });
 
+  it('leaves failed jobs with no reader item out of the title lookup', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: mockSession.user },
+    });
+
+    const inMock = vi.fn().mockResolvedValue({ data: [{ id: 'item-2', title: 'Failed Article' }] });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'sync_log') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: { id: 'sync-123' },
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === 'processing_jobs') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({
+                data: [
+                  { id: 'job-1', status: 'completed', reader_item_id: 'item-1' },
+                  {
+                    id: 'job-2',
+                    status: 'failed',
+                    reader_item_id: 'item-2',
+                    error_message: 'Processing failed',
+                  },
+                  { id: 'job-orphan', status: 'failed', reader_item_id: null, error_message: 'orphaned' },
+                ],
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === 'reader_items') {
+        return {
+          select: vi.fn().mockReturnValue({
+            in: inMock,
+          }),
+        };
+      }
+    });
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/reader/status?syncId=sync-123'
+    );
+
+    const response = await GET(request);
+    const data = (await response.json()) as any;
+
+    expect(response.status).toBe(200);
+    expect(inMock).toHaveBeenCalledWith('id', ['item-2']);
+    expect(data.failedJobs).toBe(2);
+  });
   it('returns status for complete failure', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: mockSession.user },

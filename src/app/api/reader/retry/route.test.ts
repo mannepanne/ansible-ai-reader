@@ -320,6 +320,7 @@ describe('POST /api/reader/retry', () => {
     function setupTwoFailedJobs(opts: {
       readerItems: Record<string, { reader_id: string } | null>;
       updateError?: (jobId: string) => unknown;
+      extraJobs?: Array<{ id: string; reader_item_id: string | null; job_type: string }>;
     }) {
       mockGetUser.mockResolvedValue({ data: { user: mockSession.user } });
       mockFrom.mockImplementation((table: string) => {
@@ -343,6 +344,7 @@ describe('POST /api/reader/retry', () => {
                     data: [
                       { id: 'job-1', reader_item_id: 'item-1', job_type: 'summary_generation' },
                       { id: 'job-2', reader_item_id: 'item-2', job_type: 'tag_generation' },
+                      ...(opts.extraJobs ?? []),
                     ],
                     error: null,
                   }),
@@ -381,6 +383,21 @@ describe('POST /api/reader/retry', () => {
     });
     afterEach(() => {
       errorSpy.mockRestore();
+    });
+
+    it('skips jobs that have no reader item id without looking one up', async () => {
+      setupTwoFailedJobs({
+        readerItems: { 'item-1': { reader_id: 'reader-1' }, 'item-2': { reader_id: 'reader-2' } },
+        extraJobs: [{ id: 'job-orphan', reader_item_id: null, job_type: 'summary_generation' }],
+      });
+
+      const response = await POST(syncRequest());
+      const data = (await response.json()) as any;
+
+      expect(response.status).toBe(200);
+      expect(data.retriedCount).toBe(2);
+      expect(mockSend).toHaveBeenCalledTimes(2);
+      expect(errorSpy).toHaveBeenCalledWith('[Retry] Job has no reader item:', 'job-orphan');
     });
 
     it('skips jobs whose reader item no longer exists', async () => {

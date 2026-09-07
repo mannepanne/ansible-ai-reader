@@ -3,6 +3,7 @@
 
 import type { ToolDeps } from './tools';
 import type { SessionSource } from './session-readout';
+import type { Json } from '@/types/database.types';
 
 export interface FinalizeDecisionInput {
   // The reader_id(s) that seeded this session — recorded for traceability.
@@ -84,7 +85,8 @@ export async function finalizeDecision(
     reason: input.reason ?? null,
     piece_id: pieceId,
     degraded: input.degraded ?? null,
-    sources: Array.isArray(input.sources) ? input.sources : [],
+    // sources is a JSON column; the generated Json type needs an index signature that SessionSource lacks
+    sources: (Array.isArray(input.sources) ? input.sources : []) as unknown as Json,
   });
   if (insertError) {
     throw new Error(`finalizeDecision: ${insertError.message}`);

@@ -2,6 +2,7 @@
 // ABOUT: Orchestration only; every decision is in a pure module and every write goes through store.ts
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database.types';
 import { shouldSend, localParts, addDays, daysBetween } from './schedule';
 import { selectBatch } from './select-batch';
 import { readingDays, weekLowerBound } from './reading-days';
@@ -38,7 +39,7 @@ export function dateLabel(now: Date, timeZone: string): string {
   return new Intl.DateTimeFormat('en-GB', { timeZone, weekday: 'long', day: 'numeric', month: 'long' }).format(now);
 }
 
-export async function runFikaForUser(db: SupabaseClient, user: FikaUser, deps: RunDeps): Promise<RunOutcome> {
+export async function runFikaForUser(db: SupabaseClient<Database>, user: FikaUser, deps: RunDeps): Promise<RunOutcome> {
   const { now } = deps;
   const { date: localDate } = localParts(now, user.timeZone);
   const existing = await store.getBatchByDate(db, user.id, localDate);

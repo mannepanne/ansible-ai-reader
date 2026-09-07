@@ -8,6 +8,7 @@ import { buildPieceStimulusView } from '@/lib/relay/review-stimulus';
 import type { StimulusRow } from '@/lib/relay/session-run';
 import { mergeActivity } from '@/components/admin/activity-log';
 import type { LandingStats, DemoStats, RelayStats, RelayPieceRow, PieceLink, DecisionSource, RelayActivityRow } from '@/components/admin/types';
+import type { Json } from '@/types/database.types';
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -108,20 +109,26 @@ export default async function AdminPage() {
       .limit(200),
   ]);
 
+  // event_data is free-form JSON; only an object with a string label counts, anything else is 'unknown'
+  const jsonLabel = (value: Json): string => {
+    if (value && typeof value === 'object' && !Array.isArray(value) && typeof value.label === 'string') return value.label;
+    return 'unknown';
+  };
+
   // Build landing stats
   const uniqueVisitors = new Set(
     (visitorIdsResult.data ?? []).map((r: { visitor_id: string }) => r.visitor_id)
   ).size;
 
   const navClickCounts: Record<string, number> = {};
-  (navClicksResult.data ?? []).forEach((e: { event_data: Record<string, unknown> | null }) => {
-    const label = (e.event_data?.label as string) ?? 'unknown';
+  (navClicksResult.data ?? []).forEach((e) => {
+    const label = jsonLabel(e.event_data);
     navClickCounts[label] = (navClickCounts[label] ?? 0) + 1;
   });
 
   const sourceCounts: Record<string, number> = {};
   const capturedEmails = new Set<string>();
-  (emailCapturesResult.data ?? []).forEach((e: { id: string; email: string; source: string; created_at: string }) => {
+  (emailCapturesResult.data ?? []).forEach((e) => {
     sourceCounts[e.source] = (sourceCounts[e.source] ?? 0) + 1;
     capturedEmails.add(e.email);
   });
@@ -145,20 +152,15 @@ export default async function AdminPage() {
     eventTypeCounts[e.event_type] = (eventTypeCounts[e.event_type] ?? 0) + 1;
   });
 
-  const sessions = (sessionsResult.data ?? []).map((s: {
-    session_id: string;
-    email: string | null;
-    started_at: string;
-    last_active_at: string;
-    total_events: number;
-  }) => {
-    const durationMs = new Date(s.last_active_at).getTime() - new Date(s.started_at).getTime();
+  const sessions = (sessionsResult.data ?? []).map((s) => {
+    const startedMs = s.started_at ? new Date(s.started_at).getTime() : 0;
+    const lastActiveMs = s.last_active_at ? new Date(s.last_active_at).getTime() : startedMs;
     return {
       sessionId: s.session_id,
       email: s.email,
-      startedAt: s.started_at,
-      durationSeconds: Math.max(0, Math.round(durationMs / 1000)),
-      totalEvents: s.total_events,
+      startedAt: s.started_at ?? '',
+      durationSeconds: Math.max(0, Math.round((lastActiveMs - startedMs) / 1000)),
+      totalEvents: s.total_events ?? 0,
     };
   });
 
@@ -166,16 +168,11 @@ export default async function AdminPage() {
     ? Math.round(sessions.reduce((acc: number, s: { durationSeconds: number }) => acc + s.durationSeconds, 0) / sessions.length)
     : 0;
 
-  const emailCaptures = (emailCapturesResult.data ?? []).map((e: {
-    id: string;
-    email: string;
-    source: string;
-    created_at: string;
-  }) => ({
+  const emailCaptures = (emailCapturesResult.data ?? []).map((e) => ({
     id: e.id,
     email: e.email,
     source: e.source,
-    createdAt: e.created_at,
+    createdAt: e.created_at ?? '',
   }));
 
   const demoStats: DemoStats = {
@@ -261,18 +258,9 @@ export default async function AdminPage() {
       })
       .filter((l): l is PieceLink => l !== null && l.ref !== '');
 
-  const mapPiece = (p: {
-    id: string;
-    body: string;
-    summary: string | null;
-    concepts: string[] | null;
-    links: unknown[] | null;
-    verification_status: string | null;
-    review_note: string | null;
-    original_body: string | null;
-    created_at: string;
-  }): RelayPieceRow => {
-    const links = normalizeLinks(p.links ?? []);
+  type PieceQueryRow = NonNullable<typeof relayPendingResult.data>[number];
+  const mapPiece = (p: PieceQueryRow): RelayPieceRow => {
+    const links = normalizeLinks(Array.isArray(p.links) ? p.links : []);
     const { stimulus, readerLinks } = buildPieceStimulusView(
       stimulusRefByPieceId.get(p.id) ?? [],
       itemsByReaderId,
@@ -289,7 +277,7 @@ export default async function AdminPage() {
       originalBody: p.original_body ?? null,
       stimulus,
       readerLinks,
-      createdAt: p.created_at,
+      createdAt: p.created_at ?? '',
     };
   };
 

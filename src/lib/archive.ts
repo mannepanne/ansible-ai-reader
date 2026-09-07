@@ -2,6 +2,7 @@
 // ABOUT: One implementation for the web route (session client), the Fika action endpoint and cron (service role)
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database.types';
 import { archiveItem, ReaderAPIError } from '@/lib/reader-api';
 
 export type ArchiveReason = 'user' | 'drift';
@@ -27,7 +28,7 @@ export interface ArchiveOptions {
  * Sets both `archived` and `archived_at` because the codebase queries both.
  */
 export async function archiveItemForUser(
-  db: SupabaseClient,
+  db: SupabaseClient<Database>,
   { userId, itemId, reason, readerApiToken, now = new Date() }: ArchiveOptions
 ): Promise<ArchiveOutcome> {
   const { data: item, error: fetchError } = await db

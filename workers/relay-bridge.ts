@@ -3,6 +3,7 @@
 // ABOUT: /reject (separate operator control token — the human-gate control plane the agent can't reach)
 
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '../src/types/database.types';
 import { runBackfill } from '../src/lib/relay/backfill';
 import type { AiBinding } from '../src/lib/relay/embed';
 import { handleMcpMessage } from '../src/lib/relay/mcp';
@@ -44,7 +45,7 @@ function isAuthorized(request: Request, expected: string | undefined): boolean {
 }
 
 function serviceRoleClient(env: Env) {
-  return createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
+  return createClient<Database>(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }

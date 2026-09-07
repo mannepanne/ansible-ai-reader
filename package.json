@@ -31,7 +31,8 @@
     "relay:run-status": "tsx scripts/relay-run-status.ts",
     "relay:pending": "tsx scripts/relay-pending-check.ts",
     "fika:preview": "tsx scripts/fika-preview.ts",
-    "fika:diagnose": "tsx scripts/fika-diagnose.ts"
+    "fika:diagnose": "tsx scripts/fika-diagnose.ts",
+    "db:types": "sh scripts/gen-db-types.sh"
   },
   "dependencies": {
     "@marsidev/react-turnstile": "^1.5.0",

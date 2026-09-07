@@ -767,4 +767,51 @@ describe('AdminPage', () => {
       expect(relayStats.engagementGate).toEqual({ enabled: false, ownerConfigured: true });
     });
   });
+
+  describe('schema nullability', () => {
+    beforeEach(() => {
+      signInAsAdmin();
+      installPopulatedFixture();
+    });
+
+    it('counts nav clicks whose event_data is not an object with a string label as unknown', async () => {
+      respond((q) => (q.table === 'page_events' && filterValue(q, 'event_type') === 'nav_click'
+        ? { data: [{ event_data: 'features' }, { event_data: { label: 5 } }, { event_data: [1, 2] }, { event_data: { label: 'docs' } }] }
+        : undefined));
+
+      const { landingStats } = await renderAdminPage();
+
+      expect(landingStats.navClicks).toEqual([
+        { label: 'unknown', count: 3 },
+        { label: 'docs', count: 1 },
+      ]);
+    });
+
+    it('tolerates null timestamps and counts on older session and capture rows', async () => {
+      respond((q) => (q.table === 'demo_sessions' && !q.head
+        ? { data: [{ session_id: 'sess-old', email: null, started_at: null, last_active_at: null, total_events: null }] }
+        : undefined));
+      respond((q) => (q.table === 'email_captures'
+        ? { data: [{ id: 'cap-old', email: 'old@example.com', source: 'hero', created_at: null }] }
+        : undefined));
+
+      const { demoStats } = await renderAdminPage();
+
+      expect(demoStats.sessions).toEqual([
+        { sessionId: 'sess-old', email: null, startedAt: '', durationSeconds: 0, totalEvents: 0 },
+      ]);
+      expect(demoStats.emailCaptures).toEqual([{ id: 'cap-old', email: 'old@example.com', source: 'hero', createdAt: '' }]);
+    });
+
+    it('treats a piece whose links column is not an array as having no links', async () => {
+      respond((q) => (q.table === 'relay_pieces' && filterValue(q, 'state') === 'pending_review' && !q.head
+        ? { data: [{ ...pendingPiece, links: 'not-an-array', created_at: null }] }
+        : undefined));
+
+      const { relayStats } = await renderAdminPage();
+
+      expect(relayStats.pending).toHaveLength(1);
+      expect(relayStats.pending[0]).toMatchObject({ sourceLinks: [], recalledCount: 0, createdAt: '' });
+    });
+  });
 });
