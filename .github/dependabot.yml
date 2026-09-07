@@ -9,6 +9,10 @@ updates:
     schedule:
       interval: monthly
     open-pull-requests-limit: 5
+    labels: [dependencies]
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
     groups:
       production-dependencies:
         dependency-type: production
@@ -28,6 +32,9 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    labels: [dependencies]
+    commit-message:
+      prefix: "chore(ci)"
     groups:
       actions:
         patterns: ["*"]

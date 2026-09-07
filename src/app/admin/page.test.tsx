@@ -23,6 +23,7 @@ interface RecordedQuery {
   head: boolean;
   filters: QueryFilter[];
   maybeSingle: boolean;
+  limit: number | null;
 }
 
 interface QueryResult {
@@ -49,7 +50,7 @@ function resolveQuery(q: RecordedQuery): QueryResult {
 }
 
 function makeQuery(table: string) {
-  const q: RecordedQuery = { table, columns: '', head: false, filters: [], maybeSingle: false };
+  const q: RecordedQuery = { table, columns: '', head: false, filters: [], maybeSingle: false, limit: null };
   db.issued.push(q);
   const builder = {
     select(columns: string, opts?: { head?: boolean }) {
@@ -68,7 +69,8 @@ function makeQuery(table: string) {
     order() {
       return builder;
     },
-    limit() {
+    limit(n: number) {
+      q.limit = n;
       return builder;
     },
     maybeSingle() {
@@ -463,6 +465,16 @@ describe('AdminPage', () => {
       expect(demoStats.emailCaptureCount).toBe(2);
       expect(demoStats.sessionCount).toBe(22);
       expect(demoStats.totalInteractions).toBe(187);
+    });
+
+    // Known cap: the email-capture count, signup sources, and average duration are derived from row
+    // fetches limited to the most recent 100 and 200 rows, so past those caps they describe the
+    // recent window, not all time. Pinned here so a change in either direction is a visible decision.
+    it('derives email-capture and session aggregates from row fetches capped at 100 and 200', async () => {
+      await renderAdminPage();
+
+      expect(queriesFor('email_captures').map((q) => q.limit)).toEqual([100]);
+      expect(queriesFor('demo_sessions').filter((q) => !q.head).map((q) => q.limit)).toEqual([200]);
     });
 
     it('derives session duration from start/last-active, clamping negative durations to 0', async () => {

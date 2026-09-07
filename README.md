@@ -167,5 +167,5 @@ npm run deploy
 This project was built with [Claude Code](https://claude.com/claude-code) using:
 - Test-driven development (TDD) workflow
 - Agent teams for collaborative PR reviews
-- 360 tests with 95%+ coverage
+- Full test suite with a 95%+ coverage gate on every PR (run `npm test` for the live count)
 - Full traceability from specs to implementation

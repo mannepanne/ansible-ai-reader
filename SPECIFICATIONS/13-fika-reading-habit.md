@@ -1,7 +1,7 @@
 # 13 — Fika: a reading habit for Ansible
 
 **Status:** Slice 1a live. Merged 2026-09-06 (PR #143); the first email went out 2026-09-07 after PR #146 fixed an ambiguous batch-items embed that had failed every earlier tick. Three-week owner trial runs from 2026-09-07. Slice 1b not started. Implementation reference: [REFERENCE/features/fika.md](../REFERENCE/features/fika.md).
-**Last updated:** 2026-09-06
+**Last updated:** 2026-09-07
 **Depends on:** nothing for slice 1a; [14-prose-summary.md](./14-prose-summary.md) improves the email but is not required
 **Related:** [relay/restraint-and-prose-tuning.md](./relay/restraint-and-prose-tuning.md)
 

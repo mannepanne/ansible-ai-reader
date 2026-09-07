@@ -71,7 +71,7 @@ One workflow serves both pull requests and `main`. Every pull request against `m
 2. Runs type checking (`npx tsc --noEmit`)
 3. Builds the application (`npm run build:worker`)
 
-A push to `main` then continues and deploys all five workers, in order: consumer, cron, relay orchestrator, main application, relay bridge. On a pull request the deploy steps are skipped, so a green check on a PR means "tests, coverage, types, and the worker build all pass on Node 22", nothing has been deployed, and merging is what deploys. A newer push to the same PR cancels the older run.
+A push to `main` then continues and deploys all five workers, in order: consumer, cron, relay orchestrator, main application, relay bridge. On a pull request the deploy steps are skipped, so a green check on a PR means "tests, coverage, types, and the worker build all pass on Node 22", nothing has been deployed, and merging is what deploys. A newer push to the same PR cancels the older run. The Node version comes from `.nvmrc` (`node-version-file` in the workflow), which `engines.node` in `package.json` and `nvm use` share; a Node bump starts there.
 
 **Workflow file:** `.github/workflows/deploy.yml`
 
@@ -444,9 +444,9 @@ GitHub's Dependabot alerts on this repository are the inventory; `npm audit --om
 | Package | Where | Why it is accepted | Revisit when |
 |---|---|---|---|
 | `postcss` 8.4.31 nested under `next` | Build pipeline only | The advisories need attacker-controlled CSS or source maps; the build processes first-party Tailwind and nothing at runtime | Next 16, which drops the nested pin |
-| `esbuild` 0.25.x under `@opennextjs/aws` and 0.27.x under `tsx` | Build and script tooling | The advisory is an arbitrary file read by the esbuild development server on Windows; neither package starts that server here | Either parent moves to esbuild 0.28 |
+| `esbuild` 0.27.4 under `tsx` | Script tooling | The advisory (0.27.3 to 0.28.0) is an arbitrary file read by the esbuild development server on Windows; `tsx` never starts that server | `tsx` moves to esbuild 0.28 |
 
-**Dependabot** (`.github/dependabot.yml`) opens grouped pull requests monthly: one for production packages, one for development packages, one for GitHub Actions, each limited to minor and patch updates. A major update arrives as its own PR. `next` and `eslint-config-next` are excluded from minor updates because of the adapter peer range above. Two majors need a hand on them:
+**Dependabot** (`.github/dependabot.yml`) opens grouped pull requests monthly: one for production packages, one for development packages, one for GitHub Actions, each limited to minor and patch updates. A major update arrives as its own PR, except for `next` and `eslint-config-next`, which are excluded from minor and major updates because of the adapter peer range above; only their patch releases arrive automatically. Next bumps are done by hand. The trigger is the monthly Dependabot batch: when it lands, also open the Dependabot alerts tab and check for `next`, because a Next security fix released as a minor will not open its own PR. Two majors need a hand on them:
 
 - **Vitest.** A major changes how coverage is measured (Vitest 4 switched to AST-based remapping and counted about five points less on the same suite), so the gate can go red with no code change. Compare per-file numbers with the previous run and add tests where the measurement uncovered real gaps; do not lower the thresholds.
 - **wrangler.** Its `miniflare` dependency carries an `-alpha` tag on every stable wrangler release; that is Cloudflare's versioning, not a pre-release install. Check the `@opennextjs/cloudflare` peer range for wrangler and update `@cloudflare/workers-types` in the same PR, since wrangler declares a matching major for it.
