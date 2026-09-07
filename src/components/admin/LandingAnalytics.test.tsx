@@ -93,6 +93,12 @@ describe('LandingAnalytics', () => {
     expect(screen.queryByText('hero')).toBeNull();
     expect(screen.queryByText(/Signup sources/)).toBeNull();
   });
+
+  it('labels the signup sources with the capture window they were counted over', () => {
+    render(<LandingAnalytics stats={mockStats} />);
+
+    expect(screen.getByText('Signup sources (last 100 captures)')).toBeInTheDocument();
+  });
 });
 
 describe('formatDuration', () => {
@@ -121,11 +127,5 @@ describe('formatDuration', () => {
     expect(formatDuration(3600)).toBe('1h 0m');
     expect(formatDuration(3660)).toBe('1h 1m');
     expect(formatDuration(7384)).toBe('2h 3m');
-  });
-
-  it('labels the signup sources with the capture window they were counted over', () => {
-    render(<LandingAnalytics stats={mockStats} />);
-
-    expect(screen.getByText('Signup sources (last 100 captures)')).toBeInTheDocument();
   });
 });

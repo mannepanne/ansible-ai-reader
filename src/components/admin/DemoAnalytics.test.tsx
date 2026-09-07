@@ -137,7 +137,7 @@ describe('DemoAnalytics', () => {
 
     expect(screen.getByText('Unique Emails (last 100 captures)')).toBeInTheDocument();
     expect(screen.getByText('Avg Engagement (last 200 sessions)')).toBeInTheDocument();
-    expect(screen.getByText('Email Captures (last 100)')).toBeInTheDocument();
-    expect(screen.getByText('Recent Sessions (last 200)')).toBeInTheDocument();
+    expect(screen.getByText('Email Captures (last 100 captures)')).toBeInTheDocument();
+    expect(screen.getByText('Recent Sessions (last 200 sessions)')).toBeInTheDocument();
   });
 });
