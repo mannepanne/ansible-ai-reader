@@ -43,7 +43,7 @@ REST API conventions, error handling patterns, and validation strategies.
 
 ## Authentication
 
-Protected routes require a valid session, with one exception: the Fika email's action links, where a signed token is the credential (see [authentication.md](./authentication.md#4-signed-action-token-fika-email)).
+Protected routes require a verified user (`supabase.auth.getUser()`), with one exception: the Fika email's action links, where a signed token is the credential (see [authentication.md](./authentication.md#4-signed-action-token-fika-email)).
 
 **Pattern:**
 ```typescript

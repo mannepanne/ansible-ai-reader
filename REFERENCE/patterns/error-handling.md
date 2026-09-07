@@ -343,7 +343,7 @@ export async function POST(req: NextRequest) {
       throw new AuthenticationError();
     }
 
-    const result = await fetchReaderItems(session.user.id);
+    const result = await fetchReaderItems(user.id);
     return NextResponse.json(result);
 
   } catch (error) {

@@ -47,10 +47,7 @@ describe('SummariesPage', () => {
 
   it('renders summaries page when user is authenticated', async () => {
     mockGetUser.mockResolvedValue({
-      data: { user: {
-            id: 'test-user-id',
-            email: 'test@example.com',
-          } },
+      data: { user: { id: 'test-user-id', email: 'test@example.com' } },
     });
 
     const component = await SummariesPage();
@@ -65,10 +62,7 @@ describe('SummariesPage', () => {
 
   it('displays sync button', async () => {
     mockGetUser.mockResolvedValue({
-      data: { user: {
-            id: 'test-user-id',
-            email: 'test@example.com',
-          } },
+      data: { user: { id: 'test-user-id', email: 'test@example.com' } },
     });
 
     const component = await SummariesPage();
@@ -83,10 +77,7 @@ describe('SummariesPage', () => {
 
   it('displays empty state when no items', async () => {
     mockGetUser.mockResolvedValue({
-      data: { user: {
-            id: 'test-user-id',
-            email: 'test@example.com',
-          } },
+      data: { user: { id: 'test-user-id', email: 'test@example.com' } },
     });
 
     const component = await SummariesPage();
@@ -107,10 +98,7 @@ describe('SummariesPage', () => {
 
   it('hides empty state when items exist', async () => {
     mockGetUser.mockResolvedValue({
-      data: { user: {
-            id: 'test-user-id',
-            email: 'test@example.com',
-          } },
+      data: { user: { id: 'test-user-id', email: 'test@example.com' } },
     });
 
     // Mock fetch to return items
@@ -183,10 +171,7 @@ describe('SummariesPage', () => {
 
   it('displays logout button', async () => {
     mockGetUser.mockResolvedValue({
-      data: { user: {
-            id: 'test-user-id',
-            email: 'test@example.com',
-          } },
+      data: { user: { id: 'test-user-id', email: 'test@example.com' } },
     });
 
     const component = await SummariesPage();
@@ -212,10 +197,7 @@ describe('SummariesPage', () => {
 
   it('handles different user emails', async () => {
     mockGetUser.mockResolvedValue({
-      data: { user: {
-            id: 'another-user-id',
-            email: 'another@example.com',
-          } },
+      data: { user: { id: 'another-user-id', email: 'another@example.com' } },
     });
 
     const component = await SummariesPage();

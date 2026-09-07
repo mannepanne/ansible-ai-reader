@@ -73,7 +73,7 @@ All code files should start with `// ABOUT:` comments explaining the file's purp
 
 ## Supabase Clients
 
-Every Supabase client carries the generated `Database` type, and a function that receives one takes `SupabaseClient<Database>`; the bare `SupabaseClient` compiles but switches every schema check off. Regenerate the types with `npm run db:types` in any PR that ships a migration. Details: [database-schema.md](../architecture/database-schema.md#generated-types); reasoning: [ADR 2026-09-07](../decisions/2026-09-07-typed-supabase-client.md).
+Server code verifies the caller with `supabase.auth.getUser()`, never `getSession()`, which only decodes the cookie (see [authentication.md](../architecture/authentication.md#session-security)). Every Supabase client carries the generated `Database` type, and a function that receives one takes `SupabaseClient<Database>`; the bare `SupabaseClient` compiles but switches every schema check off. Regenerate the types with `npm run db:types` in any PR that ships a migration. Details: [database-schema.md](../architecture/database-schema.md#generated-types); reasoning: [ADR 2026-09-07](../decisions/2026-09-07-typed-supabase-client.md).
 
 ## Naming Conventions
 

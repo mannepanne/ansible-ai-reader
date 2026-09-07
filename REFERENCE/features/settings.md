@@ -94,8 +94,8 @@ Settings API uses service role client to bypass RLS:
 ```typescript
 const serviceClient = createServiceRoleClient();
 await serviceClient.from('users').upsert({
-  id: session.user.id,
-  email: session.user.email,
+  id: user.id,
+  email: user.email,
   ...validated.data,
 });
 ```

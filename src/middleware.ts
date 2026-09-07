@@ -26,10 +26,23 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
 export async function middleware(request: NextRequest) {
   const { supabase, response } = createClient(request);
 
+  // Route handlers verify the caller and refresh the session cookie themselves, so an API request
+  // pays for one auth round trip, not two. Pages keep the call below: a Server Component cannot
+  // write cookies, so the middleware is its only refresh path.
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    return applySecurityHeaders(response);
+  }
+
   // getUser() verifies the token with the auth server; reading the cookie alone would trust an unverified claim
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser();
+  // A missing cookie is not an error; anything else is the auth server refusing or failing, which
+  // denies exactly like "not logged in" and must be visible in the logs so an outage is not mistaken for one
+  if (error && error.name !== 'AuthSessionMissingError') {
+    console.error(`[Auth] getUser failed: ${error.message}`, error);
+  }
 
   // Note: the early-return redirects below are intentionally NOT decorated with
   // security headers. A 3xx carries no body to MIME-sniff or frame, and the

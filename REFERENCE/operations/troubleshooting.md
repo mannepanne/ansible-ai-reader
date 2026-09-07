@@ -178,6 +178,12 @@ npm run build:worker && npm run deploy
 
 ---
 
+### Everyone appears logged out at once
+
+**Cause:** every server-side check verifies the token with Supabase Auth (`getUser()`); if that service is unreachable or rate-limiting, the check returns no user and behaves exactly like an expired session. The cookie is left intact, so the next request after the outage signs the user back in without a new magic link.
+
+**Diagnose:** the middleware logs `[Auth] getUser failed: <message>` on every such request; look for it in the main worker's logs. Its absence means the sessions really did expire.
+
 ## Database Issues
 
 ### RLS policy violations
@@ -208,14 +214,14 @@ await serviceClient.from('users').upsert({ id: userId, ... });
 const { data: user } = await supabase
   .from('users')
   .select('id')
-  .eq('id', session.user.id)
+  .eq('id', user.id)
   .single();
 
 if (!user) {
   // Create user record
   await serviceClient.from('users').insert({
-    id: session.user.id,
-    email: session.user.email,
+    id: user.id,
+    email: user.email,
   });
 }
 ```

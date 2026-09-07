@@ -109,7 +109,7 @@ export async function POST(req: NextRequest, context: { env: Env }) {
     const { data: job } = await supabase
       .from('jobs')
       .insert({
-        user_id: session.user.id,
+        user_id: user.id,
         reader_item_id: item.id,
         sync_log_id: syncLogId,
         status: 'pending',
