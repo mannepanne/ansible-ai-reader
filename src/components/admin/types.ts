@@ -11,6 +11,8 @@ export interface LandingStats {
   totalSignups: number;
   navClicks: { label: string; count: number }[];
   signupSources: { source: string; count: number }[];
+  // signupSources come from the most recent N email captures, not the whole table
+  captureWindow: number;
 }
 
 export interface EmailCaptureRow {
@@ -29,7 +31,11 @@ export interface DemoSessionRow {
 }
 
 export interface DemoStats {
+  // emailCaptureCount and emailCaptures cover the most recent captureWindow captures;
+  // avgDurationSeconds and sessions cover the most recent sessionWindow sessions
   emailCaptureCount: number;
+  captureWindow: number;
+  sessionWindow: number;
   sessionCount: number;
   totalInteractions: number;
   avgDurationSeconds: number;

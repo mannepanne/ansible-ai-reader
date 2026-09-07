@@ -117,7 +117,7 @@ The `max(0, ...)` guard handles edge cases where clock skew or a page crash coul
 
 ### Unique Email Count
 
-`emailCaptureCount` (shown in the stat card as "Unique Emails") is derived from a `Set` of email values in the captures list:
+`emailCaptureCount` (shown in the stat card as "Unique Emails (last 100 captures)") is derived from a `Set` of email values in the captures list, which is the most recent `captureWindow` (100) rows, not the whole table:
 
 ```typescript
 const capturedEmails = new Set<string>();
@@ -178,10 +178,10 @@ Horizontal bar chart showing which nav links users click most. Bars are proporti
 
 | Card | Value |
 |---|---|
-| Unique Emails | Unique email addresses captured |
+| Unique Emails (last 100 captures) | Distinct email addresses among the most recent 100 captures |
 | Demo Sessions | Total `demo_sessions` rows |
 | Interactions | Total `demo_events` rows |
-| Avg Engagement | Average session duration, formatted |
+| Avg Engagement (last 200 sessions) | Average duration of the most recent 200 sessions, formatted |
 
 ### Email Captures List
 
@@ -306,8 +306,8 @@ Fetching all visitor IDs to compute unique count in JavaScript works now but bec
 ### Email ↔ Session Backfill
 Sessions started before email capture have `email: null`. The session is linkable via `session_id` but there's no automated backfill that updates historical session rows when an email is captured mid-session. Tracked as a [GitHub issue with `technical-debt` label](https://github.com/mannepanne/ansible-ai-reader/issues?q=is%3Aissue+label%3Atechnical-debt+is%3Aopen).
 
-### Static 200-session limit
-The dashboard shows the most recent 200 sessions. Long-term this could truncate meaningful historical data. A date-range filter would be the right solution.
+### Fixed row windows
+The email-capture figures (unique emails, signup sources, the captures list) come from the most recent 100 captures and the session figures (average engagement, the sessions list) from the most recent 200 sessions; the page passes those windows as `captureWindow` and `sessionWindow` and every affected label names them, so nothing reads as an all-time total. The row counts on the other cards are exact. A date-range filter would be the right long-term answer if history past the window matters.
 
 ---
 

@@ -52,7 +52,7 @@ export default function LandingAnalytics({ stats }: LandingAnalyticsProps) {
         {stats.signupSources.length > 0 && (
           <>
             <div style={{ borderTop: '1px solid #f1f3f4', margin: '16px 0' }} />
-            <div style={SECTION_HEADING}>Signup sources</div>
+            <div style={SECTION_HEADING}>Signup sources (last {stats.captureWindow} captures)</div>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               {stats.signupSources.map(({ source, count }) => (
                 <div key={source} style={{ background: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: '6px', padding: '8px 14px', fontSize: '0.85em' }}>
