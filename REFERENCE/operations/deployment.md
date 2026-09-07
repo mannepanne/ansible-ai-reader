@@ -75,7 +75,7 @@ A push to `main` then continues and deploys all five workers, in order: consumer
 
 **Workflow file:** `.github/workflows/deploy.yml`
 
-**The PR check is advisory unless `main` is protected.** Without branch protection a red pull request can still be merged and deployed. To make the check binding, protect `main` in the repository settings with `Test and Deploy to Cloudflare` as a required status check and "require branches to be up to date", so a check computed against a stale `main` cannot merge. Required checks also block direct pushes to `main`, including the documentation-only pushes the branch rules allow, unless the rule leaves administrators exempt.
+**`main` is protected, so the PR check is binding.** The branch rule requires the `Test and Deploy to Cloudflare` check and requires branches to be up to date with `main`, so neither a red pull request nor a green check computed against a stale `main` can merge. Force pushes and branch deletion are blocked. Administrators are exempt from the rule, which is what keeps the documentation-only direct pushes the branch rules allow working; the rule is managed in the repository settings, or with `gh api repos/mannepanne/ansible-ai-reader/branches/main/protection`.
 
 ### Required GitHub Secrets
 
