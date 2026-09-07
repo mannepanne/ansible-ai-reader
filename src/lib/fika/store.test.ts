@@ -78,6 +78,7 @@ describe('store', () => {
       itemIds: ['x', 'y'],
     });
     expect(batches.calls).toContainEqual(['eq', ['batch_date', '2026-09-06']]);
+    expect(batches.calls).toContainEqual(['select', ['id, sent_at, send_attempts, fika_batch_items!batch_id(item_id, slot)']]);
     expect(await getBatchByDate(db({ fika_batches: chain({ data: null }) }), 'u1', '2026-09-06')).toBeNull();
   });
 
@@ -103,6 +104,10 @@ describe('store', () => {
       ],
     });
     expect(batches.calls).toContainEqual(['order', ['batch_date', { ascending: false }]]);
+    expect(batches.calls).toContainEqual([
+      'select',
+      ['id, fika_batch_items!batch_id(item_id, slot, reader_items(archived, archived_at, reader_deleted))'],
+    ]);
     expect(await getMostRecentBatch(db({ fika_batches: chain({ data: null }) }), 'u1')).toBeNull();
   });
 
@@ -128,6 +133,7 @@ describe('store', () => {
     const ids = await listRecentlyBatchedIds(db({ fika_batches: batches }), 'u1', '2026-08-23');
     expect([...ids].sort()).toEqual(['a', 'b']);
     expect(batches.calls).toContainEqual(['gte', ['batch_date', '2026-08-23']]);
+    expect(batches.calls).toContainEqual(['select', ['fika_batch_items!batch_id(item_id)']]);
   });
 
   it('createBatch inserts the batch then its items and returns the id', async () => {

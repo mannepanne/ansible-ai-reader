@@ -95,6 +95,8 @@ Each test should:
 
 **Mocking:** Vitest built-in mocking + custom mocks for external services
 
+**Limit of mocking Supabase:** a mocked query builder proves we sent the select string we meant to, not that PostgREST accepts it. A new embed (`parent(child(...))`), filter syntax, or column name needs one run against the real schema before merge. `npm run fika:diagnose` is the model: a read-only script that replays the production read path.
+
 **Coverage:** Vitest with v8 coverage provider
 
 ### Setup

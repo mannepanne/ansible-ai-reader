@@ -97,7 +97,7 @@ Reading days (the dots) and the unread count are secondary. Drift stays off duri
 
 ## Troubleshooting
 
-- **No email arrived.** First check the main-worker cron log for `[Cron Fika]`: a 500 there means missing configuration (`FIKA_ACTION_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, or `CRON_SECRET`) and nothing ran. Then check `fika_batches` for today's local date: no row means `shouldSend` never returned true (Fika off, before the hour, or the six-hour window passed). A row with `sent_at` null and `send_attempts` 3 means Resend failed three times; the cron log has the Resend status.
+- **No email arrived.** First check the main-worker cron log for `[Cron Fika]`: `Run failed for user …` carries the thrown message (a Supabase query the database rejected, most likely), and `npm run fika:diagnose` replays the same reads against the database from `.dev.vars` to reproduce it locally. A 500 there means missing configuration (`FIKA_ACTION_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, or `CRON_SECRET`) and nothing ran. Then check `fika_batches` for today's local date: no row means `shouldSend` never returned true (Fika off, before the hour, or the six-hour window passed). A row with `sent_at` null and `send_attempts` 3 means Resend failed three times; the cron log has the Resend status.
 - **Send hour 23:00 has no retry window.** The window cannot cross midnight, so a 23:00 Fika gets one tick; a Resend failure at that tick means no email that day. Pick an earlier hour if that matters.
 - **Same two items every day.** That is the idempotence rule: nothing changes until one of them is archived.
 - **A link says it expired.** Tokens last 7 days, and rotating `FIKA_ACTION_SECRET` invalidates every existing link.

@@ -32,6 +32,12 @@ export interface StoredItem {
   tags: string[];
 }
 
+/**
+ * fika_batch_items has two foreign keys to fika_batches (batch_id and carried_from), so every
+ * embed must name the one to follow or PostgREST rejects the query as ambiguous.
+ */
+const BATCH_ITEMS = 'fika_batch_items!batch_id';
+
 const EMAIL_ITEM_COLUMNS = 'id, title, url, author, source, word_count, created_at, short_summary, tags';
 
 function fail(context: string, error: { message?: string } | null): never {
@@ -68,7 +74,7 @@ export async function getUserFikaSettings(
 export async function getBatchByDate(db: SupabaseClient, userId: string, batchDate: string): Promise<BatchRow | null> {
   const { data, error } = await db
     .from('fika_batches')
-    .select('id, sent_at, send_attempts, fika_batch_items(item_id, slot)')
+    .select(`id, sent_at, send_attempts, ${BATCH_ITEMS}(item_id, slot)`)
     .eq('user_id', userId)
     .eq('batch_date', batchDate)
     .maybeSingle();
@@ -85,7 +91,7 @@ export async function getMostRecentBatch(
 ): Promise<{ id: string; items: PreviousBatchItem[] } | null> {
   const { data, error } = await db
     .from('fika_batches')
-    .select('id, fika_batch_items(item_id, slot, reader_items(archived, archived_at, reader_deleted))')
+    .select(`id, ${BATCH_ITEMS}(item_id, slot, reader_items(archived, archived_at, reader_deleted))`)
     .eq('user_id', userId)
     .order('batch_date', { ascending: false })
     .limit(1)
@@ -139,7 +145,7 @@ export async function listCandidates(db: SupabaseClient, userId: string): Promis
 export async function listRecentlyBatchedIds(db: SupabaseClient, userId: string, sinceDate: string): Promise<Set<string>> {
   const { data, error } = await db
     .from('fika_batches')
-    .select('fika_batch_items(item_id)')
+    .select(`${BATCH_ITEMS}(item_id)`)
     .eq('user_id', userId)
     .gte('batch_date', sinceDate);
   if (error) fail('listRecentlyBatchedIds', error);

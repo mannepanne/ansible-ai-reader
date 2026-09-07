@@ -271,6 +271,8 @@ CREATE TABLE fika_batch_items (
 
 **RLS:** owner read; all writes come from the service-role client (cron, action endpoint). Rows cascade from `users`, so account deletion covers them. See [fika.md](../features/fika.md).
 
+**Two foreign keys to `fika_batches`:** `batch_id` and `carried_from` both point at `fika_batches`, so a PostgREST embed of batch items inside a batch is ambiguous unless it names the key: `fika_batch_items!batch_id(...)`. Every embed in `src/lib/fika/store.ts` carries that hint.
+
 ---
 
 ## Relationships

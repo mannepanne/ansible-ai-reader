@@ -91,7 +91,9 @@ export async function GET(request: NextRequest) {
         }
       } catch (error) {
         counts.failed++;
-        console.error(`[Cron Fika] Run failed for user ${user.id}:`, error);
+        // Workers Logs shows an Error argument as its stack alone, so the message goes in the string
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`[Cron Fika] Run failed for user ${user.id}: ${message}`, error);
       }
     }
 
