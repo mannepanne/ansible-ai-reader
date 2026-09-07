@@ -430,6 +430,27 @@ After deployment:
 
 ---
 
+## Keeping Dependencies Patched
+
+GitHub's Dependabot alerts on this repository are the inventory; `npm audit --omit=dev` is the production view. Triage by where the package runs, not by the badge count:
+
+- **Runtime** (in the deployed workers): `next`, `@supabase/*`, `postcss` as used by the build, and their transitive dependencies. Patch promptly. `next` is the login guard's middleware, so a middleware-bypass advisory there is an authentication issue.
+- **Development only** (`vitest`, `wrangler`/`miniflare`, `sharp`, build tooling): never deployed. Patch in a separate PR so a test-runner or deploy-tool upgrade has its own revert boundary.
+
+`next` and `eslint-config-next` use a tilde range (`~15.5.x`) on purpose: `@opennextjs/cloudflare` declares support per Next minor, so a caret that admitted 15.6 would break `npm run build:worker` on a fresh install.
+
+**Accepted, with the condition to revisit:**
+
+| Package | Where | Why it is accepted | Revisit when |
+|---|---|---|---|
+| `postcss` 8.4.31 nested under `next` | Build pipeline only | The advisories need attacker-controlled CSS or source maps; the build processes first-party Tailwind and nothing at runtime | Next 16, which drops the nested pin |
+| `ws` 8.18.0 under `wrangler` → `miniflare` | Local development | Not deployed; the runtime copy under `@supabase/realtime-js` is patched | The development-dependency PR (wrangler upgrade) |
+| `sharp` 0.34.x | `devOptional` | `next/image` is not used, and native `sharp` cannot run on Workers; `miniflare` pins `^0.34.5`, so it cannot move anyway | The development-dependency PR |
+
+**Deferred batch:** Vitest 3 (the UI-server advisory, development only), wrangler/miniflare, and the remaining development-only alerts. A `dependabot.yml` with grouped monthly updates belongs in that PR so the backlog does not rebuild.
+
+**After a runtime dependency deploy**, exercise the one thing unit tests cannot: logged out, request `/summaries` and expect a redirect to `/login?returnTo=%2Fsummaries`; log in; load one page and one API route.
+
 ## Rollback Procedure
 
 If deployment causes issues:

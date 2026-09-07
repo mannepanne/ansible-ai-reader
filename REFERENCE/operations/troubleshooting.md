@@ -63,7 +63,7 @@ If login fails:
 - Try incognito/private browsing mode
 - Use `npx wrangler whoami` to verify authentication
 
-### Build failures with @cloudflare/next-on-pages
+### Build failures with the OpenNext adapter (@opennextjs/cloudflare)
 - Check Next.js version compatibility (15+)
 - Verify all dependencies support edge runtime
 - Review build output for unsupported APIs (e.g., fs, path)
