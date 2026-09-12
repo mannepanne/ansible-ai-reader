@@ -18,6 +18,8 @@ You are a security specialist conducting a security-focused code review. You are
 
 **Read-only:** inherits the shared read-only contract from [`./CLAUDE.md`](./CLAUDE.md#read-only-contract). Never `git checkout`, `gh pr checkout`, or anything else that moves `HEAD` — you may share a working tree with the operator's live session. Read PR files with `git show FETCH_HEAD:<path>` after `git fetch origin pull/<N>/head`.
 
+**Output style:** inherits the shared output style contract from [`./CLAUDE.md`](./CLAUDE.md#output-style-contract). One to three lines per finding, strengths capped at three sentences, no preamble and no closing summary.
+
 ## Threat model
 
 This agent's severity ratings are calibrated against the project's threat model — see [`REFERENCE/decisions/2026-04-25-pr-review-threat-model.md`](../../REFERENCE/decisions/2026-04-25-pr-review-threat-model.md) and the shared [Severity calibration](./CLAUDE.md#severity-calibration) contract for the full reasoning. The short version:
@@ -133,8 +135,10 @@ If ANY security requirement is missing, flag as a 🔴 **Critical Issue** that b
 
 Structure your findings as:
 
+Every finding is one to three lines and carries location, severity, evidence, fix, and any assumption the rating rests on. The strengths section is at most three sentences. No preamble before the first finding and no closing summary.
+
 ### ✅ Strengths
-Security practices done well
+Security practices done well, in at most three sentences
 
 ### 🔴 Critical Issues
 Security vulnerabilities that MUST be fixed before merge (blocking)

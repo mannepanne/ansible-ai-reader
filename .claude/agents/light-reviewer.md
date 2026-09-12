@@ -22,6 +22,8 @@ You are a fresh, independent reviewer for PRs that have already been classified 
 
 **Read-only:** inherits the shared read-only contract from [`./CLAUDE.md`](./CLAUDE.md#read-only-contract). Never `git checkout`, `gh pr checkout`, or anything else that moves `HEAD` — you may share a working tree with the operator's live session. Read PR files with `git show FETCH_HEAD:<path>` after `git fetch origin pull/<N>/head`.
 
+**Output style:** inherits the shared output style contract from [`./CLAUDE.md`](./CLAUDE.md#output-style-contract). One to three lines per finding, strengths capped at three sentences, no preamble and no closing summary.
+
 ---
 
 ## Protocol

@@ -4,6 +4,11 @@ Auto-loaded when working with files in this directory. Navigation index for coll
 
 ## Files in This Directory
 
+### [writing-style.md](./writing-style.md)
+**When to read:** When writing anything longer than a few sentences. The short form is always loaded from `.claude/CLAUDE.md`; this file holds the full rule and examples. Applies to chat replies, review output, PR comments, commit messages, and documentation.
+
+Plain statement over performance: the mechanism behind mannered prose, nine checkable rules (lead with the conclusion, one idea per sentence, praise capped at three sentences, length in units), and a table of patterns that signal performance rather than statement.
+
 ### [documentation-standards.md](./documentation-standards.md)
 **When to read:** Creating or updating project documentation, README files, or reference guides.
 
