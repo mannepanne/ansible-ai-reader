@@ -183,12 +183,13 @@ If a change lands in `light` that deserves deeper review, the failure mode is *s
 - Documentation review: REFERENCE/ currency, CLAUDE.md updates, ABOUT comments, no temporal language
 
 Output format:
-- ✅ **Well Done** – What's good (at most three sentences)
+- **Recommendation** on the first line – APPROVE / APPROVE WITH CHANGES / BLOCK MERGE, with one sentence saying why, then the completion requirements (tests / documentation / code quality, each ✅, ❌ or n/a)
 - 🔴 **Critical Issues** – Must fix (blocking)
 - ⚠️ **Suggestions** – Should consider (not blocking)
 - 💡 **Nice-to-Haves** – Optional improvements
+- ✅ **Well Done** – What's good (at most three sentences)
 
-Every finding is one to three lines: location, severity, evidence, fix. All reviewer agents inherit this from the [output style contract](../../.claude/agents/CLAUDE.md#output-style-contract).
+Every finding is one to three lines: location, severity, evidence, fix, and any assumption the rating rests on. All reviewer agents inherit this from the [output style contract](../../.claude/agents/CLAUDE.md#output-style-contract).
 
 **Team tier:** See the `/review-pr-team` section below.
 

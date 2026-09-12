@@ -125,13 +125,9 @@ Structure your review as:
 
 Every finding is one to three lines and carries location, severity, evidence, fix, and any assumption the rating rests on. The strengths section is at most three sentences. No preamble before the first finding and no closing summary.
 
-### ✅ Completion Requirements Met?
-- [ ] Tests exist and pass (95%+ coverage shown)
-- [ ] Documentation updated (check REFERENCE/ if implementation work)
-- [ ] Code quality verified (conventions, no secrets, clean history)
+**Recommendation: [APPROVE / APPROVE WITH CHANGES / BLOCK MERGE]** — [one sentence saying why].
 
-### ✅ Well Done
-What's good about this PR, in at most three sentences
+**Completion requirements:** tests [✅ / ❌ / n/a one clause] · documentation [✅ / ❌ one clause] · code quality [✅ / ❌ one clause: conventions, no secrets, clean history]
 
 ### 🔴 Critical Issues
 Must fix before merge (blocking)
@@ -141,6 +137,11 @@ Should consider (not blocking)
 
 ### 💡 Nice-to-Haves
 Optional improvements
+
+### ✅ Well Done
+What's good about this PR, in at most three sentences
+
+The recommendation line comes first because the standard tier posts this report as returned, directly under the triage header. Omit any findings section that is empty.
 
 ## Review Standards
 

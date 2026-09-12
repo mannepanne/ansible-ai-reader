@@ -75,7 +75,7 @@ You now hold every report. This step is the review — do it properly rather tha
 
 Reviewed independently by 🛡️ Security, 📦 Product, 🏗️ Architecture and ✍️ Docs. [If a reviewer failed, say which perspective is missing here.]
 
-**Completion requirements:** tests [✅ / ❌ one clause] · documentation [✅ / ❌ one clause] · code quality [✅ / ❌ one clause: conventions, no secrets, clean history]
+**Completion requirements:** tests [✅ / ❌ / n/a one clause] · documentation [✅ / ❌ one clause] · code quality [✅ / ❌ one clause: conventions, no secrets, clean history]
 
 ### 🔴 Must fix before merge
 - `[file:line]` [Finding]. Fix: [fix]. — 🛡️ 🏗️
@@ -101,7 +101,7 @@ Reviewed independently by 🛡️ Security, 📦 Product, 🏗️ Architecture a
 - **Every empty section is omitted.** No empty headers, no "none found".
 - **A finding appears once.** Do not restate a critical issue under warnings or suggestions.
 - **No count block.** The bullets are the summary; per-reviewer tallies restate them as numbers and add nothing the reader can act on.
-- **Length budget: one screen, about forty lines, unless there are more than eight findings.** If the comment runs longer, findings have grown sub-bullets or prose has crept in between sections. Cut prose, never findings or their evidence.
+- **Length budget: one screen, about forty lines, unless there are more than eight findings.** If the comment runs longer, findings have grown sub-bullets or prose has crept in between sections. Cut prose, never findings, their evidence, or the reachability clause a severity rests on.
 - **No preamble before the title and no closing paragraph.** The paths in the template are placeholders; every location in the posted comment comes from a reviewer's report.
 
 ### Step 3: Post the review

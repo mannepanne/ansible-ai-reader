@@ -255,4 +255,4 @@ Scientific debugging approach — read errors first, find root causes, change on
 
 ## Documentation Standards
 
-Markdown, lifecycle-based structure (SPECIFICATIONS active, ARCHIVE completed, REFERENCE implementation). Keep documentation current alongside code changes. Templates: [documentation-standards.md](./COLLABORATION/documentation-standards.md). Prose rules (plain statement, length budgets) are in [writing-style.md](./COLLABORATION/writing-style.md).
+Markdown, lifecycle-based structure (SPECIFICATIONS active, ARCHIVE completed, REFERENCE implementation). Keep documentation current alongside code changes. Templates: [documentation-standards.md](./COLLABORATION/documentation-standards.md). Prose rules (plain statement, length budgets) are in [writing-style.md](./COLLABORATION/writing-style.md). Spelling and capitalisation: British English throughout, and sentence-case headlines (capitalise only the first word and proper nouns).
