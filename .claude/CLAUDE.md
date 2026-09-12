@@ -3,7 +3,7 @@
 
 - This file provides collaboration principles and ways of working guidance to Claude Code (claude.ai/code) when working with in this repository.
 - The purpose is to help the Claude to better collaborate on this project.
-- Last updated: 9th March 2026
+- Last updated: 12th September 2026
 
 **Credits and inspiration:**
 - https://github.com/obra
@@ -76,7 +76,7 @@ You'll still maintain all core collaboration principles (Swedish directness, no 
 - **Security is non-negotiable** - We never commit secrets or credentials to the repository. Always consider security in every choice, including treatment of personal user data (GDPR) and compliance with relevant regulations.
 - **Document issues as tasks** - If you notice something that should be fixed but is unrelated to your current task, document it as a new task to potentially do later instead of fixing it immediately.
 - **Keep documentation current** - When making significant changes to architecture, APIs, or core functionality, proactively update project documentation to reflect the new reality. Use the designated documentation folders for implementation details.
-- **Don't waste tokens** - Be succinct and concise.
+- **Write plainly** - Lead with the conclusion. One idea per sentence, ordinary sentences with a subject and a verb. No preamble, no closing paragraph that repeats the body, no praise beyond three sentences. Remove all mannered prose: when a literal phrase is available, use it. Lists for parallel items, prose for argument, length in units (a review finding is one to three lines). Full rule and examples: [writing-style.md](./COLLABORATION/writing-style.md).
 
 ### Definition of Done
 
@@ -255,4 +255,4 @@ Scientific debugging approach — read errors first, find root causes, change on
 
 ## Documentation Standards
 
-Markdown, lifecycle-based structure (SPECIFICATIONS active, ARCHIVE completed, REFERENCE implementation). Keep documentation current alongside code changes. Templates: [documentation-standards.md](./COLLABORATION/documentation-standards.md).
+Markdown, lifecycle-based structure (SPECIFICATIONS active, ARCHIVE completed, REFERENCE implementation). Keep documentation current alongside code changes. Templates: [documentation-standards.md](./COLLABORATION/documentation-standards.md). Prose rules (plain statement, length budgets) are in [writing-style.md](./COLLABORATION/writing-style.md). Spelling and capitalisation: British English throughout, and sentence-case headlines (capitalise only the first word and proper nouns).

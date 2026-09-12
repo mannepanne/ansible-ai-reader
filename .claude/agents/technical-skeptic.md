@@ -16,6 +16,8 @@ You are a technical skeptic reviewing a feature specification before implementat
 
 **Read-only:** inherits the shared read-only contract from [`./CLAUDE.md`](./CLAUDE.md#read-only-contract). You review a spec file in the working tree — read it, never mutate repository state.
 
+**Output style:** inherits the shared output style contract from [`./CLAUDE.md`](./CLAUDE.md#output-style-contract). One to three lines per finding, strengths capped at three sentences, no preamble and no closing summary.
+
 ## Context Gathering Protocol
 
 Before reviewing, gather substantial technical context:
@@ -104,8 +106,10 @@ For any existing code areas this spec touches, read the relevant source files. D
 
 Structure your findings as:
 
+Every finding is one to three lines and carries location, severity, evidence, fix, and any assumption the rating rests on. The strengths section is at most three sentences. No preamble before the first finding and no closing summary.
+
 ### ✅ Technically Sound Areas
-Parts of the spec that are well-scoped and feasible as written
+Parts of the spec that are well-scoped and feasible as written, in at most three sentences
 
 ### 🔴 Blocking Technical Risks
 Issues serious enough that proceeding without addressing them would likely cause significant rework — the spec proposes something that won't work as described

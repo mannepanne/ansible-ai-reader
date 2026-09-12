@@ -83,89 +83,42 @@ This step is the review — do it properly rather than concatenating three docum
 
 **3c. Do not invent findings.** Every item traces to at least one reviewer's report. If you spot something none of them did, mark it clearly as your own observation rather than attributing it to a reviewer.
 
-**3d. Produce the assessment:**
+**3d. Produce the assessment.** Verdict first, one line per finding, attribution as a tag at the end of the line. The output style contract in [`.claude/agents/CLAUDE.md`](../../agents/CLAUDE.md#output-style-contract) applies to you as much as to the reviewers.
 
 ```markdown
 ## Spec Review: [Spec Title]
 
-> Reviewed independently by: Requirements Auditor, Technical Skeptic, Devil's Advocate.
-> Findings deduplicated and reconciled into the assessment below.
+**Recommendation: [APPROVED / APPROVED WITH CONDITIONS / NEEDS REVISION]** — [one sentence saying why].
 
----
+Reviewed independently by Requirements Auditor (RA), Technical Skeptic (TS) and Devil's Advocate (DA). [If a reviewer failed, say which perspective is missing here.]
 
-### 📋 Overall Recommendation
+### 🔴 Blocking — resolve before implementation
+- **[Spec section]** [What is wrong and what happens if it is built as written]. Fix: [what the spec must say]. — RA, TS
 
-**[APPROVED / APPROVED WITH CONDITIONS / NEEDS REVISION]**
+### ⚠️ Conditions — address before or during implementation
+- **[Spec section]** [The risk]. Do: [the mitigation]. — TS
 
-[2-3 sentence summary of the overall assessment]
+### ⚖️ Divergences — your call
+- **[Topic]** RA says X; DA says Y. Reconciled to: [your call and the evidence from the reports that settles it].
+- **[Topic]** TS says X; DA says Y. Unresolved: [why neither report settles it, and what would].
 
----
+### 💡 Alternatives and suggestions
+- **[Alternative]** [One line on what it is]. Proposed by DA; TS costed it as [simpler / harder / not assessed].
+- **[Suggestion]** [One line]. — RA
 
-### 🔴 Blocking Issues — Must Resolve Before Implementation
-
-[Issues serious enough that starting implementation would likely cause significant rework or build the wrong thing]
-
-**Format per issue:**
-**Issue:** [Description]
-- **Raised by:** [which reviewer(s)]
-- **Why blocking:** [specific impact if ignored]
-- **Resolution needed:** [what the spec needs to say to unblock this]
-
----
-
-### ⚠️ Conditions — Address Before or During Implementation
-
-[Real concerns that need mitigation but don't require spec rewrite]
-
-**Format per condition:**
-**Condition:** [Description]
-- **Raised by:** [which reviewer(s)]
-- **Risk if ignored:** [specific consequence]
-- **Suggested approach:** [how to address it]
-
----
-
-### ✅ Well-Specified Areas
-
-[Parts of the spec found clear, complete, and well-reasoned]
-
----
-
-### 💡 Suggestions and Alternatives
-
-[Improvements, scoping changes, or alternative approaches worth considering]
-
-For each alternative, say whether its feasibility was assessed:
-- **Alternative:** [description] — *proposed by Devil's Advocate; Technical Skeptic costed it as [simpler / harder / not assessed]*
-
----
-
-### ⚖️ Where the Perspectives Diverged
-
-[Findings where reviewers reached different conclusions — the most decision-relevant part of the review]
-
-**Format:**
-**[Topic]** — Requirements Auditor said X; Devil's Advocate said Y.
-- **Reconciled to:** [your call, with the evidence from the reports that settles it]
-
-*or*
-
-- **Unresolved:** [why neither report settles it, and what would]
-
----
-
-### 📊 Review Summary
-
-**Requirements Auditor:** [X blocking gaps, Y incomplete areas, Z assumptions to validate]
-**Technical Skeptic:** [X blocking risks, Y technical concerns, Z hidden complexity items]
-**Devil's Advocate:** [X fundamental challenges, Y questionable assumptions, Z alternatives proposed]
-
-**Findings corroborated by 2+ reviewers:** X
-**Divergences reconciled during synthesis:** Y
-**Divergences left unresolved (flagged above):** Z
-
-**Recommendation:** [APPROVED / APPROVED WITH CONDITIONS / NEEDS REVISION]
+### ✅ Solid
+[At most three sentences on what the spec gets right. Omit the section if nothing stands out.]
 ```
+
+**Rules for the assessment:**
+
+- **One bullet per finding, one to three lines.** Location in bold, then the finding, then the fix, then the reviewer tag. No sub-bullets under a finding unless it has a genuine second point.
+- **Every empty section is omitted.** No empty headers, no "none found".
+- **A finding appears once.** Do not restate a blocking issue under conditions or suggestions.
+- **Divergences stay in their own section**, because that is where the human's judgement is needed. Keep the higher severity on an unresolved one.
+- **No count block.** The bullets are the summary; a table of per-reviewer tallies restates them as numbers and adds nothing the reader can act on.
+- **Length budget: one screen, about forty lines, unless there are more than eight findings.** If the assessment runs longer than that, findings have grown sub-bullets or prose has crept in between sections. Cut prose, never findings or their evidence.
+- **No preamble before the title and no closing paragraph after the last section.** The verdict line at the top is the summary.
 
 Present this synthesis directly in the conversation — do **not** post to a PR or write to a file unless the user asks.
 

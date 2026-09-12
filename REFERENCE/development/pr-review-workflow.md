@@ -108,7 +108,7 @@ If the triage decision looks wrong, you can interrupt and force a deeper tier wi
 3. **Devil's Advocate** — strategy: is this the right thing to build? Simpler alternatives? Wrong assumptions?
 
 **Phase 1:** Independent review — all three reviewers read the spec and relevant codebase context at once, with no knowledge of what the others found
-**Phase 2:** Synthesis — the orchestrator holds all three reports, deduplicates, reconciles conflicting conclusions, and records genuine disagreements rather than negotiating them away; unified output with an overall recommendation (APPROVED / APPROVED WITH CONDITIONS / NEEDS REVISION)
+**Phase 2:** Synthesis — the orchestrator holds all three reports, deduplicates, reconciles conflicting conclusions, and records genuine disagreements rather than negotiating them away; unified output with the recommendation on the first line (APPROVED / APPROVED WITH CONDITIONS / NEEDS REVISION), one line per finding, and a divergences section for anything the reports did not settle. The whole assessment fits on one screen unless it has more than eight findings.
 
 **Output goes to conversation** (not a PR comment) so you can act on it before writing any code.
 
@@ -183,10 +183,13 @@ If a change lands in `light` that deserves deeper review, the failure mode is *s
 - Documentation review: REFERENCE/ currency, CLAUDE.md updates, ABOUT comments, no temporal language
 
 Output format:
-- ✅ **Well Done** – What's good
+- **Recommendation** on the first line – APPROVE / APPROVE WITH CHANGES / BLOCK MERGE, with one sentence saying why, then the completion requirements (tests / documentation / code quality, each ✅, ❌ or n/a)
 - 🔴 **Critical Issues** – Must fix (blocking)
 - ⚠️ **Suggestions** – Should consider (not blocking)
 - 💡 **Nice-to-Haves** – Optional improvements
+- ✅ **Well Done** – What's good (at most three sentences)
+
+Every finding is one to three lines: location, severity, evidence, fix, and any assumption the rating rests on. All reviewer agents inherit this from the [output style contract](../../.claude/agents/CLAUDE.md#output-style-contract).
 
 **Team tier:** See the `/review-pr-team` section below.
 
@@ -230,9 +233,10 @@ Output format:
 - Genuine disagreements are **surfaced to you**, not negotiated away by the agents
 
 **Output includes:**
-- The synthesised verdict on critical issues
-- Findings corroborated by 2+ reviewers
-- Severity disagreements reconciled during synthesis, and any left unresolved (flagged for your decision)
+- The synthesised verdict on the first line: BLOCK MERGE / APPROVE WITH CHANGES / APPROVE
+- One line per finding, with the reviewers who raised it as tags at the end of the line. Two or more tags means the finding was corroborated independently
+- Severity disagreements, either reconciled on the finding's line with the evidence that settled them, or marked unresolved at the higher severity (flagged for your decision)
+- A "Solid" section of at most three sentences, and no per-reviewer count block. The review fits on one screen unless it has more than eight findings; see [`decisions/2026-09-12-plain-review-output.md`](../decisions/2026-09-12-plain-review-output.md)
 
 **Two-comment audit pattern (team tier only):** when team tier runs via the dispatcher, you'll see *two* PR comments — first a short triage marker (`Triage: team (auto-escalated)` + flagged paths), then a second larger comment containing the full team review. This is by design: the marker preserves the dispatcher's audit trail even if the team review later fails or is amended. Running `/review-pr-team N` directly skips the marker and posts only the full review.
 
@@ -366,7 +370,7 @@ Opening the PR triggers the same workflow that deploys `main`, minus the deploy 
 
 ### Review posted but nothing seems wrong
 - Green light is valuable signal
-- Check "Well Done" section for validation
+- Check the strengths section for validation: "Well Done" in a standard-tier comment, "Solid" in a team-tier one. Three sentences at most, by design
 - Proceed with confidence
 
 ### Want more detail on specific issue

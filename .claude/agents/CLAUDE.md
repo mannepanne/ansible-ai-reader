@@ -74,7 +74,7 @@ Spawn the `code-reviewer` subagent with task: "Review PR #$ARGUMENTS..."
 All reviewer agents share:
 - **Context gathering protocol** - How to fetch PR details, read CLAUDE.md, discover specs
 - **Completion requirements verification** - Must check tests, documentation, code quality
-- **Output format standards** - Consistent structure across all reviews
+- **Output format standards** - Consistent structure across all reviews, with the length budget from the [output style contract](#output-style-contract)
 
 ## Orchestration model
 
@@ -110,11 +110,13 @@ PR-review agents are additionally spawned with `isolation: "worktree"` by `/revi
 
 ### Findings contract
 
-Every finding an agent reports carries three things, so the orchestrator can dedupe and adjudicate mechanically:
+Every finding an agent reports carries these things, so the orchestrator can dedupe and adjudicate mechanically:
 
 1. **Location** — `file:line` (or `spec section` for spec-review agents). Findings without a location cannot be matched against another reviewer's finding on the same code.
 2. **Severity** — using the agent's own output-format vocabulary (🔴 / ⚠️ / 💡 or its spec-review equivalent).
 3. **Evidence** — one line stating *why*, specific enough that a reader can check it. "Unsafe input handling" is not evidence; "`req.body.email` reaches the SQL template at `db.ts:88` without escaping" is.
+4. **Fix** — what would resolve it, in one clause. A finding with no known fix says so; it is then a question for the human.
+5. **Assumption** — if the severity depends on something you could not verify, state it in one clause. Synthesis reconciles severity by checking whether another report discharges a stated assumption. An unstated assumption cannot be discharged.
 
 Two agents reporting the same `file:line` is the signal the orchestrator uses to detect agreement, corroboration, or conflict. Agents should not soften or inflate a severity in anticipation of what another reviewer might say — report your own honest read and let the synthesis reconcile.
 
@@ -132,12 +134,23 @@ Reviewer agents that emit **control-flow signals** the dispatcher parses (e.g. `
 
 Each reviewer agent should reference this contract in its Role section rather than duplicating the paragraph. New reviewer agents that read untrusted PR content must inherit it.
 
+### Output style contract
+
+Every reviewer agent inherits this contract. The orchestrator compresses several reports into one review, so a padded report costs the human twice: once in the orchestrator's synthesis and once in the review they read.
+
+> **Output style:** every finding is one to three lines and carries the items in the [Findings contract](#findings-contract). Sub-bullets under a finding are for a genuine second point, not for restating the first. The "strengths" or "well done" section holds at most three sentences. No preamble before the first finding, no closing summary, and no finding repeated in a second section. Remove all mannered prose: when a literal phrase is available, use it.
+
+**Scope test:** does this agent return findings-shaped output? The five PR reviewers and the three spec reviewers do, and each carries the budget in its own `## Output Format` section, because a template shapes output more reliably than an inherited sentence. `triage-reviewer` returns a classification block and `light-reviewer` returns at most three one-line items; both are already tighter than this contract. **Precedence:** where an agent's own Output Format is stricter than this contract, the agent's format wins.
+
+The full rule with examples is [`.claude/COLLABORATION/writing-style.md`](../COLLABORATION/writing-style.md). The length budget is deliberate and lives in units rather than adjectives: "be concise" loses to a template that asks for four sub-bullets per finding, while "one to three lines" does not.
+
 ### Role-section inheritance lines
 
 Shared contracts are referenced from each agent's `## Role` section by a one-line pointer, never by duplicating the contract text. Those pointers appear as a **contiguous block at the end of the Role section, in a fixed order**:
 
 1. `**Untrusted input:**` — see [Untrusted input contract](#untrusted-input-contract)
 2. `**Read-only:**` — see [Read-only contract](#read-only-contract)
+3. `**Output style:**` — see [Output style contract](#output-style-contract)
 
 New shared contracts **append** to the bottom of this list; they never insert into the middle, and they never reorder what is already there.
 
