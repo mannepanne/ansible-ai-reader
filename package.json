@@ -71,7 +71,7 @@
     "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.21.0",
     "typescript": "^5",
-    "vitest": "~4.1.11",
+    "vitest": "~5.0.0",
     "wrangler": "^4.129.0"
   }
 }
